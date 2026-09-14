@@ -1,0 +1,44 @@
+{
+  "subject": "CNN Alerts: My Custom Alert",
+  "from_raw": "CNN Alerts <news@cnn-alerts-fake.com>",
+  "from_display_name": "CNN Alerts",
+  "from_email": "news@cnn-alerts-fake.com",
+  "to": "user6@gvc.ceas-challenge.cc",
+  "reply_to": null,
+  "date": "Wed, 06 Aug 2008 09:12:00 -0700",
+  "message_id": "<csv-row-1@dataset.local>",
+  "all_headers": {
+    "From": [
+      "CNN Alerts <news@cnn-alerts-fake.com>"
+    ],
+    "To": [
+      "user6@gvc.ceas-challenge.cc"
+    ],
+    "Subject": [
+      "CNN Alerts: My Custom Alert"
+    ],
+    "Date": [
+      "Wed, 06 Aug 2008 09:12:00 -0700"
+    ],
+    "Message-ID": [
+      "<csv-row-1@dataset.local>"
+    ],
+    "X-Dataset-Label": [
+      "0"
+    ],
+    "X-Extracted-URLs": [
+      "http://cnn.com/alerts"
+    ],
+    "Content-Type": [
+      "text/plain; charset=\"utf-8\""
+    ],
+    "MIME-Version": [
+      "1.0"
+    ]
+  },
+  "body_text": "Your custom news alert is ready. Sign in to view.",
+  "body_html": null,
+  "attachments": [],
+  "source_format": "csv",
+  "parse_warnings": []
+}

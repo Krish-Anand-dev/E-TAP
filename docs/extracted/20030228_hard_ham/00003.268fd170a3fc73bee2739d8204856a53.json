@@ -1,0 +1,45 @@
+{
+  "subject": "Automated 30 day renewal reminder 2002-05-27",
+  "from_raw": "Starflung NIC <nic@starflung.com>",
+  "from_display_name": "Starflung NIC",
+  "from_email": "nic@starflung.com",
+  "to": "zzz@spamassassin.taint.org",
+  "reply_to": null,
+  "date": "Mon, 27 May 2002 21:53:26 -0500",
+  "message_id": "<7910726.0.27May2002215326@mp.opensrs.net>",
+  "all_headers": {
+    "Return-Path": [
+      "7910726.0.27May2002215326@mp.opensrs.net"
+    ],
+    "Delivery-Date": [
+      "Tue May 28 02:53:28 2002"
+    ],
+    "Received": [
+      "from mp.opensrs.net (mp.opensrs.net [216.40.33.45]) by    dogma.slashnull.org (8.11.6/8.11.6) with ESMTP id g4S1rSe14718 for    <zzz@spamassassin.taint.org>; Tue, 28 May 2002 02:53:28 +0100",
+      "(from popensrs@localhost) by mp.opensrs.net (8.9.3/8.9.3) id    VAA04361; Mon, 27 May 2002 21:53:26 -0400"
+    ],
+    "Message-Id": [
+      "<7910726.0.27May2002215326@mp.opensrs.net>"
+    ],
+    "Date": [
+      "Mon, 27 May 2002 21:53:26 -0500"
+    ],
+    "From": [
+      "Starflung NIC <nic@starflung.com>"
+    ],
+    "To": [
+      "zzz@spamassassin.taint.org"
+    ],
+    "Subject": [
+      "Automated 30 day renewal reminder 2002-05-27"
+    ],
+    "X-Keywords": [
+      ""
+    ]
+  },
+  "body_text": "The following domains that are registered as belonging\nto you are due to expire within the next 60 days. If\nyou would like to renew them, please contact\nnic@starflung.com; otherwise they will be deactivated\nand may be registered by another.\n\n\nDomain Name, Expiry Date\nnutmegclothing.com, 2002-06-26\n",
+  "body_html": null,
+  "attachments": [],
+  "source_format": "eml",
+  "parse_warnings": []
+}

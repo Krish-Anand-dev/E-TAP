@@ -1,0 +1,35 @@
+{
+  "subject": "(empty test)",
+  "from_raw": "nobody@example.com",
+  "from_display_name": null,
+  "from_email": "nobody@example.com",
+  "to": "victim@example.com",
+  "reply_to": null,
+  "date": "Tue, 25 Aug 2026 09:00:00 +0000",
+  "message_id": "<empty-body@example.com>",
+  "all_headers": {
+    "From": [
+      "nobody@example.com"
+    ],
+    "To": [
+      "victim@example.com"
+    ],
+    "Subject": [
+      "(empty test)"
+    ],
+    "Date": [
+      "Tue, 25 Aug 2026 09:00:00 +0000"
+    ],
+    "Message-ID": [
+      "<empty-body@example.com>"
+    ],
+    "Content-Type": [
+      "text/plain; charset=\"utf-8\""
+    ]
+  },
+  "body_text": "",
+  "body_html": null,
+  "attachments": [],
+  "source_format": "eml",
+  "parse_warnings": []
+}

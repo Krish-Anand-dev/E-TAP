@@ -1,0 +1,21 @@
+# Raw/labeled email corpora — never commit real phishing/malware samples or large datasets
+samples/Email Dataset for Parser/*
+samples/Phishing Email Dataset For Prateek/*
+!samples/Email Dataset for Parser/README.md
+!samples/Phishing Email Dataset For Prateek/README.md
+*.eml
+*.msg
+*.mbox
+*.tar.bz2
+*.csv
+archive/
+archive(1)/
+backend/ai_engine/data/archive/
+backend/ai_engine/data/archive(1)/
+__pycache__/
+*.pyc
+
+# Local secrets -- each developer's own Gemini API key lives here, never commit
+.env
+*.env
+!.env.example

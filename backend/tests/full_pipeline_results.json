@@ -1,0 +1,3596 @@
+[
+  {
+    "status": "OK",
+    "file": "set01_001.eml",
+    "subject": "Team standup moved to 10:30 tomorrow",
+    "from_email": "priya.nair@northfield-logistics.com",
+    "header_analysis": {
+      "sender_email": "priya.nair@northfield-logistics.com",
+      "display_name": "Priya Nair",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass",
+      "originating_ip": "209.85.220.41",
+      "received_chain": [
+        "from smtp-relay.gmail.com (smtp-relay.gmail.com [209.85.220.41]) by mail.northfield-logistics.com with ESMTPS id 3c9d; Mon, 24 Aug 2026 14:02:05 +0000",
+        "from mail.northfield-logistics.com (mail.northfield-logistics.com [10.20.4.11]) by mx1.northfield-logistics.com with ESMTPS id 7a1b; Mon, 24 Aug 2026 14:02:10 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "northfield-logistics.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_01"
+  },
+  {
+    "status": "OK",
+    "file": "set01_002.eml",
+    "subject": "URGENT: Your mailbox password expires in 2 hours",
+    "from_email": "support@northfield-logisitcs-helpdesk.com",
+    "header_analysis": {
+      "sender_email": "support@northfield-logisitcs-helpdesk.com",
+      "display_name": "IT Helpdesk",
+      "reply_to": "itsupport-noreply@webmail-free-inbox.com",
+      "spf": "fail",
+      "dkim": "fail",
+      "dmarc": "fail",
+      "originating_ip": "185.220.101.47",
+      "received_chain": [
+        "from mail-relay-09.ru (unknown [185.220.101.47]) by mx1.northfield-logistics.com with SMTP id 91fa; Wed, 26 Aug 2026 03:11:40 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "northfield-logisitcs-helpdesk.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": true,
+      "red_flags": [
+        "spf_fail",
+        "dkim_fail",
+        "dmarc_fail",
+        "reply_to_domain_mismatch"
+      ],
+      "risk_indicator_count": 4
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_01"
+  },
+  {
+    "status": "OK",
+    "file": "set01_003.eml",
+    "subject": "You're subscribed: Northfield Ops Weekly",
+    "from_email": "digest@northfield-logistics.com",
+    "header_analysis": {
+      "sender_email": "digest@northfield-logistics.com",
+      "display_name": "Northfield Ops Weekly",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass",
+      "originating_ip": null,
+      "received_chain": [
+        "from digest-svc.northfield-logistics.com (digest-svc.northfield-logistics.com [10.20.6.30]) by mx1.northfield-logistics.com with ESMTPS id 22cd; Thu, 27 Aug 2026 09:00:00 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "northfield-logistics.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_01"
+  },
+  {
+    "status": "OK",
+    "file": "set01_004.eml",
+    "subject": "Overdue Invoice #4471 - Payment Required Today",
+    "from_email": "billing@fast-freight-partners.com",
+    "header_analysis": {
+      "sender_email": "billing@fast-freight-partners.com",
+      "display_name": "Accounts Payable",
+      "reply_to": "ap-response@mail-collect-payments.top",
+      "spf": "softfail",
+      "dkim": "fail",
+      "dmarc": "fail",
+      "originating_ip": "45.155.204.19",
+      "received_chain": [
+        "from mx-out.mail-collect-payments.top (unknown [45.155.204.19]) by mx1.northfield-logistics.com with SMTP id 55aa; Fri, 28 Aug 2026 11:47:15 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "softfail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "fast-freight-partners.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": true,
+      "red_flags": [
+        "spf_softfail",
+        "dkim_fail",
+        "dmarc_fail",
+        "reply_to_domain_mismatch"
+      ],
+      "risk_indicator_count": 4
+    },
+    "attachment_analysis": {
+      "attachments": [
+        {
+          "filename": "Invoice_4471.pdf.exe",
+          "declared_type": "application/pdf",
+          "sha256": null,
+          "size_bytes": 0,
+          "actual_type": "application/x-empty",
+          "type_mismatch": false,
+          "has_macro": false,
+          "suspicious": false,
+          "flags": [
+            "no attachment data present -- could not analyze"
+          ]
+        }
+      ]
+    },
+    "set": "set_01"
+  },
+  {
+    "status": "OK",
+    "file": "set01_005.eml",
+    "subject": "LOSE 30 POUNDS IN 30 DAYS!!! Doctors Are Furious",
+    "from_email": "offers@miracle-slim-fast-deals.biz",
+    "header_analysis": {
+      "sender_email": "offers@miracle-slim-fast-deals.biz",
+      "display_name": "Miracle Slim Deals",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "none",
+      "dmarc": "none",
+      "originating_ip": "103.44.19.201",
+      "received_chain": [
+        "from bulk7.miracle-slim-fast-deals.biz (unknown [103.44.19.201]) by mx1.northfield-logistics.com with SMTP id 71bb; Fri, 28 Aug 2026 22:14:00 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "none",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "none",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "miracle-slim-fast-deals.biz",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_01"
+  },
+  {
+    "status": "CRASHED",
+    "file": "set01_006.msg",
+    "error": "Guid stream missing from named properties.",
+    "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\Krish Anand\\Desktop\\threat-email-platform\\backend\\tests\\run_full_pipeline_test.py\", line 76, in run_pipeline_on_file\n    parsed = parse_any(file_path)\n  File \"C:\\Users\\Krish Anand\\Desktop\\threat-email-platform\\backend\\tests\\..\\email_parser\\unified_parser.py\", line 137, in parse_any\n    return parse_email(file_path)\n  File \"C:\\Users\\Krish Anand\\Desktop\\threat-email-platform\\backend\\tests\\..\\email_parser\\unified_parser.py\", line 75, in parse_email\n    return parse_msg(file_path)\n  File \"C:\\Users\\Krish Anand\\Desktop\\threat-email-platform\\backend\\tests\\..\\email_parser\\msg_parser.py\", line 26, in parse_msg\n    msg = extract_msg.Message(file_path)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\msg_classes\\message_base.py\", line 156, in __init__\n    super().__init__(path, **kwargs)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\msg_classes\\msg.py\", line 237, in __init__\n    self.attachments\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\functools.py\", line 1126, in __get__\n    val = self.func(instance)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\msg_classes\\msg.py\", line 892, in attachments\n    attachments.append(self.initAttachmentFunc(self, attachmentDir))\n                       ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\attachments\\__init__.py\", line 103, in initStandardAttachment\n    return Attachment(msg, dir_, propStore)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\attachments\\attachment.py\", line 39, in __init__\n    super().__init__(msg, dir_, propStore)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\attachments\\attachment_base.py\", line 56, in __init__\n    self.__namedProperties = NamedProperties(msg.named, self)\n                                             ^^^^^^^^^\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\functools.py\", line 1126, in __get__\n    val = self.func(instance)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\msg_classes\\msg.py\", line 1064, in named\n    return Named(self)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\properties\\named.py\", line 67, in __init__\n    raise StandardViolationError('Guid stream missing from named properties.')\nextract_msg.exceptions.StandardViolationError: Guid stream missing from named properties.\n",
+    "set": "set_01"
+  },
+  {
+    "status": "OK",
+    "file": "set01_007.msg",
+    "subject": "Security Alert: Unusual sign-in - account suspended\u0000",
+    "from_email": "security-alert@northfield-creditunion-verify.com",
+    "header_analysis": {
+      "sender_email": "security-alert@northfield-creditunion-verify.com",
+      "display_name": "Northfield Credit Union Security",
+      "reply_to": "verify-team@secure-mailbox-response.top",
+      "spf": "fail",
+      "dkim": "fail",
+      "dmarc": "fail",
+      "originating_ip": "193.106.191.88",
+      "received_chain": [
+        "from unknown (unknown [193.106.191.88])\r\n\tby mx1.northfield-logistics.com with SMTP id 40dd; Sat, 29 Aug 2026 02:47:10 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "northfield-creditunion-verify.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": true,
+      "red_flags": [
+        "spf_fail",
+        "dkim_fail",
+        "dmarc_fail",
+        "reply_to_domain_mismatch"
+      ],
+      "risk_indicator_count": 4
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_01"
+  },
+  {
+    "status": "OK",
+    "file": "set01_008.msg",
+    "subject": "Warehouse B rollout - status update\u0000",
+    "from_email": "marcus.bell@northfield-logistics.com",
+    "header_analysis": {
+      "sender_email": "marcus.bell@northfield-logistics.com",
+      "display_name": "Marcus Bell",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass",
+      "originating_ip": null,
+      "received_chain": [
+        "from mail.northfield-logistics.com (mail.northfield-logistics.com [10.20.4.11])\r\n\tby mx1.northfield-logistics.com with ESMTPS id 9c31; Sat, 29 Aug 2026 15:22:00 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "northfield-logistics.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_01"
+  },
+  {
+    "status": "OK",
+    "file": "set01_009.msg",
+    "subject": "Quick task (urgent, confidential)\u0000",
+    "from_email": "sandra.whitfield@northfield-logisitcs.com",
+    "header_analysis": {
+      "sender_email": "sandra.whitfield@northfield-logisitcs.com",
+      "display_name": "Sandra Whitfield - CEO",
+      "reply_to": "sandra.whitfield.ceo@quickmail-response.net",
+      "spf": "fail",
+      "dkim": "fail",
+      "dmarc": "fail",
+      "originating_ip": "172.98.44.211",
+      "received_chain": [
+        "from unknown (unknown [172.98.44.211])\r\n\tby mx1.northfield-logistics.com with SMTP id 12ff; Sat, 29 Aug 2026 08:03:40 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "northfield-logisitcs.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": true,
+      "red_flags": [
+        "spf_fail",
+        "dkim_fail",
+        "dmarc_fail",
+        "reply_to_domain_mismatch"
+      ],
+      "risk_indicator_count": 4
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_01"
+  },
+  {
+    "status": "OK",
+    "file": "set01_010.msg",
+    "subject": "CONGRATULATIONS!!! You have won $2,500,000.00 USD\u0000",
+    "from_email": "claims@intl-lottery-payout-center.info",
+    "header_analysis": {
+      "sender_email": "claims@intl-lottery-payout-center.info",
+      "display_name": "International Lottery Commission",
+      "reply_to": null,
+      "spf": "fail",
+      "dkim": "none",
+      "dmarc": "fail",
+      "originating_ip": "41.203.18.94",
+      "received_chain": [
+        "from unknown (unknown [41.203.18.94])\r\n\tby mx1.northfield-logistics.com with SMTP id 88cc; Sat, 29 Aug 2026 19:40:05 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "none",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "intl-lottery-payout-center.info",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [
+        "spf_fail",
+        "dmarc_fail"
+      ],
+      "risk_indicator_count": 2
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_01"
+  },
+  {
+    "status": "OK",
+    "file": "set02_001.eml",
+    "subject": "[Ticket #55231] We've received your request",
+    "from_email": "helpdesk@northfield-logistics.com",
+    "header_analysis": {
+      "sender_email": "helpdesk@northfield-logistics.com",
+      "display_name": "Northfield IT Helpdesk",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass",
+      "originating_ip": null,
+      "received_chain": [
+        "from ticketing.northfield-logistics.com (ticketing.northfield-logistics.com [10.20.7.5]) by mx1.northfield-logistics.com with ESMTPS id 10ab; Mon, 31 Aug 2026 08:15:00 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "northfield-logistics.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_02"
+  },
+  {
+    "status": "OK",
+    "file": "set02_002.eml",
+    "subject": "Delivery Failed - Action Required for Package #KX881193",
+    "from_email": "delivery-notice@fedex-tracking-update.com",
+    "header_analysis": {
+      "sender_email": "delivery-notice@fedex-tracking-update.com",
+      "display_name": "FedEx Delivery Services",
+      "reply_to": "no-reply@fedex-tracking-update.com",
+      "spf": "fail",
+      "dkim": "fail",
+      "dmarc": "fail",
+      "originating_ip": "154.16.88.203",
+      "received_chain": [
+        "from unknown (unknown [154.16.88.203]) by mx1.northfield-logistics.com with SMTP id 33cf; Sun, 30 Aug 2026 12:04:52 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "fedex-tracking-update.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [
+        "spf_fail",
+        "dkim_fail",
+        "dmarc_fail"
+      ],
+      "risk_indicator_count": 3
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_02"
+  },
+  {
+    "status": "OK",
+    "file": "set02_003.eml",
+    "subject": "Invite: Vendor QBR - Tuesday 2pm",
+    "from_email": "dave.osei@northfield-logistics.com",
+    "header_analysis": {
+      "sender_email": "dave.osei@northfield-logistics.com",
+      "display_name": "Dave Osei",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass",
+      "originating_ip": null,
+      "received_chain": [
+        "from mail.northfield-logistics.com (mail.northfield-logistics.com [10.20.4.11]) by mx1.northfield-logistics.com with ESMTPS id 44de; Sun, 30 Aug 2026 17:40:00 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "northfield-logistics.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_02"
+  },
+  {
+    "status": "OK",
+    "file": "set02_004.eml",
+    "subject": "Exciting Opportunity - Senior Logistics Analyst (Remote, $145k)",
+    "from_email": "talent.acquisition@career-connect-recruiting.net",
+    "header_analysis": {
+      "sender_email": "talent.acquisition@career-connect-recruiting.net",
+      "display_name": "Jessica Ward - Talent Acquisition",
+      "reply_to": "j.ward.recruiting@fastmail-response.top",
+      "spf": "softfail",
+      "dkim": "fail",
+      "dmarc": "fail",
+      "originating_ip": "91.219.237.61",
+      "received_chain": [
+        "from unknown (unknown [91.219.237.61]) by mx1.northfield-logistics.com with SMTP id 77gh; Sat, 29 Aug 2026 14:19:48 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "softfail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "career-connect-recruiting.net",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": true,
+      "red_flags": [
+        "spf_softfail",
+        "dkim_fail",
+        "dmarc_fail",
+        "reply_to_domain_mismatch"
+      ],
+      "risk_indicator_count": 4
+    },
+    "attachment_analysis": {
+      "attachments": [
+        {
+          "filename": "Job_Description_Application_Form.docm",
+          "declared_type": "application/vnd.ms-word.document.macroenabled.12",
+          "sha256": null,
+          "size_bytes": 0,
+          "actual_type": "application/x-empty",
+          "type_mismatch": false,
+          "has_macro": false,
+          "suspicious": false,
+          "flags": [
+            "no attachment data present -- could not analyze"
+          ]
+        }
+      ]
+    },
+    "set": "set_02"
+  },
+  {
+    "status": "OK",
+    "file": "set02_005.eml",
+    "subject": "Turn $500 into $50,000 in 30 days - Guaranteed Returns!",
+    "from_email": "opportunity@crypto-wealth-builder-pro.biz",
+    "header_analysis": {
+      "sender_email": "opportunity@crypto-wealth-builder-pro.biz",
+      "display_name": "Crypto Wealth Builder",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "none",
+      "dmarc": "none",
+      "originating_ip": null,
+      "received_chain": [
+        "from bulk-mail-14.crypto-wealth-builder-pro.biz (unknown [198.51.100.77]) by mx1.northfield-logistics.com with SMTP id 88ij; Sat, 29 Aug 2026 23:58:50 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "none",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "none",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "crypto-wealth-builder-pro.biz",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_02"
+  },
+  {
+    "status": "CRASHED",
+    "file": "set02_006.msg",
+    "error": "Guid stream missing from named properties.",
+    "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\Krish Anand\\Desktop\\threat-email-platform\\backend\\tests\\run_full_pipeline_test.py\", line 76, in run_pipeline_on_file\n    parsed = parse_any(file_path)\n  File \"C:\\Users\\Krish Anand\\Desktop\\threat-email-platform\\backend\\tests\\..\\email_parser\\unified_parser.py\", line 137, in parse_any\n    return parse_email(file_path)\n  File \"C:\\Users\\Krish Anand\\Desktop\\threat-email-platform\\backend\\tests\\..\\email_parser\\unified_parser.py\", line 75, in parse_email\n    return parse_msg(file_path)\n  File \"C:\\Users\\Krish Anand\\Desktop\\threat-email-platform\\backend\\tests\\..\\email_parser\\msg_parser.py\", line 26, in parse_msg\n    msg = extract_msg.Message(file_path)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\msg_classes\\message_base.py\", line 156, in __init__\n    super().__init__(path, **kwargs)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\msg_classes\\msg.py\", line 237, in __init__\n    self.attachments\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\functools.py\", line 1126, in __get__\n    val = self.func(instance)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\msg_classes\\msg.py\", line 892, in attachments\n    attachments.append(self.initAttachmentFunc(self, attachmentDir))\n                       ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\attachments\\__init__.py\", line 103, in initStandardAttachment\n    return Attachment(msg, dir_, propStore)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\attachments\\attachment.py\", line 39, in __init__\n    super().__init__(msg, dir_, propStore)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\attachments\\attachment_base.py\", line 56, in __init__\n    self.__namedProperties = NamedProperties(msg.named, self)\n                                             ^^^^^^^^^\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\functools.py\", line 1126, in __get__\n    val = self.func(instance)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\msg_classes\\msg.py\", line 1064, in named\n    return Named(self)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\properties\\named.py\", line 67, in __init__\n    raise StandardViolationError('Guid stream missing from named properties.')\nextract_msg.exceptions.StandardViolationError: Guid stream missing from named properties.\n",
+    "set": "set_02"
+  },
+  {
+    "status": "OK",
+    "file": "set02_007.msg",
+    "subject": "Action needed: Grant access to continue using Office apps\u0000",
+    "from_email": "msg-center@microsoft-office365-alerts.com",
+    "header_analysis": {
+      "sender_email": "msg-center@microsoft-office365-alerts.com",
+      "display_name": "Microsoft 365 Message Center",
+      "reply_to": "no-reply@microsoft-office365-alerts.com",
+      "spf": "fail",
+      "dkim": "fail",
+      "dmarc": "fail",
+      "originating_ip": null,
+      "received_chain": [
+        "from unknown (unknown [203.0.113.44]) by mx1.northfield-logistics.com with SMTP id 55mn; Sun, 30 Aug 2026 06:29:50 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "microsoft-office365-alerts.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [
+          "microsoft.com"
+        ],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [
+        "spf_fail",
+        "dkim_fail",
+        "dmarc_fail"
+      ],
+      "risk_indicator_count": 3
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_02"
+  },
+  {
+    "status": "OK",
+    "file": "set02_008.msg",
+    "subject": "Re: Confidential - vendor bank details update\u0000",
+    "from_email": "s.whitfield@northfield-logistics-finance.com",
+    "header_analysis": {
+      "sender_email": "s.whitfield@northfield-logistics-finance.com",
+      "display_name": "Sandra Whitfield",
+      "reply_to": "sandra.w.finance@quickmail-response.net",
+      "spf": "fail",
+      "dkim": "fail",
+      "dmarc": "fail",
+      "originating_ip": "45.61.184.22",
+      "received_chain": [
+        "from unknown (unknown [45.61.184.22]) by mx1.northfield-logistics.com with SMTP id 66op; Sun, 30 Aug 2026 20:04:40 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "northfield-logistics-finance.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": true,
+      "red_flags": [
+        "spf_fail",
+        "dkim_fail",
+        "dmarc_fail",
+        "reply_to_domain_mismatch"
+      ],
+      "risk_indicator_count": 4
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_02"
+  },
+  {
+    "status": "OK",
+    "file": "set02_009.msg",
+    "subject": "WARNING: 3 Viruses Detected On Your Computer\u0000",
+    "from_email": "alert@windows-defender-security-notice.info",
+    "header_analysis": {
+      "sender_email": "alert@windows-defender-security-notice.info",
+      "display_name": "Windows Security Center",
+      "reply_to": null,
+      "spf": "fail",
+      "dkim": "none",
+      "dmarc": "fail",
+      "originating_ip": "188.166.44.19",
+      "received_chain": [
+        "from unknown (unknown [188.166.44.19]) by mx1.northfield-logistics.com with SMTP id 99qr; Sun, 30 Aug 2026 04:10:50 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "none",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "windows-defender-security-notice.info",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [
+        "spf_fail",
+        "dmarc_fail"
+      ],
+      "risk_indicator_count": 2
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_02"
+  },
+  {
+    "status": "OK",
+    "file": "set02_010.msg",
+    "subject": "fyi\u0000",
+    "from_email": "marcus.bell@northfield-logistics.com",
+    "header_analysis": {
+      "sender_email": "marcus.bell@northfield-logistics.com",
+      "display_name": "Marcus Bell",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass",
+      "originating_ip": null,
+      "received_chain": [
+        "from mail.northfield-logistics.com (mail.northfield-logistics.com [10.20.4.11]) by mx1.northfield-logistics.com with ESMTPS id 12st; Sun, 30 Aug 2026 21:50:00 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "northfield-logistics.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_02"
+  },
+  {
+    "status": "OK",
+    "file": "set03_001.eml",
+    "subject": "Your order #NF-88213 has shipped",
+    "from_email": "orders@officesupplyhub.com",
+    "header_analysis": {
+      "sender_email": "orders@officesupplyhub.com",
+      "display_name": "Office Supply Hub",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass",
+      "originating_ip": null,
+      "received_chain": [
+        "from mta7.officesupplyhub.com (mta7.officesupplyhub.com [198.51.100.60]) by mx1.northfield-logistics.com with ESMTPS id 71uv; Mon, 31 Aug 2026 09:05:00 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "officesupplyhub.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [
+          "office.com"
+        ],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_03"
+  },
+  {
+    "status": "OK",
+    "file": "set03_002.eml",
+    "subject": "Dave Osei, please DocuSign: Vendor Agreement 2026-Q3.pdf",
+    "from_email": "dse_notify@docusign-esign-secure.com",
+    "header_analysis": {
+      "sender_email": "dse_notify@docusign-esign-secure.com",
+      "display_name": "DocuSign",
+      "reply_to": "no-reply@docusign-esign-secure.com",
+      "spf": "fail",
+      "dkim": "fail",
+      "dmarc": "fail",
+      "originating_ip": "77.83.44.190",
+      "received_chain": [
+        "from unknown (unknown [77.83.44.190]) by mx1.northfield-logistics.com with SMTP id 82wx; Mon, 31 Aug 2026 10:39:44 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "docusign-esign-secure.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [
+          "docusign.com"
+        ],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [
+        "spf_fail",
+        "dkim_fail",
+        "dmarc_fail"
+      ],
+      "risk_indicator_count": 3
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_03"
+  },
+  {
+    "status": "OK",
+    "file": "set03_003.eml",
+    "subject": "August Supply Chain Digest",
+    "from_email": "digest@logisticsweekly.com",
+    "header_analysis": {
+      "sender_email": "digest@logisticsweekly.com",
+      "display_name": "Logistics Weekly",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass",
+      "originating_ip": null,
+      "received_chain": [
+        "from mta3.logisticsweekly.com (mta3.logisticsweekly.com [203.0.113.9]) by mx1.northfield-logistics.com with ESMTPS id 91yz; Mon, 31 Aug 2026 07:00:00 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "logisticsweekly.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_03"
+  },
+  {
+    "status": "OK",
+    "file": "set03_004.eml",
+    "subject": "Application for Warehouse Supervisor - Resume Attached",
+    "from_email": "applicant.portal@jobseeker-uploads.net",
+    "header_analysis": {
+      "sender_email": "applicant.portal@jobseeker-uploads.net",
+      "display_name": "Anthony Reyes",
+      "reply_to": null,
+      "spf": "softfail",
+      "dkim": "fail",
+      "dmarc": "fail",
+      "originating_ip": "102.165.44.71",
+      "received_chain": [
+        "from unknown (unknown [102.165.44.71]) by mx1.northfield-logistics.com with SMTP id 14ab; Mon, 31 Aug 2026 13:14:50 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "softfail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "jobseeker-uploads.net",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [
+        "spf_softfail",
+        "dkim_fail",
+        "dmarc_fail"
+      ],
+      "risk_indicator_count": 3
+    },
+    "attachment_analysis": {
+      "attachments": [
+        {
+          "filename": "Reyes_Resume_Certifications.zip",
+          "declared_type": "application/zip",
+          "sha256": null,
+          "size_bytes": 0,
+          "actual_type": "application/x-empty",
+          "type_mismatch": false,
+          "has_macro": false,
+          "suspicious": false,
+          "flags": [
+            "no attachment data present -- could not analyze"
+          ]
+        }
+      ]
+    },
+    "set": "set_03"
+  },
+  {
+    "status": "OK",
+    "file": "set03_005.eml",
+    "subject": "Cheap Meds - No Prescription Needed - 70% OFF Today",
+    "from_email": "deals@discount-meds-online-pharmacy.ru",
+    "header_analysis": {
+      "sender_email": "deals@discount-meds-online-pharmacy.ru",
+      "display_name": "Discount Pharmacy Direct",
+      "reply_to": null,
+      "spf": "fail",
+      "dkim": "none",
+      "dmarc": "fail",
+      "originating_ip": "5.188.10.44",
+      "received_chain": [
+        "from mail7.discount-meds-online-pharmacy.ru (unknown [5.188.10.44]) by mx1.northfield-logistics.com with SMTP id 25cd; Mon, 31 Aug 2026 02:29:50 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "none",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "discount-meds-online-pharmacy.ru",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [
+        "spf_fail",
+        "dmarc_fail"
+      ],
+      "risk_indicator_count": 2
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_03"
+  },
+  {
+    "status": "OK",
+    "file": "set03_006.msg",
+    "subject": "Office closed Monday Sept 7 - Labor Day\u0000",
+    "from_email": "facilities@northfield-logistics.com",
+    "header_analysis": {
+      "sender_email": "facilities@northfield-logistics.com",
+      "display_name": "Facilities Team",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass",
+      "originating_ip": null,
+      "received_chain": [
+        "from mail.northfield-logistics.com (mail.northfield-logistics.com [10.20.4.11]) by mx1.northfield-logistics.com with ESMTPS id 31ef; Mon, 31 Aug 2026 11:00:00 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "northfield-logistics.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_03"
+  },
+  {
+    "status": "CRASHED",
+    "file": "set03_007.msg",
+    "error": "Guid stream missing from named properties.",
+    "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\Krish Anand\\Desktop\\threat-email-platform\\backend\\tests\\run_full_pipeline_test.py\", line 76, in run_pipeline_on_file\n    parsed = parse_any(file_path)\n  File \"C:\\Users\\Krish Anand\\Desktop\\threat-email-platform\\backend\\tests\\..\\email_parser\\unified_parser.py\", line 137, in parse_any\n    return parse_email(file_path)\n  File \"C:\\Users\\Krish Anand\\Desktop\\threat-email-platform\\backend\\tests\\..\\email_parser\\unified_parser.py\", line 75, in parse_email\n    return parse_msg(file_path)\n  File \"C:\\Users\\Krish Anand\\Desktop\\threat-email-platform\\backend\\tests\\..\\email_parser\\msg_parser.py\", line 26, in parse_msg\n    msg = extract_msg.Message(file_path)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\msg_classes\\message_base.py\", line 156, in __init__\n    super().__init__(path, **kwargs)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\msg_classes\\msg.py\", line 237, in __init__\n    self.attachments\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\functools.py\", line 1126, in __get__\n    val = self.func(instance)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\msg_classes\\msg.py\", line 892, in attachments\n    attachments.append(self.initAttachmentFunc(self, attachmentDir))\n                       ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\attachments\\__init__.py\", line 103, in initStandardAttachment\n    return Attachment(msg, dir_, propStore)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\attachments\\attachment.py\", line 39, in __init__\n    super().__init__(msg, dir_, propStore)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\attachments\\attachment_base.py\", line 56, in __init__\n    self.__namedProperties = NamedProperties(msg.named, self)\n                                             ^^^^^^^^^\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\functools.py\", line 1126, in __get__\n    val = self.func(instance)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\msg_classes\\msg.py\", line 1064, in named\n    return Named(self)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\properties\\named.py\", line 67, in __init__\n    raise StandardViolationError('Guid stream missing from named properties.')\nextract_msg.exceptions.StandardViolationError: Guid stream missing from named properties.\n",
+    "set": "set_03"
+  },
+  {
+    "status": "OK",
+    "file": "set03_008.msg",
+    "subject": "Notice of Unclaimed Tax Refund - Action Required\u0000",
+    "from_email": "refunds@revenue-service-gov-notices.org",
+    "header_analysis": {
+      "sender_email": "refunds@revenue-service-gov-notices.org",
+      "display_name": "Revenue Service Refund Dept.",
+      "reply_to": "refund-claims@quick-response-inbox.top",
+      "spf": "fail",
+      "dkim": "fail",
+      "dmarc": "fail",
+      "originating_ip": "154.16.202.9",
+      "received_chain": [
+        "from unknown (unknown [154.16.202.9]) by mx1.northfield-logistics.com with SMTP id 53ij; Mon, 31 Aug 2026 17:59:50 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "revenue-service-gov-notices.org",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": true,
+      "red_flags": [
+        "spf_fail",
+        "dkim_fail",
+        "dmarc_fail",
+        "reply_to_domain_mismatch"
+      ],
+      "risk_indicator_count": 4
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_03"
+  },
+  {
+    "status": "OK",
+    "file": "set03_009.msg",
+    "subject": "Help Disaster Relief Victims - Every Dollar Counts\u0000",
+    "from_email": "donate@global-relief-giving-fund.org",
+    "header_analysis": {
+      "sender_email": "donate@global-relief-giving-fund.org",
+      "display_name": "Global Relief Fund",
+      "reply_to": null,
+      "spf": "fail",
+      "dkim": "none",
+      "dmarc": "fail",
+      "originating_ip": "196.201.44.8",
+      "received_chain": [
+        "from unknown (unknown [196.201.44.8]) by mx1.northfield-logistics.com with SMTP id 64kl; Mon, 31 Aug 2026 20:44:50 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "none",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "global-relief-giving-fund.org",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [
+        "spf_fail",
+        "dmarc_fail"
+      ],
+      "risk_indicator_count": 2
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_03"
+  },
+  {
+    "status": "OK",
+    "file": "set03_010.msg",
+    "subject": "Re: Warehouse B rollout - status update\u0000",
+    "from_email": "dave.osei@northfield-logistics.com",
+    "header_analysis": {
+      "sender_email": "dave.osei@northfield-logistics.com",
+      "display_name": "Dave Osei",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass",
+      "originating_ip": null,
+      "received_chain": [
+        "from mail.northfield-logistics.com (mail.northfield-logistics.com [10.20.4.11]) by mx1.northfield-logistics.com with ESMTPS id 75mn; Mon, 31 Aug 2026 15:50:00 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "northfield-logistics.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_03"
+  },
+  {
+    "status": "OK",
+    "file": "set04_001.eml",
+    "subject": "Reminder: 2 expense reports pending submission",
+    "from_email": "expenses-noreply@northfield-logistics.com",
+    "header_analysis": {
+      "sender_email": "expenses-noreply@northfield-logistics.com",
+      "display_name": "Expense System",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass",
+      "originating_ip": null,
+      "received_chain": [
+        "from expenses-app.northfield-logistics.com (expenses-app.northfield-logistics.com [10.20.9.14]) by mx1.northfield-logistics.com with ESMTPS id 11ab; Tue, 01 Sep 2026 07:00:00 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "northfield-logistics.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_04"
+  },
+  {
+    "status": "OK",
+    "file": "set04_002.eml",
+    "subject": "Re: Warehouse B rollout - need you to check this login",
+    "from_email": "marcus.bell@northfield-logisitcs.com",
+    "header_analysis": {
+      "sender_email": "marcus.bell@northfield-logisitcs.com",
+      "display_name": "Marcus Bell",
+      "reply_to": "marcus.bell.it@webmail-quickreply.top",
+      "spf": "fail",
+      "dkim": "fail",
+      "dmarc": "fail",
+      "originating_ip": "185.220.102.8",
+      "received_chain": [
+        "from unknown (unknown [185.220.102.8]) by mx1.northfield-logistics.com with SMTP id 22cd; Tue, 01 Sep 2026 09:11:45 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "northfield-logisitcs.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": true,
+      "red_flags": [
+        "spf_fail",
+        "dkim_fail",
+        "dmarc_fail",
+        "reply_to_domain_mismatch"
+      ],
+      "risk_indicator_count": 4
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_04"
+  },
+  {
+    "status": "OK",
+    "file": "set04_003.eml",
+    "subject": "Nightly backup completed successfully - db-prod-02",
+    "from_email": "monitoring@northfield-logistics.com",
+    "header_analysis": {
+      "sender_email": "monitoring@northfield-logistics.com",
+      "display_name": "Infra Monitoring",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass",
+      "originating_ip": null,
+      "received_chain": [
+        "from monitor01.northfield-logistics.com (monitor01.northfield-logistics.com [10.20.11.2]) by mx1.northfield-logistics.com with ESMTPS id 33ef; Tue, 01 Sep 2026 03:00:05 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "northfield-logistics.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_04"
+  },
+  {
+    "status": "OK",
+    "file": "set04_004.eml",
+    "subject": "Critical: Your browser is out of date and vulnerable",
+    "from_email": "update-notice@browser-security-update-center.com",
+    "header_analysis": {
+      "sender_email": "update-notice@browser-security-update-center.com",
+      "display_name": "Browser Security Update",
+      "reply_to": null,
+      "spf": "fail",
+      "dkim": "fail",
+      "dmarc": "fail",
+      "originating_ip": "45.148.10.77",
+      "received_chain": [
+        "from unknown (unknown [45.148.10.77]) by mx1.northfield-logistics.com with SMTP id 44gh; Tue, 01 Sep 2026 12:32:50 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "browser-security-update-center.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [
+        "spf_fail",
+        "dkim_fail",
+        "dmarc_fail"
+      ],
+      "risk_indicator_count": 3
+    },
+    "attachment_analysis": {
+      "attachments": [
+        {
+          "filename": "BrowserUpdate_Critical.pdf.scr",
+          "declared_type": "application/pdf",
+          "sha256": null,
+          "size_bytes": 0,
+          "actual_type": "application/x-empty",
+          "type_mismatch": false,
+          "has_macro": false,
+          "suspicious": false,
+          "flags": [
+            "no attachment data present -- could not analyze"
+          ]
+        }
+      ]
+    },
+    "set": "set_04"
+  },
+  {
+    "status": "OK",
+    "file": "set04_005.eml",
+    "subject": "You've Been Selected! Claim Your Free Truck Giveaway Entry",
+    "from_email": "winners@mega-truck-giveaway-2026.biz",
+    "header_analysis": {
+      "sender_email": "winners@mega-truck-giveaway-2026.biz",
+      "display_name": "Mega Truck Giveaway",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "none",
+      "dmarc": "none",
+      "originating_ip": null,
+      "received_chain": [
+        "from bulk-relay.mega-truck-giveaway-2026.biz (unknown [192.0.2.150]) by mx1.northfield-logistics.com with SMTP id 55ij; Tue, 01 Sep 2026 23:09:50 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "none",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "none",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "mega-truck-giveaway-2026.biz",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_04"
+  },
+  {
+    "status": "OK",
+    "file": "set04_006.msg",
+    "subject": "Scheduled maintenance: WMS will be offline Sat 12am-2am\u0000",
+    "from_email": "itops@northfield-logistics.com",
+    "header_analysis": {
+      "sender_email": "itops@northfield-logistics.com",
+      "display_name": "IT Operations",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass",
+      "originating_ip": null,
+      "received_chain": [
+        "from mail.northfield-logistics.com (mail.northfield-logistics.com [10.20.4.11]) by mx1.northfield-logistics.com with ESMTPS id 66kl; Tue, 01 Sep 2026 10:00:00 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "northfield-logistics.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_04"
+  },
+  {
+    "status": "OK",
+    "file": "set04_007.msg",
+    "subject": "Cheryl Tan shared \"Q3 Contract Renewal.pdf\" with you\u0000",
+    "from_email": "no-reply@docs-shareportal-secure.com",
+    "header_analysis": {
+      "sender_email": "no-reply@docs-shareportal-secure.com",
+      "display_name": "Shared Documents",
+      "reply_to": null,
+      "spf": "fail",
+      "dkim": "fail",
+      "dmarc": "fail",
+      "originating_ip": "79.124.62.19",
+      "received_chain": [
+        "from unknown (unknown [79.124.62.19]) by mx1.northfield-logistics.com with SMTP id 77mn; Tue, 01 Sep 2026 14:17:48 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "docs-shareportal-secure.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [
+        "spf_fail",
+        "dkim_fail",
+        "dmarc_fail"
+      ],
+      "risk_indicator_count": 3
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_04"
+  },
+  {
+    "status": "CRASHED",
+    "file": "set04_008.msg",
+    "error": "Guid stream missing from named properties.",
+    "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\Krish Anand\\Desktop\\threat-email-platform\\backend\\tests\\run_full_pipeline_test.py\", line 76, in run_pipeline_on_file\n    parsed = parse_any(file_path)\n  File \"C:\\Users\\Krish Anand\\Desktop\\threat-email-platform\\backend\\tests\\..\\email_parser\\unified_parser.py\", line 137, in parse_any\n    return parse_email(file_path)\n  File \"C:\\Users\\Krish Anand\\Desktop\\threat-email-platform\\backend\\tests\\..\\email_parser\\unified_parser.py\", line 75, in parse_email\n    return parse_msg(file_path)\n  File \"C:\\Users\\Krish Anand\\Desktop\\threat-email-platform\\backend\\tests\\..\\email_parser\\msg_parser.py\", line 26, in parse_msg\n    msg = extract_msg.Message(file_path)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\msg_classes\\message_base.py\", line 156, in __init__\n    super().__init__(path, **kwargs)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\msg_classes\\msg.py\", line 237, in __init__\n    self.attachments\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\functools.py\", line 1126, in __get__\n    val = self.func(instance)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\msg_classes\\msg.py\", line 892, in attachments\n    attachments.append(self.initAttachmentFunc(self, attachmentDir))\n                       ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\attachments\\__init__.py\", line 103, in initStandardAttachment\n    return Attachment(msg, dir_, propStore)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\attachments\\attachment.py\", line 39, in __init__\n    super().__init__(msg, dir_, propStore)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\attachments\\attachment_base.py\", line 56, in __init__\n    self.__namedProperties = NamedProperties(msg.named, self)\n                                             ^^^^^^^^^\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\functools.py\", line 1126, in __get__\n    val = self.func(instance)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\msg_classes\\msg.py\", line 1064, in named\n    return Named(self)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\properties\\named.py\", line 67, in __init__\n    raise StandardViolationError('Guid stream missing from named properties.')\nextract_msg.exceptions.StandardViolationError: Guid stream missing from named properties.\n",
+    "set": "set_04"
+  },
+  {
+    "status": "OK",
+    "file": "set04_009.msg",
+    "subject": "Regarding Your Late Relative's Estate - Urgent\u0000",
+    "from_email": "m.oseiadjei@legal-estate-consultants.info",
+    "header_analysis": {
+      "sender_email": "m.oseiadjei@legal-estate-consultants.info",
+      "display_name": "Barrister Michael Osei-Adjei",
+      "reply_to": null,
+      "spf": "fail",
+      "dkim": "none",
+      "dmarc": "fail",
+      "originating_ip": "102.89.44.17",
+      "received_chain": [
+        "from unknown (unknown [102.89.44.17]) by mx1.northfield-logistics.com with SMTP id 99qr; Tue, 01 Sep 2026 21:29:50 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "none",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "legal-estate-consultants.info",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [
+        "spf_fail",
+        "dmarc_fail"
+      ],
+      "risk_indicator_count": 2
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_04"
+  },
+  {
+    "status": "CRASHED",
+    "file": "set04_010.msg",
+    "error": "Guid stream missing from named properties.",
+    "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\Krish Anand\\Desktop\\threat-email-platform\\backend\\tests\\run_full_pipeline_test.py\", line 76, in run_pipeline_on_file\n    parsed = parse_any(file_path)\n  File \"C:\\Users\\Krish Anand\\Desktop\\threat-email-platform\\backend\\tests\\..\\email_parser\\unified_parser.py\", line 137, in parse_any\n    return parse_email(file_path)\n  File \"C:\\Users\\Krish Anand\\Desktop\\threat-email-platform\\backend\\tests\\..\\email_parser\\unified_parser.py\", line 75, in parse_email\n    return parse_msg(file_path)\n  File \"C:\\Users\\Krish Anand\\Desktop\\threat-email-platform\\backend\\tests\\..\\email_parser\\msg_parser.py\", line 26, in parse_msg\n    msg = extract_msg.Message(file_path)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\msg_classes\\message_base.py\", line 156, in __init__\n    super().__init__(path, **kwargs)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\msg_classes\\msg.py\", line 237, in __init__\n    self.attachments\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\functools.py\", line 1126, in __get__\n    val = self.func(instance)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\msg_classes\\msg.py\", line 892, in attachments\n    attachments.append(self.initAttachmentFunc(self, attachmentDir))\n                       ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\attachments\\__init__.py\", line 103, in initStandardAttachment\n    return Attachment(msg, dir_, propStore)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\attachments\\attachment.py\", line 39, in __init__\n    super().__init__(msg, dir_, propStore)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\attachments\\attachment_base.py\", line 56, in __init__\n    self.__namedProperties = NamedProperties(msg.named, self)\n                                             ^^^^^^^^^\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\functools.py\", line 1126, in __get__\n    val = self.func(instance)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\msg_classes\\msg.py\", line 1064, in named\n    return Named(self)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\properties\\named.py\", line 67, in __init__\n    raise StandardViolationError('Guid stream missing from named properties.')\nextract_msg.exceptions.StandardViolationError: Guid stream missing from named properties.\n",
+    "set": "set_04"
+  },
+  {
+    "status": "OK",
+    "file": "set05_001.eml",
+    "subject": "Your order from Riverside Deli is on its way",
+    "from_email": "orders@quickbite-delivery.com",
+    "header_analysis": {
+      "sender_email": "orders@quickbite-delivery.com",
+      "display_name": "QuickBite Delivery",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass",
+      "originating_ip": null,
+      "received_chain": [
+        "from mta2.quickbite-delivery.com (mta2.quickbite-delivery.com [198.51.100.90]) by mx1.northfield-logistics.com with ESMTPS id 10aa; Wed, 02 Sep 2026 12:05:00 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "quickbite-delivery.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_05"
+  },
+  {
+    "status": "OK",
+    "file": "set05_002.eml",
+    "subject": "You missed a Zoom meeting - view recording",
+    "from_email": "no-reply@zoom-meetings-notify.com",
+    "header_analysis": {
+      "sender_email": "no-reply@zoom-meetings-notify.com",
+      "display_name": "Zoom",
+      "reply_to": "support@zoom-meetings-notify.com",
+      "spf": "fail",
+      "dkim": "fail",
+      "dmarc": "fail",
+      "originating_ip": "193.29.107.44",
+      "received_chain": [
+        "from unknown (unknown [193.29.107.44]) by mx1.northfield-logistics.com with SMTP id 20bb; Wed, 02 Sep 2026 13:19:48 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "zoom-meetings-notify.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [
+        "spf_fail",
+        "dkim_fail",
+        "dmarc_fail"
+      ],
+      "risk_indicator_count": 3
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_05"
+  },
+  {
+    "status": "OK",
+    "file": "set05_003.eml",
+    "subject": "Debit card purchase alert: $34.12 at Office Supply Hub",
+    "from_email": "alerts@firstcapital-bank.com",
+    "header_analysis": {
+      "sender_email": "alerts@firstcapital-bank.com",
+      "display_name": "First Capital Bank Alerts",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass",
+      "originating_ip": null,
+      "received_chain": [
+        "from alerts.firstcapital-bank.com (alerts.firstcapital-bank.com [203.0.113.201]) by mx1.northfield-logistics.com with ESMTPS id 30cc; Wed, 02 Sep 2026 14:02:00 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "firstcapital-bank.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_05"
+  },
+  {
+    "status": "OK",
+    "file": "set05_004.eml",
+    "subject": "Update to my direct deposit info",
+    "from_email": "dave.osei@northfield-logisitcs.com",
+    "header_analysis": {
+      "sender_email": "dave.osei@northfield-logisitcs.com",
+      "display_name": "Dave Osei",
+      "reply_to": "dave.osei.payroll@quickmail-response.top",
+      "spf": "fail",
+      "dkim": "fail",
+      "dmarc": "fail",
+      "originating_ip": "45.61.184.90",
+      "received_chain": [
+        "from unknown (unknown [45.61.184.90]) by mx1.northfield-logistics.com with SMTP id 40dd; Wed, 02 Sep 2026 08:43:48 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "northfield-logisitcs.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": true,
+      "red_flags": [
+        "spf_fail",
+        "dkim_fail",
+        "dmarc_fail",
+        "reply_to_domain_mismatch"
+      ],
+      "risk_indicator_count": 4
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_05"
+  },
+  {
+    "status": "OK",
+    "file": "set05_005.eml",
+    "subject": "Your booking is confirmed - Flight NF2281",
+    "from_email": "confirmations@skyroute-airlines.com",
+    "header_analysis": {
+      "sender_email": "confirmations@skyroute-airlines.com",
+      "display_name": "SkyRoute Airlines",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass",
+      "originating_ip": null,
+      "received_chain": [
+        "from mta9.skyroute-airlines.com (mta9.skyroute-airlines.com [198.51.100.140]) by mx1.northfield-logistics.com with ESMTPS id 50ee; Wed, 02 Sep 2026 09:30:00 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "skyroute-airlines.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_05"
+  },
+  {
+    "status": "OK",
+    "file": "set05_006.eml",
+    "subject": "Your Antivirus Total Protection subscription has renewed - $389.99",
+    "from_email": "billing@securashield-antivirus.com",
+    "header_analysis": {
+      "sender_email": "billing@securashield-antivirus.com",
+      "display_name": "SecuraShield Billing",
+      "reply_to": "billing-support@mail-collect-payments.top",
+      "spf": "fail",
+      "dkim": "fail",
+      "dmarc": "fail",
+      "originating_ip": "154.16.44.201",
+      "received_chain": [
+        "from unknown (unknown [154.16.44.201]) by mx1.northfield-logistics.com with SMTP id 60ff; Wed, 02 Sep 2026 06:14:48 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "securashield-antivirus.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": true,
+      "red_flags": [
+        "spf_fail",
+        "dkim_fail",
+        "dmarc_fail",
+        "reply_to_domain_mismatch"
+      ],
+      "risk_indicator_count": 4
+    },
+    "attachment_analysis": {
+      "attachments": [
+        {
+          "filename": "Invoice_9921.pdf.exe",
+          "declared_type": "application/pdf",
+          "sha256": null,
+          "size_bytes": 0,
+          "actual_type": "application/x-empty",
+          "type_mismatch": false,
+          "has_macro": false,
+          "suspicious": false,
+          "flags": [
+            "no attachment data present -- could not analyze"
+          ]
+        }
+      ]
+    },
+    "set": "set_05"
+  },
+  {
+    "status": "OK",
+    "file": "set05_007.eml",
+    "subject": "Receipt: WMS Barcode Module annual license",
+    "from_email": "billing@scanflow-wms.com",
+    "header_analysis": {
+      "sender_email": "billing@scanflow-wms.com",
+      "display_name": "ScanFlow Billing",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass",
+      "originating_ip": null,
+      "received_chain": [
+        "from billing.scanflow-wms.com (billing.scanflow-wms.com [198.51.100.77]) by mx1.northfield-logistics.com with ESMTPS id 70gg; Wed, 02 Sep 2026 10:05:00 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "scanflow-wms.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": [
+        {
+          "filename": "receipt_4471.pdf",
+          "declared_type": "application/pdf",
+          "sha256": null,
+          "size_bytes": 0,
+          "actual_type": "application/x-empty",
+          "type_mismatch": false,
+          "has_macro": false,
+          "suspicious": false,
+          "flags": [
+            "no attachment data present -- could not analyze"
+          ]
+        }
+      ]
+    },
+    "set": "set_05"
+  },
+  {
+    "status": "OK",
+    "file": "set05_008.eml",
+    "subject": "Cheryl Tan wants to connect with you on LinkedIn",
+    "from_email": "notifications@linkedin-connect-network.com",
+    "header_analysis": {
+      "sender_email": "notifications@linkedin-connect-network.com",
+      "display_name": "LinkedIn",
+      "reply_to": null,
+      "spf": "fail",
+      "dkim": "fail",
+      "dmarc": "fail",
+      "originating_ip": "91.219.237.90",
+      "received_chain": [
+        "from unknown (unknown [91.219.237.90]) by mx1.northfield-logistics.com with SMTP id 80hh; Wed, 02 Sep 2026 15:49:48 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "linkedin-connect-network.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [
+          "linkedin.com"
+        ],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [
+        "spf_fail",
+        "dkim_fail",
+        "dmarc_fail"
+      ],
+      "risk_indicator_count": 3
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_05"
+  },
+  {
+    "status": "OK",
+    "file": "set05_009.eml",
+    "subject": "Fire drill scheduled - Thursday 10am",
+    "from_email": "facilities@northfield-logistics.com",
+    "header_analysis": {
+      "sender_email": "facilities@northfield-logistics.com",
+      "display_name": "Facilities Team",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass",
+      "originating_ip": null,
+      "received_chain": [
+        "from mail.northfield-logistics.com (mail.northfield-logistics.com [10.20.4.11]) by mx1.northfield-logistics.com with ESMTPS id 90ii; Wed, 02 Sep 2026 11:00:00 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "northfield-logistics.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_05"
+  },
+  {
+    "status": "OK",
+    "file": "set05_010.eml",
+    "subject": "You have received a new fax document (3 pages)",
+    "from_email": "fax-service@efax-inbox-delivery.com",
+    "header_analysis": {
+      "sender_email": "fax-service@efax-inbox-delivery.com",
+      "display_name": "eFax Service",
+      "reply_to": null,
+      "spf": "fail",
+      "dkim": "fail",
+      "dmarc": "fail",
+      "originating_ip": "102.165.44.90",
+      "received_chain": [
+        "from unknown (unknown [102.165.44.90]) by mx1.northfield-logistics.com with SMTP id 11jj; Wed, 02 Sep 2026 07:21:48 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "efax-inbox-delivery.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [
+        "spf_fail",
+        "dkim_fail",
+        "dmarc_fail"
+      ],
+      "risk_indicator_count": 3
+    },
+    "attachment_analysis": {
+      "attachments": [
+        {
+          "filename": "Fax_Document_88213.tiff",
+          "declared_type": "image/tiff",
+          "sha256": null,
+          "size_bytes": 0,
+          "actual_type": "application/x-empty",
+          "type_mismatch": false,
+          "has_macro": false,
+          "suspicious": false,
+          "flags": [
+            "no attachment data present -- could not analyze"
+          ]
+        }
+      ]
+    },
+    "set": "set_05"
+  },
+  {
+    "status": "OK",
+    "file": "set05_011.eml",
+    "subject": "You're registered: Modern Warehousing Summit 2026",
+    "from_email": "registration@warehousingsummit.com",
+    "header_analysis": {
+      "sender_email": "registration@warehousingsummit.com",
+      "display_name": "Modern Warehousing Summit",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass",
+      "originating_ip": null,
+      "received_chain": [
+        "from mta4.warehousingsummit.com (mta4.warehousingsummit.com [198.51.100.55]) by mx1.northfield-logistics.com with ESMTPS id 21kk; Wed, 02 Sep 2026 16:40:00 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "warehousingsummit.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": [
+        {
+          "filename": "badge_confirmation.pdf",
+          "declared_type": "application/pdf",
+          "sha256": null,
+          "size_bytes": 0,
+          "actual_type": "application/x-empty",
+          "type_mismatch": false,
+          "has_macro": false,
+          "suspicious": false,
+          "flags": [
+            "no attachment data present -- could not analyze"
+          ]
+        }
+      ]
+    },
+    "set": "set_05"
+  },
+  {
+    "status": "OK",
+    "file": "set05_012.eml",
+    "subject": "Quit your job - I'm making $12k/month selling THIS drink",
+    "from_email": "opportunity@vitalboost-independent-rep.biz",
+    "header_analysis": {
+      "sender_email": "opportunity@vitalboost-independent-rep.biz",
+      "display_name": "Jenna - VitalBoost Rep",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "none",
+      "dmarc": "none",
+      "originating_ip": null,
+      "received_chain": [
+        "from bulk3.vitalboost-independent-rep.biz (unknown [192.0.2.204]) by mx1.northfield-logistics.com with SMTP id 31ll; Wed, 02 Sep 2026 19:04:50 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "none",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "none",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "vitalboost-independent-rep.biz",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_05"
+  },
+  {
+    "status": "OK",
+    "file": "set05_013.eml",
+    "subject": "NOTICE: You are required to appear - Case #2026-CV-88213",
+    "from_email": "clerk@district-court-notifications.org",
+    "header_analysis": {
+      "sender_email": "clerk@district-court-notifications.org",
+      "display_name": "District Court Clerk",
+      "reply_to": "clerk-response@quick-response-inbox.top",
+      "spf": "fail",
+      "dkim": "fail",
+      "dmarc": "fail",
+      "originating_ip": "45.148.10.201",
+      "received_chain": [
+        "from unknown (unknown [45.148.10.201]) by mx1.northfield-logistics.com with SMTP id 41mm; Wed, 02 Sep 2026 05:29:48 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "district-court-notifications.org",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": true,
+      "red_flags": [
+        "spf_fail",
+        "dkim_fail",
+        "dmarc_fail",
+        "reply_to_domain_mismatch"
+      ],
+      "risk_indicator_count": 4
+    },
+    "attachment_analysis": {
+      "attachments": [
+        {
+          "filename": "Summons_Case88213.docm",
+          "declared_type": "application/vnd.ms-word.document.macroenabled.12",
+          "sha256": null,
+          "size_bytes": 0,
+          "actual_type": "application/x-empty",
+          "type_mismatch": false,
+          "has_macro": false,
+          "suspicious": false,
+          "flags": [
+            "no attachment data present -- could not analyze"
+          ]
+        }
+      ]
+    },
+    "set": "set_05"
+  },
+  {
+    "status": "OK",
+    "file": "set05_014.eml",
+    "subject": "Automatic reply: Re: Vendor QBR notes",
+    "from_email": "marcus.bell@northfield-logistics.com",
+    "header_analysis": {
+      "sender_email": "marcus.bell@northfield-logistics.com",
+      "display_name": "Marcus Bell",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass",
+      "originating_ip": null,
+      "received_chain": [
+        "from mail.northfield-logistics.com (mail.northfield-logistics.com [10.20.4.11]) by mx1.northfield-logistics.com with ESMTPS id 51nn; Wed, 02 Sep 2026 08:05:00 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "northfield-logistics.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_05"
+  },
+  {
+    "status": "OK",
+    "file": "set05_015.eml",
+    "subject": "Luxury Watches 90% Off - Same Look, Fraction of the Price",
+    "from_email": "sales@luxetime-replica-direct.biz",
+    "header_analysis": {
+      "sender_email": "sales@luxetime-replica-direct.biz",
+      "display_name": "LuxeTime Direct",
+      "reply_to": null,
+      "spf": "fail",
+      "dkim": "none",
+      "dmarc": "fail",
+      "originating_ip": null,
+      "received_chain": [
+        "from bulk-relay.luxetime-replica-direct.biz (unknown [192.0.2.88]) by mx1.northfield-logistics.com with SMTP id 61oo; Wed, 02 Sep 2026 22:39:50 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "none",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "luxetime-replica-direct.biz",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [
+        "spf_fail",
+        "dmarc_fail"
+      ],
+      "risk_indicator_count": 2
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_05"
+  },
+  {
+    "status": "OK",
+    "file": "set05_016.msg",
+    "subject": "Registration confirmed: Cold Chain Logistics Webinar\u0000",
+    "from_email": "events@coldchainlogistics-webinars.com",
+    "header_analysis": {
+      "sender_email": "events@coldchainlogistics-webinars.com",
+      "display_name": "Webinar Team",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass",
+      "originating_ip": null,
+      "received_chain": [
+        "from mta1.coldchainlogistics-webinars.com (mta1.coldchainlogistics-webinars.com [198.51.100.44]) by mx1.northfield-logistics.com with ESMTPS id 71pp; Wed, 02 Sep 2026 11:30:00 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "coldchainlogistics-webinars.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_05"
+  },
+  {
+    "status": "CRASHED",
+    "file": "set05_017.msg",
+    "error": "Guid stream missing from named properties.",
+    "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\Krish Anand\\Desktop\\threat-email-platform\\backend\\tests\\run_full_pipeline_test.py\", line 76, in run_pipeline_on_file\n    parsed = parse_any(file_path)\n  File \"C:\\Users\\Krish Anand\\Desktop\\threat-email-platform\\backend\\tests\\..\\email_parser\\unified_parser.py\", line 137, in parse_any\n    return parse_email(file_path)\n  File \"C:\\Users\\Krish Anand\\Desktop\\threat-email-platform\\backend\\tests\\..\\email_parser\\unified_parser.py\", line 75, in parse_email\n    return parse_msg(file_path)\n  File \"C:\\Users\\Krish Anand\\Desktop\\threat-email-platform\\backend\\tests\\..\\email_parser\\msg_parser.py\", line 26, in parse_msg\n    msg = extract_msg.Message(file_path)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\msg_classes\\message_base.py\", line 156, in __init__\n    super().__init__(path, **kwargs)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\msg_classes\\msg.py\", line 237, in __init__\n    self.attachments\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\functools.py\", line 1126, in __get__\n    val = self.func(instance)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\msg_classes\\msg.py\", line 892, in attachments\n    attachments.append(self.initAttachmentFunc(self, attachmentDir))\n                       ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\attachments\\__init__.py\", line 103, in initStandardAttachment\n    return Attachment(msg, dir_, propStore)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\attachments\\attachment.py\", line 39, in __init__\n    super().__init__(msg, dir_, propStore)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\attachments\\attachment_base.py\", line 56, in __init__\n    self.__namedProperties = NamedProperties(msg.named, self)\n                                             ^^^^^^^^^\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\functools.py\", line 1126, in __get__\n    val = self.func(instance)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\msg_classes\\msg.py\", line 1064, in named\n    return Named(self)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\properties\\named.py\", line 67, in __init__\n    raise StandardViolationError('Guid stream missing from named properties.')\nextract_msg.exceptions.StandardViolationError: Guid stream missing from named properties.\n",
+    "set": "set_05"
+  },
+  {
+    "status": "OK",
+    "file": "set05_018.msg",
+    "subject": "Your expense report \"August travel\" was approved\u0000",
+    "from_email": "expenses-noreply@northfield-logistics.com",
+    "header_analysis": {
+      "sender_email": "expenses-noreply@northfield-logistics.com",
+      "display_name": "Expense System",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass",
+      "originating_ip": null,
+      "received_chain": [
+        "from expenses-app.northfield-logistics.com (expenses-app.northfield-logistics.com [10.20.9.14]) by mx1.northfield-logistics.com with ESMTPS id 91rr; Wed, 02 Sep 2026 13:00:00 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "northfield-logistics.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_05"
+  },
+  {
+    "status": "OK",
+    "file": "set05_019.msg",
+    "subject": "ScanFlow Support: we need remote access to fix your scanner error\u0000",
+    "from_email": "support@scanflow-wms-support.com",
+    "header_analysis": {
+      "sender_email": "support@scanflow-wms-support.com",
+      "display_name": "ScanFlow Technical Support",
+      "reply_to": null,
+      "spf": "fail",
+      "dkim": "fail",
+      "dmarc": "fail",
+      "originating_ip": "188.166.201.201",
+      "received_chain": [
+        "from unknown (unknown [188.166.201.201]) by mx1.northfield-logistics.com with SMTP id 12ss; Wed, 02 Sep 2026 10:49:48 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "scanflow-wms-support.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [
+        "spf_fail",
+        "dkim_fail",
+        "dmarc_fail"
+      ],
+      "risk_indicator_count": 3
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_05"
+  },
+  {
+    "status": "OK",
+    "file": "set05_020.msg",
+    "subject": "Sign up for the Friday potluck!\u0000",
+    "from_email": "priya.nair@northfield-logistics.com",
+    "header_analysis": {
+      "sender_email": "priya.nair@northfield-logistics.com",
+      "display_name": "Priya Nair",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass",
+      "originating_ip": null,
+      "received_chain": [
+        "from mail.northfield-logistics.com (mail.northfield-logistics.com [10.20.4.11]) by mx1.northfield-logistics.com with ESMTPS id 22tt; Wed, 02 Sep 2026 14:30:00 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "northfield-logistics.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_05"
+  },
+  {
+    "status": "OK",
+    "file": "set05_021.msg",
+    "subject": "VPN password expires today - reconnect required\u0000",
+    "from_email": "vpn-support@northfield-logisitcs.com",
+    "header_analysis": {
+      "sender_email": "vpn-support@northfield-logisitcs.com",
+      "display_name": "VPN Access Team",
+      "reply_to": null,
+      "spf": "fail",
+      "dkim": "fail",
+      "dmarc": "fail",
+      "originating_ip": "185.220.101.90",
+      "received_chain": [
+        "from unknown (unknown [185.220.101.90]) by mx1.northfield-logistics.com with SMTP id 32uu; Wed, 02 Sep 2026 05:59:48 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "northfield-logisitcs.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [
+        "spf_fail",
+        "dkim_fail",
+        "dmarc_fail"
+      ],
+      "risk_indicator_count": 3
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_05"
+  },
+  {
+    "status": "OK",
+    "file": "set05_022.msg",
+    "subject": "ScanFlow WMS v4.2 patch notes - minor bug fixes\u0000",
+    "from_email": "updates@scanflow-wms.com",
+    "header_analysis": {
+      "sender_email": "updates@scanflow-wms.com",
+      "display_name": "ScanFlow Product Team",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass",
+      "originating_ip": null,
+      "received_chain": [
+        "from mta6.scanflow-wms.com (mta6.scanflow-wms.com [198.51.100.66]) by mx1.northfield-logistics.com with ESMTPS id 42vv; Wed, 02 Sep 2026 15:10:00 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "scanflow-wms.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_05"
+  },
+  {
+    "status": "OK",
+    "file": "set05_023.msg",
+    "subject": "Complete our 2-minute survey and get a $50 gift card\u0000",
+    "from_email": "surveys@northfield-logisitcs-hr.com",
+    "header_analysis": {
+      "sender_email": "surveys@northfield-logisitcs-hr.com",
+      "display_name": "Employee Experience Team",
+      "reply_to": null,
+      "spf": "fail",
+      "dkim": "fail",
+      "dmarc": "fail",
+      "originating_ip": "196.201.44.90",
+      "received_chain": [
+        "from unknown (unknown [196.201.44.90]) by mx1.northfield-logistics.com with SMTP id 52ww; Wed, 02 Sep 2026 17:24:48 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "northfield-logisitcs-hr.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [
+        "spf_fail",
+        "dkim_fail",
+        "dmarc_fail"
+      ],
+      "risk_indicator_count": 3
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_05"
+  },
+  {
+    "status": "CRASHED",
+    "file": "set05_024.msg",
+    "error": "Guid stream missing from named properties.",
+    "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\Krish Anand\\Desktop\\threat-email-platform\\backend\\tests\\run_full_pipeline_test.py\", line 76, in run_pipeline_on_file\n    parsed = parse_any(file_path)\n  File \"C:\\Users\\Krish Anand\\Desktop\\threat-email-platform\\backend\\tests\\..\\email_parser\\unified_parser.py\", line 137, in parse_any\n    return parse_email(file_path)\n  File \"C:\\Users\\Krish Anand\\Desktop\\threat-email-platform\\backend\\tests\\..\\email_parser\\unified_parser.py\", line 75, in parse_email\n    return parse_msg(file_path)\n  File \"C:\\Users\\Krish Anand\\Desktop\\threat-email-platform\\backend\\tests\\..\\email_parser\\msg_parser.py\", line 26, in parse_msg\n    msg = extract_msg.Message(file_path)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\msg_classes\\message_base.py\", line 156, in __init__\n    super().__init__(path, **kwargs)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\msg_classes\\msg.py\", line 237, in __init__\n    self.attachments\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\functools.py\", line 1126, in __get__\n    val = self.func(instance)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\msg_classes\\msg.py\", line 892, in attachments\n    attachments.append(self.initAttachmentFunc(self, attachmentDir))\n                       ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\attachments\\__init__.py\", line 103, in initStandardAttachment\n    return Attachment(msg, dir_, propStore)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\attachments\\attachment.py\", line 39, in __init__\n    super().__init__(msg, dir_, propStore)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\attachments\\attachment_base.py\", line 56, in __init__\n    self.__namedProperties = NamedProperties(msg.named, self)\n                                             ^^^^^^^^^\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\functools.py\", line 1126, in __get__\n    val = self.func(instance)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\msg_classes\\msg.py\", line 1064, in named\n    return Named(self)\n  File \"C:\\Users\\Krish Anand\\AppData\\Local\\Python\\pythoncore-3.14-64\\Lib\\site-packages\\extract_msg\\properties\\named.py\", line 67, in __init__\n    raise StandardViolationError('Guid stream missing from named properties.')\nextract_msg.exceptions.StandardViolationError: Guid stream missing from named properties.\n",
+    "set": "set_05"
+  },
+  {
+    "status": "OK",
+    "file": "set05_025.msg",
+    "subject": "This penny stock is about to EXPLODE - buy before Monday\u0000",
+    "from_email": "alerts@apex-stock-picks-daily.biz",
+    "header_analysis": {
+      "sender_email": "alerts@apex-stock-picks-daily.biz",
+      "display_name": "Apex Stock Alerts",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "none",
+      "dmarc": "none",
+      "originating_ip": null,
+      "received_chain": [
+        "from bulk-relay.apex-stock-picks-daily.biz (unknown [192.0.2.66]) by mx1.northfield-logistics.com with SMTP id 72yy; Wed, 02 Sep 2026 20:14:50 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "none",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "none",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "apex-stock-picks-daily.biz",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_05"
+  },
+  {
+    "status": "OK",
+    "file": "set05_026.msg",
+    "subject": "Adobe Acrobat Pro subscription expiring - renew to keep access\u0000",
+    "from_email": "account@adobe-subscription-center.com",
+    "header_analysis": {
+      "sender_email": "account@adobe-subscription-center.com",
+      "display_name": "Adobe Account Team",
+      "reply_to": "billing@adobe-subscription-center.com",
+      "spf": "fail",
+      "dkim": "fail",
+      "dmarc": "fail",
+      "originating_ip": "41.222.19.90",
+      "received_chain": [
+        "from unknown (unknown [41.222.19.90]) by mx1.northfield-logistics.com with SMTP id 82zz; Wed, 02 Sep 2026 07:49:48 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "adobe-subscription-center.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [
+          "adobe.com"
+        ],
+        "display_name_domain_mismatch": true,
+        "flags": [
+          "display_name_claims_adobe.com_but_domain_is_adobe-subscription-center.com"
+        ]
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [
+        "spf_fail",
+        "dkim_fail",
+        "dmarc_fail",
+        "display_name_claims_adobe.com_but_domain_is_adobe-subscription-center.com"
+      ],
+      "risk_indicator_count": 4
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_05"
+  },
+  {
+    "status": "OK",
+    "file": "set05_027.msg",
+    "subject": "quick q\u0000",
+    "from_email": "marcus.bell@northfield-logistics.com",
+    "header_analysis": {
+      "sender_email": "marcus.bell@northfield-logistics.com",
+      "display_name": "Marcus Bell",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass",
+      "originating_ip": null,
+      "received_chain": [
+        "from mail.northfield-logistics.com (mail.northfield-logistics.com [10.20.4.11]) by mx1.northfield-logistics.com with ESMTPS id 92aab; Wed, 02 Sep 2026 16:05:00 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "northfield-logistics.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_05"
+  },
+  {
+    "status": "OK",
+    "file": "set05_028.msg",
+    "subject": "FINAL NOTICE: Your vehicle warranty is about to expire\u0000",
+    "from_email": "notice@auto-warranty-protection-center.biz",
+    "header_analysis": {
+      "sender_email": "notice@auto-warranty-protection-center.biz",
+      "display_name": "Auto Protection Center",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "none",
+      "dmarc": "none",
+      "originating_ip": null,
+      "received_chain": [
+        "from bulk9.auto-warranty-protection-center.biz (unknown [192.0.2.180]) by mx1.northfield-logistics.com with SMTP id 02bbc; Wed, 02 Sep 2026 18:29:50 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "none",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "none",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "auto-warranty-protection-center.biz",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_05"
+  },
+  {
+    "status": "OK",
+    "file": "set05_029.msg",
+    "subject": "USPS: A customs fee of $2.99 is required to release your package\u0000",
+    "from_email": "delivery@usps-shipment-tracking.com",
+    "header_analysis": {
+      "sender_email": "delivery@usps-shipment-tracking.com",
+      "display_name": "USPS Delivery",
+      "reply_to": null,
+      "spf": "fail",
+      "dkim": "fail",
+      "dmarc": "fail",
+      "originating_ip": "77.83.44.201",
+      "received_chain": [
+        "from unknown (unknown [77.83.44.201]) by mx1.northfield-logistics.com with SMTP id 12ccd; Wed, 02 Sep 2026 20:59:48 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "fail",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "usps-shipment-tracking.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [
+        "spf_fail",
+        "dkim_fail",
+        "dmarc_fail"
+      ],
+      "risk_indicator_count": 3
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_05"
+  },
+  {
+    "status": "OK",
+    "file": "set05_030.msg",
+    "subject": "Warehouse rooftop solar - free feasibility assessment\u0000",
+    "from_email": "ben.carter@brightpath-solar-commercial.com",
+    "header_analysis": {
+      "sender_email": "ben.carter@brightpath-solar-commercial.com",
+      "display_name": "Ben Carter",
+      "reply_to": null,
+      "spf": "pass",
+      "dkim": "pass",
+      "dmarc": "pass",
+      "originating_ip": null,
+      "received_chain": [
+        "from mail.brightpath-solar-commercial.com (mail.brightpath-solar-commercial.com [198.51.100.33]) by mx1.northfield-logistics.com with ESMTPS id 22dde; Wed, 02 Sep 2026 09:55:00 +0000"
+      ],
+      "auth_details": {
+        "spf": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dkim": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        },
+        "dmarc": {
+          "verdict": "pass",
+          "source": "header_reported",
+          "details": null
+        }
+      },
+      "domain_analysis": {
+        "domain": "brightpath-solar-commercial.com",
+        "is_punycode": false,
+        "decoded_punycode": null,
+        "homograph_suspected": false,
+        "lookalike_brand": null,
+        "display_name_brand_mentions": [],
+        "display_name_domain_mismatch": false,
+        "flags": []
+      },
+      "reply_to_mismatch": false,
+      "red_flags": [],
+      "risk_indicator_count": 0
+    },
+    "attachment_analysis": {
+      "attachments": []
+    },
+    "set": "set_05"
+  }
+]

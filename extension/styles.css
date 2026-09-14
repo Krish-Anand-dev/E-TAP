@@ -1,0 +1,60 @@
+/* styles.css */
+
+.phishguard-banner {
+    padding: 12px 16px;
+    margin: 10px 0 20px 0;
+    border-radius: 8px;
+    font-family: "Google Sans", Roboto, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 9999;
+    border-left: 6px solid #ccc;
+}
+
+.banner-red {
+    background-color: #fde8e8;
+    color: #9b1c1c;
+    border-left-color: #e02424;
+}
+
+.banner-yellow {
+    background-color: #fdf6b2;
+    color: #723b13;
+    border-left-color: #d3d3d3; /* Fallback */
+    border-left-color: #faca15;
+}
+
+.banner-green {
+    background-color: #def7ec;
+    color: #03543f;
+    border-left-color: #31c48d;
+}
+
+.banner-loading {
+    background-color: #e1effe;
+    color: #1e429f;
+    border-left-color: #3f83f8;
+    font-weight: bold;
+}
+
+.phishguard-btn {
+    background-color: rgba(255, 255, 255, 0.8);
+    color: inherit;
+    text-decoration: none;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 12px;
+    border: 1px solid currentColor;
+    margin-left: 15px;
+    white-space: nowrap;
+}
+
+.phishguard-btn:hover {
+    background-color: rgba(255, 255, 255, 1);
+    text-decoration: underline;
+}

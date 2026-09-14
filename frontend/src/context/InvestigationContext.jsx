@@ -1,0 +1,414 @@
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { analyzeEmailFile, checkBackendHealth, fetchInvestigation } from '../api/analyze';
+
+const InvestigationContext = createContext(null);
+
+const STORAGE_KEY = 'phishguard_investigations_history_v1';
+
+// Exact schema reference sample for testing & fallback demos
+export const SAMPLE_REPORT = {
+  email_id: "urn:uuid:7f3b0e12-4c21-482a-9e23-74b8c9d01234",
+  risk_score: 91,
+  verdict: "HIGH-RISK PHISHING",
+  email: {
+    subject: "URGENT: Payroll Account Verification Required Immediately",
+    from_raw: "Finance Support <service@payro11-internal.com>",
+    from_display_name: "Finance Support",
+    from_email: "service@payro11-internal.com",
+    to: "victim.employee@enterprise-target.org",
+    reply_to: "recovery-desk@external-relay-box.ru",
+    date: "Mon, 07 Sep 2026 02:45:12 +0530",
+    message_id: "<20260907024512.4382.91023@payro11-internal.com>",
+    source_format: "eml",
+    body_text: "Dear Employee,\n\nWe detected unauthorized access attempts on your corporate payroll profile. If you do not re-authenticate your banking credentials within 24 hours, direct deposit will be frozen.\n\nPlease review the attached secure invoice document and click the link below to verify your identity:\nhttp://payro11-internal.com/login/auth-session?token=94821a\n\nIT Security & Payroll Operations",
+    body_html: "<p>Dear Employee,</p><p>We detected unauthorized access attempts on your corporate payroll profile. If you do not re-authenticate your banking credentials within 24 hours, direct deposit will be frozen.</p><p>Please review the attached secure invoice document and verify your identity.</p>",
+    parse_warnings: []
+  },
+  headers: {
+    sender_email: "service@payro11-internal.com",
+    display_name: "Finance Support",
+    reply_to: "recovery-desk@external-relay-box.ru",
+    spf: "fail",
+    dkim: "none",
+    dmarc: "fail",
+    originating_ip: "185.220.101.5",
+    received_chain: [
+      "from mail.external-relay-box.ru (185.220.101.5) by edge-mx01.target.org with ESMTP",
+      "from internal-sender.local ([10.4.1.99]) by mail.external-relay-box.ru with SMTP"
+    ],
+    red_flags: [
+      "SPF failure: IP 185.220.101.5 is not authorized for domain payro11-internal.com",
+      "DMARC failure: policy is reject but message bypassed gateway",
+      "Severe Reply-To mismatch: Sender is payro11-internal.com but replies route to external-relay-box.ru",
+      "Punycode / Lookalike domain permutation detected (payro11 vs payroll)"
+    ]
+  },
+  attachments: [
+    {
+      filename: "DirectDeposit_Update_Form.pdf.exe",
+      sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      declared_type: "application/pdf",
+      actual_type: "application/x-msdownload",
+      type_mismatch: true,
+      has_macro: false,
+      suspicious: true
+    }
+  ],
+  iocs: {
+    ips: ["185.220.101.5", "91.240.118.17"],
+    domains: ["payro11-internal.com", "external-relay-box.ru"],
+    urls: ["http://payro11-internal.com/login/auth-session?token=94821a"],
+    hashes: ["e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"]
+  },
+  threat_intel: {
+    ip_reputation: {
+      "185.220.101.5": { malicious: true, reports: 68, country: "RU" },
+      "91.240.118.17": { malicious: true, reports: 34, country: "MD" }
+    },
+    domain_info: {
+      "payro11-internal.com": { age_days: 2, registrar: "NiceNIC International Group Ltd" },
+      "external-relay-box.ru": { age_days: 14, registrar: "Reg.ru LLC" }
+    },
+    url_reputation: {
+      "http://payro11-internal.com/login/auth-session?token=94821a": { malicious: true }
+    },
+    geo: [
+      { ip: "185.220.101.5", lat: 55.7558, lon: 37.6173, country: "RU" },
+      { ip: "91.240.118.17", lat: 47.0105, lon: 28.8638, country: "MD" }
+    ]
+  },
+  correlation: {
+    email_id: "urn:uuid:7f3b0e12-4c21-482a-9e23-74b8c9d01234",
+    related_emails: ["msg-campaign-fin-001", "msg-campaign-fin-004"],
+    campaign_id: "CAMPAIGN-FIN-HARVEST-2026",
+    shared_infrastructure: ["185.220.101.5", "payro11-internal.com"]
+  },
+  graph_diffusion: {
+    available: true,
+    diffusion_score: 0.7425,
+    hops_used: 3,
+    nearest_seed_distance: 1,
+    contributing_seeds: ["185.220.101.5", "payro11-internal.com"],
+    node_scores: {
+      "urn:uuid:7f3b0e12-4c21-482a-9e23-74b8c9d01234": 0.7425,
+      "185.220.101.5": 1.0,
+      "91.240.118.17": 1.0,
+      "payro11-internal.com": 0.825,
+      "external-relay-box.ru": 0.584,
+      "http://payro11-internal.com/login/auth-session?token=94821a": 0.875,
+      "CAMPAIGN-FIN-HARVEST-2026": 0.912,
+      "msg-campaign-fin-001": 0.684,
+      "msg-campaign-fin-004": 0.651,
+      "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855": 0.62
+    },
+    explanation: "1 hop(s) from flagged malicious seed '185.220.101.5' via [communicates_with_ip]"
+  },
+  ai_analysis: {
+    content_classification: {
+      content_verdict: "Likely Malicious",
+      confidence: 0.96,
+      attack_type: "Credential Phishing / BEC",
+      categories: [
+        { name: "Credential Phishing", weight: 92 },
+        { name: "Executive/Authority Impersonation", weight: 85 },
+        { name: "Urgency / Financial Coercion", weight: 88 }
+      ],
+      reasons: [
+        "Strong psychological urgency demanding banking verification within 24 hours under threat of frozen payroll",
+        "Executive identity spoofing mimicking internal finance operations",
+        "Call to action routes to a newly-registered typo-squatted domain"
+      ],
+      suspicious_indicators: [
+        "Unregistered lookalike domain 'payro11-internal.com'",
+        "High urgency language ('Immediately', 'within 24 hours', 'frozen')",
+        "Executable masked with double extension .pdf.exe"
+      ]
+    },
+    final_assessment: {
+      verdict: "HIGH-RISK PHISHING",
+      risk_score: 91,
+      confidence: 0.94,
+      explanation: "This email constitutes an active targeted credential harvesting attack combined with a high-threat executable payload. SPF, DKIM, and DMARC authentication all failed or were missing, and the reply-to header points to an anomalous Russian bulletproof relay host. The domain was registered fewer than 3 days ago. The attached file masks a Windows PE executable behind a deceptive .pdf.exe double extension.",
+      evidence_assessments: [
+        { source: "Header Authentication", risk_score: 95, summary: "SPF fail, DMARC fail, and severe Reply-To mismatch", evidence: ["SPF fail", "Reply-To mismatch"] },
+        { source: "Attachment Forensics", risk_score: 98, summary: "Executable binary masked as a PDF document", evidence: ["application/x-msdownload", "double extension"] },
+        { source: "Domain & WHOIS Intel", risk_score: 89, summary: "Domain registered 2 days ago via privacy proxy", evidence: ["age_days: 2"] },
+        { source: "IP Reputation & Geo", risk_score: 84, summary: "Originating IP flagged in 68 malicious threat feeds", evidence: ["185.220.101.5 reported"] },
+        { source: "Content & Behavioral AI", risk_score: 92, summary: "High urgency payroll coercion and credential link", evidence: ["Credential harvest intent"] },
+        { source: "Campaign Correlation", risk_score: 80, summary: "Infrastructure overlaps with CAMPAIGN-FIN-HARVEST", evidence: ["Shared IP and domain"] }
+      ],
+      supporting_evidence: [
+        "Authentication failure across all standard RFC email hygiene protocols",
+        "Hostile payload: SHA256 matches malware distribution cluster",
+        "Lookalike domain permutation impersonating internal infrastructure"
+      ],
+      mitre_attack: [
+        {
+          technique: "T1566.002",
+          name: "Phishing: Spearphishing Link",
+          tactic: "Initial Access",
+          confidence: 0.94,
+          evidence: ["Credential harvesting link in email body directing to malicious domain"]
+        },
+        {
+          technique: "T1566.001",
+          name: "Phishing: Spearphishing Attachment",
+          tactic: "Initial Access",
+          confidence: 0.96,
+          evidence: ["Disguised executable attachment DirectDeposit_Update_Form.pdf.exe"]
+        },
+        {
+          technique: "T1036.007",
+          name: "Masquerading: Double Extension",
+          tactic: "Defense Evasion",
+          confidence: 0.98,
+          evidence: ["Attachment uses .pdf.exe extension to deceive end users"]
+        }
+      ],
+      recommended_actions: [
+        "Block domain 'payro11-internal.com' and IP '185.220.101.5' at perimeter firewall and DNS resolver",
+        "Purge message ID '<20260907024512.4382.91023@payro11-internal.com>' from all enterprise mailboxes",
+        "Quarantine recipient host 'victim.employee@enterprise-target.org' and verify if attachment was executed",
+        "Revoke existing Active Directory session tokens for affected recipient"
+      ]
+    }
+  },
+  stage_status: {
+    A: "complete",
+    B: "complete",
+    B2: "complete",
+    D: "complete",
+    E: "live",
+    F: "complete",
+    G: "gemini",
+    H: "complete"
+  }
+};
+
+export function InvestigationProvider({ children }) {
+  // Status: 'idle' | 'uploading' | 'analyzing' | 'success' | 'error'
+  const [status, setStatus] = useState('idle');
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [activeFile, setActiveFile] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [backendOnline, setBackendOnline] = useState(null);
+  const [lastHealthCheck, setLastHealthCheck] = useState(null);
+  const [history, setHistory] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Check backend connectivity on mount and recurring timer every 15s with jitter debounce
+  useEffect(() => {
+    let mounted = true;
+    let failCount = 0;
+
+    const runCheck = async () => {
+      const isUp = await checkBackendHealth();
+      if (!mounted) return;
+
+      if (isUp) {
+        failCount = 0;
+        setBackendOnline(true);
+        setLastHealthCheck(new Date());
+      } else {
+        failCount += 1;
+        // Require 2 consecutive failed pings before marking offline to avoid transient network jitter
+        if (failCount >= 2) {
+          setBackendOnline(false);
+          setLastHealthCheck(new Date());
+        }
+      }
+    };
+
+    runCheck();
+    const interval = setInterval(runCheck, 15000);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Save successful analyses to history
+  const persistInvestigation = (report, filename) => {
+    try {
+      const record = {
+        id: report.email_id || `rec_${Date.now()}`,
+        filename: filename || 'suspicious_sample.eml',
+        subject: report.email?.subject || 'Unknown Subject',
+        from: report.email?.from_email || report.headers?.sender_email || 'Unknown',
+        risk_score: report.risk_score ?? 0,
+        verdict: report.verdict || 'UNKNOWN',
+        analyzed_at: new Date().toISOString(),
+        report,
+      };
+
+      setHistory((prev) => {
+        const updated = [record, ...prev.filter((item) => item.id !== record.id)].slice(0, 50);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+        return updated;
+      });
+    } catch (err) {
+      console.warn('Failed to save to local history:', err);
+    }
+  };
+
+  /**
+   * Upload and execute investigation pipeline on the backend
+   */
+  const startAnalysis = async (file) => {
+    if (!file) return;
+
+    setStatus('uploading');
+    setError(null);
+    setActiveFile({
+      name: file.name,
+      size: file.size,
+      lastModified: file.lastModified,
+    });
+    setUploadProgress(0);
+
+    try {
+      setStatus('analyzing');
+      const result = await analyzeEmailFile(file, (progressEvent) => {
+        if (progressEvent.total) {
+          const pct = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(pct);
+        }
+      });
+
+      setData(result);
+      setStatus('success');
+      persistInvestigation(result, file.name);
+    } catch (err) {
+      console.error('Analysis failed:', err);
+      setStatus('error');
+      let message = err.response?.data?.detail;
+      if (!message) {
+        if (err.message === 'Network Error' || !err.response || err.response?.status === 502) {
+          message = 'Unable to reach forensic backend. The cloud service may be waking up from free-tier sleep (~30-50s cold-start on Render). Please retry in a few moments.';
+        } else {
+          message = err.message || 'Failed to connect to forensic backend service.';
+        }
+      }
+      setError(message);
+    }
+  };
+
+  /**
+   * Load predefined sample report (for rapid evaluation & UI demonstrations)
+   */
+  const loadDemoSample = (sample = SAMPLE_REPORT) => {
+    setStatus('success');
+    setError(null);
+    setActiveFile({
+      name: 'sample_phishing_payroll.eml',
+      size: 42104,
+      lastModified: Date.now(),
+    });
+    setData(sample);
+    persistInvestigation(sample, 'sample_phishing_payroll.eml');
+  };
+
+  /**
+   * Load report from history record or ID
+   */
+  const loadFromHistory = async (record) => {
+    const id = typeof record === 'string' ? record : record.id;
+    if (!id) return;
+
+    setStatus('uploading');
+    
+    try {
+      let reportToLoad = null;
+
+      // 1. Check if it's already a full report object (like Demo Sample)
+      if (typeof record === 'object' && record.report) {
+        reportToLoad = record.report;
+      } else {
+        // 2. Check local storage history for the full report
+        const localRecord = history.find(item => item.id === id);
+        // Only use localRecord if it's a valid mapped report (must have .email object)
+        if (localRecord && localRecord.report && localRecord.report.email) {
+          reportToLoad = localRecord.report;
+        } else {
+          // 3. Not found locally or it's a broken cached version! Fetch from backend
+          reportToLoad = await fetchInvestigation(id);
+          // Auto-save to local history so it appears in the tab
+          persistInvestigation(reportToLoad, 'Network Ingest');
+        }
+      }
+
+      if (reportToLoad) {
+        setData(reportToLoad);
+        setActiveFile({
+          name: reportToLoad.email?.subject || 'Network Ingest',
+          size: 0,
+          lastModified: Date.now(),
+        });
+        setStatus('success');
+        setError(null);
+      }
+    } catch (err) {
+      console.error('Failed to load investigation:', err);
+      setStatus('error');
+      setError('Failed to fetch full investigation report from backend.');
+    }
+  };
+
+  /**
+   * Reset context to upload state
+   */
+  const resetInvestigation = () => {
+    setStatus('idle');
+    setData(null);
+    setError(null);
+    setActiveFile(null);
+    setUploadProgress(0);
+  };
+
+  const clearHistory = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setHistory([]);
+  };
+
+  return (
+    <InvestigationContext.Provider
+      value={{
+        status,
+        data,
+        error,
+        activeFile,
+        uploadProgress,
+        backendOnline,
+        lastHealthCheck,
+        history,
+        startAnalysis,
+        loadDemoSample,
+        loadFromHistory,
+        resetInvestigation,
+        clearHistory,
+        setData,
+        setStatus,
+        setError,
+        setActiveFile,
+        persistInvestigation,
+      }}
+    >
+      {children}
+    </InvestigationContext.Provider>
+  );
+}
+
+export function useInvestigation() {
+  const ctx = useContext(InvestigationContext);
+  if (!ctx) {
+    throw new Error('useInvestigation must be used within an InvestigationProvider');
+  }
+  return ctx;
+}

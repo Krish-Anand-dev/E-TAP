@@ -1,0 +1,267 @@
+/* ==========================================================================
+   REPORT COMPONENTS STYLING
+   ========================================================================== */
+
+/* Verdict Banner */
+.verdict-banner-container {
+  display: flex;
+  align-items: stretch;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.verdict-accent-strip {
+  width: 6px;
+  background-color: var(--verdict-danger);
+  flex-shrink: 0;
+}
+
+.verdict-accent-strip.safe { background-color: var(--verdict-safe); }
+.verdict-accent-strip.caution { background-color: var(--verdict-caution); }
+.verdict-accent-strip.danger { background-color: var(--verdict-danger); }
+
+.verdict-main-content {
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-grow: 1;
+  gap: 24px;
+}
+
+.verdict-text-group {
+  flex-grow: 1;
+}
+
+.verdict-classification-tag {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+  color: var(--text-muted);
+}
+
+.verdict-headline {
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 6px;
+}
+
+.verdict-headline.danger { color: var(--verdict-danger); }
+.verdict-headline.caution { color: var(--verdict-caution); }
+.verdict-headline.safe { color: var(--verdict-safe); }
+
+.verdict-summary-p {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
+  max-width: 800px;
+}
+
+/* Gauge Arc Component */
+.risk-gauge-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 140px;
+}
+
+.gauge-svg {
+  overflow: visible;
+}
+
+.gauge-track {
+  fill: none;
+  stroke: var(--bg-surface-elevated);
+  stroke-width: 8;
+  stroke-linecap: square;
+}
+
+.gauge-fill {
+  fill: none;
+  stroke-width: 8;
+  stroke-linecap: square;
+  transition: stroke-dashoffset 1s ease-out;
+}
+
+.gauge-fill.safe { stroke: var(--verdict-safe); }
+.gauge-fill.caution { stroke: var(--verdict-caution); }
+.gauge-fill.danger { stroke: var(--verdict-danger); }
+
+.gauge-score-text {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 700;
+  fill: var(--text-primary);
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+.gauge-label-text {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  fill: var(--text-muted);
+  text-anchor: middle;
+  text-transform: uppercase;
+}
+
+/* Header Status Light Grid */
+.auth-status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.auth-status-box {
+  background-color: var(--bg-base);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-xs);
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.auth-proto-title {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Hop List */
+.hop-list {
+  list-style: none;
+  border: 1px solid var(--border-hairline);
+  background-color: var(--bg-base);
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+}
+
+.hop-item {
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-hairline);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.hop-item:last-child {
+  border-bottom: none;
+}
+
+.hop-index {
+  color: var(--accent-amber);
+  font-weight: 600;
+  font-size: var(--fs-micro);
+}
+
+/* Red Flags Alert Box */
+.red-flags-list {
+  margin-top: 14px;
+  list-style: none;
+  background-color: rgba(217, 83, 79, 0.05);
+  border: 1px solid rgba(217, 83, 79, 0.3);
+  border-radius: var(--radius-xs);
+  padding: 10px 14px;
+}
+
+.red-flag-item {
+  font-size: var(--fs-xs);
+  color: #F8B4B4;
+  padding: 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.red-flag-item::before {
+  content: '■';
+  font-size: 8px;
+  color: var(--verdict-danger);
+}
+
+/* MITRE ATT&CK Group */
+.mitre-tactic-group {
+  margin-bottom: 14px;
+}
+
+.tactic-heading {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--accent-amber);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  letter-spacing: 0.04em;
+}
+
+.technique-card {
+  background-color: var(--bg-base);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-xs);
+  padding: 12px;
+  margin-bottom: 8px;
+}
+
+.technique-id {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--accent-amber);
+  margin-right: 8px;
+}
+
+.technique-name {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.technique-evidence {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+/* Print Stylesheet */
+@media print {
+  body {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+  }
+  .top-console-header,
+  .dossier-rail,
+  .btn-ghost,
+  .btn-primary-action,
+  .btn-copy-mono {
+    display: none !important;
+  }
+  .dashboard-layout {
+    display: block !important;
+  }
+  .dossier-canvas {
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+  .forensic-panel {
+    background: #FFFFFF !important;
+    border: 1px solid #CCCCCC !important;
+    color: #000000 !important;
+    break-inside: avoid;
+    margin-bottom: 20px !important;
+  }
+  .verdict-headline.danger { color: #CC0000 !important; }
+}

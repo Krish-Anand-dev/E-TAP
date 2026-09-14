@@ -1,0 +1,283 @@
+/* ==========================================================================
+   PHISHGUARD FORENSIC DESIGN SYSTEM
+   Theme: Forensic Laboratory Instrument / SOC Analyst Console
+   ========================================================================== */
+
+:root {
+  /* Color Palette — Lab Instrument */
+  --bg-base: #12151C;
+  --bg-surface: #1B1F2A;
+  --bg-surface-elevated: #222736;
+  --bg-surface-subtle: #171A24;
+  --border-hairline: #2A2F3D;
+  --border-focus: #E8A23D;
+
+  /* Typography Colors */
+  --text-primary: #E8EAF0;
+  --text-secondary: #8B92A5;
+  --text-muted: #5E667E;
+
+  /* Evidence Accent */
+  --accent-amber: #E8A23D;
+  --accent-amber-dim: rgba(232, 162, 61, 0.15);
+
+  /* Semantic Status Indicators (Desaturated, Instrument-grade) */
+  --verdict-safe: #4CAF7D;
+  --verdict-safe-bg: rgba(76, 175, 125, 0.12);
+  --verdict-caution: #E8A23D;
+  --verdict-caution-bg: rgba(232, 162, 61, 0.12);
+  --verdict-danger: #D9534F;
+  --verdict-danger-bg: rgba(217, 83, 79, 0.14);
+
+  /* Typography Families */
+  --font-grotesk: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', Menlo, Consolas, monospace;
+
+  /* Type Scale */
+  --fs-micro: 11px;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-base: 14px;
+  --fs-md: 15px;
+  --fs-lg: 18px;
+  --fs-xl: 22px;
+  --fs-2xl: 28px;
+
+  /* Geometry */
+  --radius-xs: 2px;
+  --radius-sm: 3px;
+  --radius-md: 4px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  min-height: 100vh;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-grotesk);
+  font-size: var(--fs-base);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Monospace Class — strictly for functional data: hashes, IPs, domains, raw headers */
+.font-mono,
+code, pre,
+.mono-val {
+  font-family: var(--font-mono) !important;
+  font-size: 0.9em;
+  letter-spacing: -0.02em;
+}
+
+/* Custom Minimal Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-base);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-hairline);
+  border-radius: var(--radius-xs);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3B4254;
+}
+
+/* Global App Shell */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--bg-base);
+}
+
+/* Top Console Header */
+.top-console-header {
+  height: 52px;
+  background-color: var(--bg-surface);
+  border-bottom: 1px solid var(--border-hairline);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.brand-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-tag {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  background-color: var(--accent-amber-dim);
+  color: var(--accent-amber);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  border: 1px solid rgba(232, 162, 61, 0.3);
+}
+
+.brand-title {
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.brand-subtitle {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  margin-left: 4px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.backend-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+.indicator-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--verdict-safe);
+}
+
+.indicator-dot.offline {
+  background-color: var(--verdict-danger);
+}
+
+.nav-button {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-hairline);
+  padding: 5px 12px;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none;
+}
+
+.nav-button:hover {
+  background-color: var(--bg-surface-elevated);
+  color: var(--text-primary);
+  border-color: #3B4254;
+}
+
+.nav-button.active {
+  background-color: var(--bg-surface-elevated);
+  color: var(--accent-amber);
+  border-color: var(--accent-amber);
+}
+
+/* Panel Containers */
+.forensic-panel {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  padding: 18px;
+}
+
+.forensic-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.panel-title-group {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.panel-title {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.panel-subtitle {
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+}
+
+/* Semantic Status Badges (Desaturated, Instrument-panel status) */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: var(--radius-xs);
+  border: 1px solid transparent;
+  text-transform: uppercase;
+}
+
+.status-pill.safe,
+.status-pill.pass {
+  background-color: var(--verdict-safe-bg);
+  color: var(--verdict-safe);
+  border-color: rgba(76, 175, 125, 0.35);
+}
+
+.status-pill.caution,
+.status-pill.warning {
+  background-color: var(--verdict-caution-bg);
+  color: var(--verdict-caution);
+  border-color: rgba(232, 162, 61, 0.35);
+}
+
+.status-pill.danger,
+.status-pill.fail,
+.status-pill.malicious {
+  background-color: var(--verdict-danger-bg);
+  color: var(--verdict-danger);
+  border-color: rgba(217, 83, 79, 0.35);
+}
+
+.status-pill.neutral,
+.status-pill.none {
+  background-color: var(--bg-surface-elevated);
+  color: var(--text-secondary);
+  border-color: var(--border-hairline);
+}
+
+/* Interactive Elements */
+button, input, select {
+  font-family: inherit;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent-amber);
+  outline-offset: 1px;
+}

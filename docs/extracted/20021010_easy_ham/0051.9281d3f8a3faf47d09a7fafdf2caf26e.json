@@ -1,0 +1,80 @@
+{
+  "subject": "[ILUG] Re: Sun Solaris",
+  "from_raw": "Mark Twomey <bauwolf@indigo.ie>",
+  "from_display_name": "Mark Twomey",
+  "from_email": "bauwolf@indigo.ie",
+  "to": "ilug@linux.ie",
+  "reply_to": null,
+  "date": "Thu, 22 Aug 2002 22:25:12 +0100",
+  "message_id": "<A49FCAEE-B615-11D6-9F96-000393679BE4@indigo.ie>",
+  "all_headers": {
+    "Return-Path": [
+      "<ilug-admin@linux.ie>"
+    ],
+    "Delivered-To": [
+      "zzzz@localhost.netnoteinc.com"
+    ],
+    "Received": [
+      "from localhost (localhost [127.0.0.1])\tby phobos.labs.netnoteinc.com (Postfix) with ESMTP id 7D6804416D\tfor <zzzz@localhost>; Fri, 23 Aug 2002 06:06:34 -0400 (EDT)",
+      "from phobos [127.0.0.1]\tby localhost with IMAP (fetchmail-5.9.0)\tfor zzzz@localhost (single-drop); Fri, 23 Aug 2002 11:06:34 +0100 (IST)",
+      "from lugh.tuatha.org (root@lugh.tuatha.org [194.125.145.45]) by    dogma.slashnull.org (8.11.6/8.11.6) with ESMTP id g7MLTQZ25658 for    <zzzz-ilug@example.com>; Thu, 22 Aug 2002 22:29:26 +0100",
+      "from lugh (root@localhost [127.0.0.1]) by lugh.tuatha.org    (8.9.3/8.9.3) with ESMTP id WAA23320; Thu, 22 Aug 2002 22:26:40 +0100",
+      "from relay06.indigo.ie (relay06.indigo.ie [194.125.133.230]) by    lugh.tuatha.org (8.9.3/8.9.3) with SMTP id WAA23285 for <ilug@linux.ie>;    Thu, 22 Aug 2002 22:26:30 +0100",
+      "(qmail 8720 messnum 1046742 invoked from    network[194.125.156.67/unknown]); 22 Aug 2002 21:26:29 -0000",
+      "from unknown (HELO localhost) (194.125.156.67) by    relay06.indigo.ie (qp 8720) with SMTP; 22 Aug 2002 21:26:29 -0000"
+    ],
+    "X-Authentication-Warning": [
+      "lugh.tuatha.org: Host root@localhost [127.0.0.1]    claimed to be lugh"
+    ],
+    "Date": [
+      "Thu, 22 Aug 2002 22:25:12 +0100"
+    ],
+    "MIME-Version": [
+      "1.0 (Apple Message framework v482)"
+    ],
+    "Content-Type": [
+      "text/plain; charset=\"US-ASCII\"; format=\"flowed\""
+    ],
+    "From": [
+      "Mark Twomey <bauwolf@indigo.ie>"
+    ],
+    "To": [
+      "ilug@linux.ie"
+    ],
+    "Content-Transfer-Encoding": [
+      "7bit"
+    ],
+    "Message-Id": [
+      "<A49FCAEE-B615-11D6-9F96-000393679BE4@indigo.ie>"
+    ],
+    "X-Mailer": [
+      "Apple Mail (2.482)"
+    ],
+    "Subject": [
+      "[ILUG] Re: Sun Solaris"
+    ],
+    "Sender": [
+      "ilug-admin@linux.ie"
+    ],
+    "Errors-To": [
+      "ilug-admin@linux.ie"
+    ],
+    "X-Mailman-Version": [
+      "1.1"
+    ],
+    "Precedence": [
+      "bulk"
+    ],
+    "List-Id": [
+      "Irish Linux Users' Group <ilug.linux.ie>"
+    ],
+    "X-Beenthere": [
+      "ilug@linux.ie"
+    ]
+  },
+  "body_text": "Al white wrote:\n\n >erm... it runs Solaris x86 as standard...\n\nIt runs Solaris 8 x86 as standard.\n(I was joking Al)\n\nM.\n\n\n-- \nIrish Linux Users' Group: ilug@linux.ie\nhttp://www.linux.ie/mailman/listinfo/ilug for (un)subscription information.\nList maintainer: listmaster@linux.ie\n\n",
+  "body_html": null,
+  "attachments": [],
+  "source_format": "eml",
+  "parse_warnings": []
+}

@@ -1,0 +1,38 @@
+{
+  "subject": "HTML only test",
+  "from_raw": "Newsletter <news@example.com>",
+  "from_display_name": "Newsletter",
+  "from_email": "news@example.com",
+  "to": "victim@example.com",
+  "reply_to": null,
+  "date": "Tue, 25 Aug 2026 09:00:00 +0000",
+  "message_id": "<html-only@example.com>",
+  "all_headers": {
+    "From": [
+      "Newsletter <news@example.com>"
+    ],
+    "To": [
+      "victim@example.com"
+    ],
+    "Subject": [
+      "HTML only test"
+    ],
+    "Date": [
+      "Tue, 25 Aug 2026 09:00:00 +0000"
+    ],
+    "Message-ID": [
+      "<html-only@example.com>"
+    ],
+    "Content-Type": [
+      "text/html; charset=\"utf-8\""
+    ],
+    "MIME-Version": [
+      "1.0"
+    ]
+  },
+  "body_text": null,
+  "body_html": "<html><body><h1>Hello</h1><p>This email has no plain text part at all, only HTML.</p></body></html>\n",
+  "attachments": [],
+  "source_format": "eml",
+  "parse_warnings": []
+}

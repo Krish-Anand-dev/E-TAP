@@ -1,0 +1,232 @@
+/* ==========================================================================
+   DASHBOARD & DOSSIER REPORT STYLES
+   ========================================================================== */
+
+.dashboard-layout {
+  display: flex;
+  min-height: calc(100vh - 52px);
+  background-color: var(--bg-base);
+}
+
+/* Sticky Left Rail */
+.dossier-rail {
+  width: 240px;
+  flex-shrink: 0;
+  background-color: var(--bg-surface-subtle);
+  border-right: 1px solid var(--border-hairline);
+  padding: 20px 16px;
+  position: sticky;
+  top: 52px;
+  height: calc(100vh - 52px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.rail-section-title {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 10px;
+}
+
+.rail-meta-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-xs);
+  padding: 10px 12px;
+  margin-bottom: 20px;
+}
+
+.rail-meta-row {
+  margin-bottom: 6px;
+}
+
+.rail-meta-row:last-child {
+  margin-bottom: 0;
+}
+
+.rail-meta-label {
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+}
+
+.rail-meta-value {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+/* Left Rail Anchors */
+.rail-nav-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rail-nav-item a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-radius: var(--radius-xs);
+  border-left: 2px solid transparent;
+  transition: all 0.12s ease;
+}
+
+.rail-nav-item a:hover {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  border-left-color: var(--border-hairline);
+}
+
+.rail-nav-item a.active {
+  background-color: var(--bg-surface);
+  color: var(--accent-amber);
+  border-left-color: var(--accent-amber);
+}
+
+.rail-item-badge {
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  background-color: var(--bg-surface-elevated);
+  padding: 1px 5px;
+  border-radius: var(--radius-xs);
+  color: var(--text-muted);
+}
+
+/* Main Dossier Content Canvas */
+.dossier-canvas {
+  flex-grow: 1;
+  padding: 24px 32px;
+  overflow-y: auto;
+  max-width: 1440px;
+}
+
+.dossier-section {
+  margin-bottom: 24px;
+  scroll-margin-top: 70px;
+}
+
+/* 2-Column or 3-Column Grid rows */
+.grid-2-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.grid-3-col {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+/* Meta Data Grid in Overview */
+.metadata-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.meta-field {
+  background-color: var(--bg-base);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-xs);
+  padding: 8px 12px;
+}
+
+.meta-field-label {
+  font-size: var(--fs-micro);
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.meta-field-value {
+  font-size: var(--fs-xs);
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+/* Dense Forensic Tables */
+.forensic-table-container {
+  overflow-x: auto;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-xs);
+  background-color: var(--bg-surface);
+}
+
+.forensic-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-xs);
+  text-align: left;
+}
+
+.forensic-table th {
+  background-color: var(--bg-surface-elevated);
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: var(--fs-micro);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-hairline);
+  letter-spacing: 0.02em;
+}
+
+.forensic-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border-hairline);
+  color: var(--text-primary);
+}
+
+.forensic-table tr:last-child td {
+  border-bottom: none;
+}
+
+.forensic-table tr:hover td {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+.forensic-table tr.row-suspicious td {
+  background-color: rgba(217, 83, 79, 0.06);
+}
+
+/* Copy Icon / Button */
+.btn-copy-mono {
+  background: transparent;
+  border: 1px solid var(--border-hairline);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  margin-left: 6px;
+  transition: all 0.12s ease;
+}
+
+.btn-copy-mono:hover {
+  background-color: var(--bg-surface-elevated);
+  color: var(--accent-amber);
+  border-color: var(--accent-amber);
+}
+
+/* Placeholder for Phase 2 components */
+.phase2-placeholder {
+  background-color: var(--bg-surface-subtle);
+  border: 1px dashed var(--border-hairline);
+  border-radius: var(--radius-sm);
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+}
