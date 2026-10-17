@@ -55,7 +55,7 @@ AUTO_FALLBACK_DB=0
 THREAT_INTEL_LIVE=1
 GEMINI_API_KEY=<private key>
 GEMINI_MODEL=gemini-3.5-flash-lite
-GEMINI_REQUEST_TIMEOUT_MS=8000
+GEMINI_REQUEST_TIMEOUT_MS=15000
 THREAT_INTEL_MAX_LOOKUPS_PER_PROVIDER=2
 VIRUSTOTAL_API_KEY=<private key>
 ABUSEIPDB_API_KEY=<private key>
@@ -103,7 +103,7 @@ The extension is distributed separately from the hosted web application. The com
 - Rotate any credentials that were ever exposed in chat, logs, screenshots, commits or public repository history.
 - Use least-privilege database credentials and narrow Atlas network access where feasible.
 - Understand that live threat intelligence and Gemini may receive indicators or email-derived content.
-- Monitor Render logs and provider quotas. Free instances can spin down and have constrained CPU/RAM. Each provider lookup has a bounded timeout; `GEMINI_REQUEST_TIMEOUT_MS` defaults to 8000 ms (clamped 1000–60000), and `THREAT_INTEL_MAX_LOOKUPS_PER_PROVIDER` defaults to 2 (clamped 1–20).
+- Monitor Render logs and provider quotas. Free instances can spin down and have constrained CPU/RAM. Each provider lookup has a bounded timeout; `GEMINI_REQUEST_TIMEOUT_MS` defaults to 15000 ms (clamped 1000–60000), and `THREAT_INTEL_MAX_LOOKUPS_PER_PROVIDER` defaults to 2 (clamped 1–20).
 - Treat automated scores as triage, not proof. Test with both benign and suspicious artifacts. Provider coverage in each report distinguishes success, fallback, timeout, rate limits, configuration gaps and intentional policy/privacy skips; unavailable/skipped never means clean.
 - The browser History view uses `sessionStorage`; it is not a server-wide history listing endpoint. The backend does expose `GET /investigations/{email_id}` for retrieving an individual stored investigation.
 - Do not describe E-TAP as fully local-only, a guaranteed detector, or a full Gmail replacement.

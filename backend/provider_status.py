@@ -125,7 +125,10 @@ def _gemini_status(final_assessment: dict, *, gemini_skipped: bool) -> dict:
                    summary="GEMINI_API_KEY is not configured; the deterministic offline fallback was used.")
     elif used_provider == "offline_fallback":
         raw_reason = str((final_assessment or {}).get("fallback_reason") or "").lower()
-        if "timeout" in raw_reason or "timed out" in raw_reason or "deadline" in raw_reason:
+        if "404" in raw_reason or "not_found" in raw_reason or "not found" in raw_reason:
+            out.update(status="unavailable", attempted=1, failed=1,
+                       summary="Configured Gemini model name was not found for this key; the deterministic offline fallback was used.")
+        elif "timeout" in raw_reason or "timed out" in raw_reason or "deadline" in raw_reason:
             out.update(status="timeout", attempted=1, failed=1, timed_out=1,
                        summary="Gemini requests timed out; the deterministic offline fallback was used.")
         elif "429" in raw_reason or "quota" in raw_reason or "rate limit" in raw_reason or "resource_exhausted" in raw_reason:

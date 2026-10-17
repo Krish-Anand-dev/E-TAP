@@ -33,6 +33,7 @@ if load_dotenv is not None:
     load_dotenv()
 
 import os
+import time
 
 logger = logging.getLogger("E-TAP.stage_g")
 
@@ -628,8 +629,16 @@ Complete evidence context (for final_assessment):
 {_safe_json(context)}
 """
 
-    last_error: Exception | None = None
+    # Total wall-clock budget across the whole chain, so one email can never
+    # burn (models x per-request timeout) seconds failing before the offline
+    # fallback runs. Models after the budget is spent are skipped.
+    budget_s = float(os.getenv("GEMINI_TOTAL_BUDGET_S", "30"))
+    started = time.monotonic()
+    failures: list[str] = []
     for model in _candidate_models():
+        if failures and time.monotonic() - started > budget_s:
+            failures.append(f"{model}: skipped (time budget spent)")
+            break
         try:
             response = client.models.generate_content(
                 model=model,
@@ -641,12 +650,15 @@ Complete evidence context (for final_assessment):
             )
             return CombinedAssessment.model_validate_json(response.text), model
         except Exception as exc:
-            last_error = exc
-            # Log the error type only: provider exception text can echo request details.
-            logger.warning("Gemini model '%s' failed (%s); trying next fallback", model, type(exc).__name__)
+            # Log type + HTTP status only: provider exception text can echo request details.
+            code = getattr(exc, "code", None) or getattr(exc, "status_code", None) or ""
+            status = getattr(exc, "status", None) or ""
+            tag = f"{type(exc).__name__} {code} {status}".strip()
+            failures.append(f"{model}: {tag}")
+            logger.warning("Gemini model '%s' failed (%s); trying next fallback", model, tag)
             continue
 
-    raise last_error
+    raise RuntimeError("All Gemini models failed -> " + "; ".join(failures))
 
 
 def analyze_with_stage_g(context: dict) -> dict:

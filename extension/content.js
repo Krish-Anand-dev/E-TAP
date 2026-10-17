@@ -18,6 +18,34 @@ const ETAP_ERROR_MESSAGES = {
     network: 'Could not reach the analysis service. Check your connection and try again.',
 };
 
+// File types that commonly carry a payload (HTML smuggling, scripts, shortcuts,
+// disk images, executables, macro documents, archives). Matching one of these
+// is a reason for caution on its own, whatever the visible text says.
+const ETAP_RISKY_EXT = new Set([
+    'html', 'htm', 'xhtml', 'svg', 'js', 'jse', 'vbs', 'vbe', 'wsf', 'hta', 'lnk', 'iso', 'img',
+    'exe', 'scr', 'com', 'bat', 'cmd', 'ps1', 'msi', 'jar', 'dll', 'docm', 'xlsm', 'pptm', 'one',
+    'zip', 'rar', '7z', 'cab', 'ace',
+]);
+
+// Gmail shows attachment chips under the body. We can only see their names here,
+// never their contents, so they are reported as "not inspected".
+function extractAttachments(emailContainer) {
+    const names = new Set();
+    emailContainer.querySelectorAll('.aQH span.aV3, .aZo span.aV3, span.aV3').forEach((n) => {
+        const t = (n.innerText || n.textContent || '').trim();
+        if (t) names.add(t);
+    });
+    emailContainer.querySelectorAll('[download_url]').forEach((n) => {
+        // Format: "mime:filename:url"
+        const parts = String(n.getAttribute('download_url') || '').split(':');
+        if (parts.length >= 3 && parts[1]) names.add(parts[1].trim());
+    });
+    return Array.from(names).map((name) => {
+        const ext = (name.split('.').pop() || '').toLowerCase();
+        return { name, ext, risky: name.includes('.') && ETAP_RISKY_EXT.has(ext) };
+    });
+}
+
 function extractEmailData(emailContainer) {
     // Gmail uses obfuscated classes, but these selectors have been stable enough for a prototype.
     const subjectEl = document.querySelector('h2[data-thread-perm-id]');
@@ -33,6 +61,7 @@ function extractEmailData(emailContainer) {
         subject: subjectEl ? subjectEl.innerText : 'No Subject',
         sender: senderEl ? senderEl.getAttribute('email') : 'Unknown Sender',
         body: bodyEl.innerText,
+        attachments: extractAttachments(bodyEl.closest('.gs') || emailContainer),
     };
 }
 
@@ -117,13 +146,16 @@ function chip(tone, text) {
     return el('span', `etap-chip etap-chip-${tone}`, text);
 }
 
-function provenanceChips(report) {
+function provenanceChips(report, attachmentsSeen) {
     const p = report.analysis_provenance || {};
     const chips = [];
 
     // The extension only ever sends a reconstruction, so say so regardless of
     // what the server reports.
     chips.push(chip('caution', 'Headers: not available (Gmail view only)'));
+    if (attachmentsSeen && attachmentsSeen.length) {
+        chips.push(chip('caution', `Attachments: ${attachmentsSeen.length} not inspected`));
+    }
 
     if (p.threat_intel_mode === 'live') {
         if (p.threat_intel_unavailable > 0) {
@@ -159,12 +191,17 @@ function provenanceChips(report) {
     return chips;
 }
 
-function renderResult(container, existing, key, report) {
+function renderResult(container, existing, key, report, attachments) {
+    attachments = attachments || [];
+    const riskyAtt = attachments.filter((a) => a.risky);
     // `verdict_band` is decided by the backend (backend/verdicts.py); the
     // extension does not keep its own thresholds.
-    const band = report.verdict_band;
+    let band = report.verdict_band;
+    // Never show an all-clear when a file was attached: its contents were not read.
+    if (band === 'safe' && attachments.length) band = 'caution';
     const bandClass = { danger: 'banner-red', caution: 'banner-yellow', safe: 'banner-green' }[band] || 'banner-neutral';
     const verdict = report.verdict || 'Unclassified';
+    const attName = (a) => (a.name.length > 40 ? a.name.slice(0, 37) + '…' : a.name);
     const headings = {
         danger: `🚨 High risk: ${verdict}`,
         caution: `⚠️ ${verdict}`,
@@ -183,7 +220,19 @@ function renderResult(container, existing, key, report) {
         el('span', 'etap-tag', 'QUICK CONTENT CHECK'),
         el('strong', null, headings[band] || `ℹ️ ${verdict}`)
     );
-    banner.append(head, el('div', 'etap-explanation', explanation));
+    banner.append(head);
+    if (riskyAtt.length) {
+        head.lastChild.textContent = `⚠️ Risky attachment type, not inspected: ${riskyAtt.map(attName).join(', ')}`;
+        banner.append(el('div', 'etap-explanation',
+            'This file type is commonly used to deliver malware or phishing pages (for example HTML smuggling). ' +
+            'The attachment contents were NOT read by this check. Do not open it unless you trust the sender and expected it; ' +
+            'upload the original .eml in the full app for attachment forensics.'));
+    } else if (attachments.length) {
+        head.lastChild.textContent = `⚠️ ${attachments.length} attachment${attachments.length === 1 ? '' : 's'} not inspected`;
+        banner.append(el('div', 'etap-explanation',
+            `Attachments (${attachments.map(attName).join(', ')}) were not read by this check, so the text result below does not cover them.`));
+    }
+    banner.append(el('div', 'etap-explanation', explanation));
 
     if (er && Array.isArray(er.evidence)) {
         const KIND = { observed: 'Observed', reputation: 'Reputation', ai_inferred: 'AI-inferred' };
@@ -228,7 +277,7 @@ function renderResult(container, existing, key, report) {
     }
 
     const chips = el('div', 'etap-chips');
-    provenanceChips(report).forEach((c) => chips.append(c));
+    provenanceChips(report, attachments).forEach((c) => chips.append(c));
     banner.append(chips);
 
     const providerStatus = report.provider_status;
@@ -276,7 +325,7 @@ function runAnalysis(container, currentBanner, key) {
         if (chrome.runtime.lastError || !response) {
             renderError(container, loading, key, 'network');
         } else if (response.success) {
-            renderResult(container, loading, key, response.report);
+            renderResult(container, loading, key, response.report, data.attachments);
         } else {
             renderError(container, loading, key, response.code);
         }

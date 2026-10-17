@@ -327,6 +327,8 @@ def _run_parsed_pipeline(parsed_email, source: str | None = None) -> dict:
     if provider == "offline_fallback":
         if not os.getenv("GEMINI_API_KEY"):
             fallback_reason = "Gemini is not configured; the deterministic fallback was used."
+        elif "404" in raw_fallback_reason or "not_found" in raw_fallback_reason or "not found" in raw_fallback_reason:
+            fallback_reason = "Gemini model name not available for this key; the deterministic fallback was used."
         elif "timeout" in raw_fallback_reason or "deadline" in raw_fallback_reason:
             fallback_reason = "Gemini timed out; the deterministic fallback was used."
         elif "429" in raw_fallback_reason or "quota" in raw_fallback_reason or "rate limit" in raw_fallback_reason:

@@ -57,7 +57,7 @@ def _get_gemini_client():
             "its explicit offline fallback for local pipeline demos."
         )
 
-    timeout_ms = int(os.getenv("GEMINI_REQUEST_TIMEOUT_MS", "8000"))
+    timeout_ms = int(os.getenv("GEMINI_REQUEST_TIMEOUT_MS", "15000"))
     timeout_ms = max(1000, min(timeout_ms, 60000))
     try:
         from google import genai
