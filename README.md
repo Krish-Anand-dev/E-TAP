@@ -154,7 +154,7 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for the deployed Render/Vercel/Atlas configur
 - Automated verdicts can produce false positives and false negatives. Treat risk scores as triage, not certainty.
 - Tauri desktop packaging and a managed local Python sidecar are future work, not part of the current hosted web deployment.
 
-## Team
+## Team Members
 
 - Bhavit Anand
 - Krish Anand
