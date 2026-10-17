@@ -21,7 +21,7 @@ from forensics.ioc_extraction import extract_iocs
 from forensics.link_analysis import analyze_links
 from forensics.qr_trace import build_qr_trace
 from privacy import build_privacy_report, sanitize_for_external_ai
-from threat_intel import enrich_iocs
+from threat_intel import enrich_iocs, attach_hop_geo
 from correlation import correlate_and_store
 from db import connection, repository
 from ai_engine.stage_g import analyze_with_stage_g
@@ -135,6 +135,7 @@ def _run_parsed_pipeline(parsed_email, source: str | None = None) -> dict:
 
     threat_intel_live = _env_truthy("THREAT_INTEL_LIVE", default="0")
     threat_intel_analysis = enrich_iocs(ioc_analysis, live_lookup=threat_intel_live)
+    attach_hop_geo(header_analysis, threat_intel_analysis, live=threat_intel_live)
 
     correlation_result = correlate_and_store(
         ioc_analysis,

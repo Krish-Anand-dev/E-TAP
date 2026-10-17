@@ -368,7 +368,11 @@ export function DashboardPage() {
 
         {/* Section: Geo Footprint */}
         <section id="sec-geo" className="dossier-section">
-          <GeoMap geoPoints={threat_intel.geo || []} />
+          <GeoMap
+            hops={headers.hops || []}
+            origin={headers.origin_analysis || null}
+            geoPoints={threat_intel.geo || []}
+          />
         </section>
       </main>
     </div>

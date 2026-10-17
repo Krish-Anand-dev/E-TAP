@@ -18,7 +18,7 @@ Usage:
 from dataclasses import dataclass, field, asdict
 from typing import List, Optional, Dict
 
-from .received_chain import find_originating_ip, get_received_chain_summary
+from .received_chain import find_originating_ip, get_received_chain_summary, build_origin_analysis
 from .auth_results import evaluate_authentication
 from .domain_similarity import analyze_domain
 from email.utils import parseaddr
@@ -52,6 +52,8 @@ class HeaderAnalysis:
     # --- IP / routing ---
     originating_ip: Optional[str] = None
     received_chain: List[str] = field(default_factory=list)
+    hops: List[Dict] = field(default_factory=list)            # structured hops, oldest first
+    origin_analysis: Dict = field(default_factory=dict)       # where did it really come from (or: why we can't tell)
 
     # --- everything else (enrichment beyond the original plan sketch) ---
     auth_details: Dict = field(default_factory=dict)      # full spf/dkim/dmarc details incl. source (header vs live DNS)
@@ -104,6 +106,9 @@ def analyze_headers(parsed_email, headers_available: bool = True) -> dict:
         # --- Received chain / originating IP ---
         result.originating_ip = find_originating_ip(all_headers)
         result.received_chain = get_received_chain_summary(all_headers)
+        _oa = build_origin_analysis(all_headers)
+        result.hops = _oa["hops"]
+        result.origin_analysis = _oa["origin"]
 
         if not all_headers.get("Received"):
             result.red_flags.append("no_received_headers")  # itself suspicious — legitimate mail always has at least one hop
