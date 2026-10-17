@@ -20,7 +20,7 @@ export default function TrustControls({ data, onDeleted }) {
       setMessage('Redacted pack exported. URLs, domains, addresses and free-form text are omitted.');
     })}>Export redacted share pack</button>
     <button onClick={() => run(async () => { if (!window.confirm('Delete this stored investigation and its search data?')) return; await apiClient.delete(`/investigations/${encodeURIComponent(data.email_id)}`); sessionStorage.removeItem('E-TAP_investigations_history_v1'); onDeleted(); })}>Delete investigation</button>
-    <button onClick={() => run(async () => { if (!window.confirm('Delete all investigations owned by this account?')) return; await apiClient.delete('/investigations'); sessionStorage.removeItem('E-TAP_investigations_history_v1'); onDeleted(); })}>Delete all my investigations</button>
+    <button onClick={() => run(async () => { if (!window.confirm('Delete ALL stored investigations? This cannot be undone.')) return; await apiClient.delete('/investigations'); sessionStorage.removeItem('E-TAP_investigations_history_v1'); onDeleted(); })}>Delete all investigations</button>
     <p role="status">{message}</p>
   </section>;
 }

@@ -331,7 +331,7 @@ export function InvestigationProvider({ children }) {
       if (typeof record === 'object' && record.report) {
         reportToLoad = record.report;
       } else {
-        // Revalidate ownership, retention and deletion on every stored report open.
+        // Revalidate retention and deletion on every stored report open.
         reportToLoad = await fetchInvestigation(id);
         persistInvestigation(reportToLoad, 'Network Ingest');
       }

@@ -43,7 +43,7 @@ export function HistoryPage({ onSelectDossier }) {
       </div>
 
       <section className="forensic-panel" style={{padding:16}}>
-        <h2>Stored reports and review queue</h2><p>Your 100 most recent stored reports. Other owners' reports are not included.</p>
+        <h2>Stored reports and review queue</h2><p>The 100 most recent stored reports.</p>
         <p role="status">{storedError}</p>
         <ul>{stored.map(r => <li key={r.email_id}><button onClick={() => handleSelect(r.email_id)}>{r.subject || r.email_id} — {r.review_state} — {r.verdict || 'Unknown'}</button></li>)}</ul>
       </section>

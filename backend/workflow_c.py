@@ -1,7 +1,7 @@
-"""Owner-scoped trust features. No dynamic attachment execution."""
+"""Trust and response features (review workflow, retention, sharing). No dynamic attachment execution."""
 from datetime import datetime, timedelta, timezone
 import re
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from db.connection import get_db
 from db.repository import get_analysis, update_analysis_fields
@@ -41,6 +41,7 @@ def purge_expired(db):
 
 def finish_analysis(report):
     db = get_db()
+    purge_expired(db)
     prefs = db['preferences'].find_one({'kind': 'settings'}) or {}
     days = prefs.get('retention_days', 30)
     fields = {'expires_at': now() + timedelta(days=days), 'retention_days': days}
@@ -125,19 +126,16 @@ def workflow(email_id: str):
     return owned(email_id).get('workflow') or {'state':'analyzed', 'history':[], 'notes':[], 'legacy':True}
 
 @router.patch('/investigations/{email_id}/workflow')
-def review(email_id: str, payload: Review, request: Request):
+def review(email_id: str, payload: Review):
     doc = owned(email_id)
-    role = request.state.principal['role']
     current = doc.get('workflow') or {'state':'analyzed', 'history':[], 'notes':[]}
     if payload.state not in STATES or payload.state in {'submitted','analyzed'}:
         raise HTTPException(400, 'Invalid review transition')
-    if role == 'reporter' and (payload.state != 'needs_review' or current['state'] not in {'submitted','analyzed','unresolved'}):
-        raise HTTPException(403, 'Analyst role required for this transition')
     if payload.expected_state != current['state']:
         raise HTTPException(409, 'Review changed; refresh before editing')
     if len(current.get('history',[])) >= 200:
         raise HTTPException(409, 'Review history limit reached')
-    event = {'state':payload.state, 'at':now().isoformat(), 'actor':request.state.principal['owner_id'], 'role':role}
+    event = {'state':payload.state, 'at':now().isoformat()}
     update = {'$set': {'workflow.state':payload.state, 'workflow.explanation':payload.explanation}, '$push': {'workflow.history':event, 'workflow.notes': {'text':payload.note, **event}}}
     query = {'_id':doc['_id'], 'workflow.state':doc.get('workflow',{}).get('state')}
     changed = get_db()['analyzed_emails'].find_one_and_update(query, update)
@@ -162,7 +160,7 @@ def related(email_id: str):
         if (score >= .8 and len(tokens) >= 3) or own_iocs & their_iocs:
             matches.append({'email_id':str(other['_id']), 'campaign_id':other.get('campaign_id'), 'subject_similarity':round(score,3), 'basis':'inferred subject similarity or observed indicator overlap', 'differences': {'subject_changed':doc.get('subject') != other.get('subject'), 'sender_changed':doc.get('from_email') != other.get('from_email'), 'indicators_only_here':sorted(own_iocs-their_iocs), 'indicators_only_there':sorted(their_iocs-own_iocs)}, 'seen':other.get('analyzed_at')})
     dates = [m['seen'] for m in matches if m['seen']] + ([doc['analyzed_at']] if doc.get('analyzed_at') else [])
-    return {'matches':matches, 'first_seen':min(dates) if dates else None, 'last_seen':max(dates) if dates else None, 'scope':'At most 200 recent submissions owned by this account; not mailbox prevalence. Similarity does not change the threat verdict.'}
+    return {'matches':matches, 'first_seen':min(dates) if dates else None, 'last_seen':max(dates) if dates else None, 'scope':'At most 200 recent stored submissions; not mailbox prevalence. Similarity does not change the threat verdict.'}
 
 
 class CaseAssignment(BaseModel):
@@ -170,14 +168,9 @@ class CaseAssignment(BaseModel):
     assignee: str = Field(..., min_length=1, max_length=80)
 
 @router.put('/investigations/{email_id}/case')
-def assign_case(email_id: str, payload: CaseAssignment, request: Request):
+def assign_case(email_id: str, payload: CaseAssignment):
     doc = owned(email_id)
-    actor = request.state.principal
-    if actor['role'] not in {'analyst','admin'}:
-        raise HTTPException(403, 'Analyst role required')
-    if payload.assignee != actor['owner_id']:
-        raise HTTPException(400, 'Cross-owner assignment is not enabled')
-    record = {**payload.model_dump(), 'at':now().isoformat(), 'actor':actor['owner_id'], 'campaign_id':doc.get('campaign_id')}
+    record = {**payload.model_dump(), 'at':now().isoformat(), 'campaign_id':doc.get('campaign_id')}
     if len(doc.get('case_history', [])) >= 100:
         raise HTTPException(409, 'Assignment history limit reached')
     get_db()['analyzed_emails'].update_one({'_id':doc['_id']}, {'$set':{'case':record}, '$push':{'case_history':record}})
@@ -233,4 +226,4 @@ def analytics():
             triage.append((datetime.fromisoformat(reviewed)-datetime.fromisoformat(start)).total_seconds())
     domains=Counter(v for d in docs for v in (d.get('ioc_analysis') or {}).get('domains',[]) if isinstance(v,str))
     campaigns=Counter(d['campaign_id'] for d in docs if d.get('campaign_id'))
-    return {'scope':'At most 5000 recent owner submissions; no detection accuracy or mailbox prevalence estimate.', 'investigations':len(docs), 'outcomes':dict(outcomes), 'provider_status_counts':dict(provider), 'mean_latency_ms':sum(latencies)/len(latencies) if latencies else None, 'latency_samples':len(latencies), 'mean_time_to_triage_seconds':sum(triage)/len(triage) if triage else None, 'triage_samples':len(triage), 'top_domains':domains.most_common(10), 'campaigns':campaigns.most_common(10), 'feedback':dict(Counter((d.get('feedback') or {}).get('value','unrated') for d in docs))}
+    return {'scope':'At most 5000 recent submissions; no detection accuracy or mailbox prevalence estimate.', 'investigations':len(docs), 'outcomes':dict(outcomes), 'provider_status_counts':dict(provider), 'mean_latency_ms':sum(latencies)/len(latencies) if latencies else None, 'latency_samples':len(latencies), 'mean_time_to_triage_seconds':sum(triage)/len(triage) if triage else None, 'triage_samples':len(triage), 'top_domains':domains.most_common(10), 'campaigns':campaigns.most_common(10), 'feedback':dict(Counter((d.get('feedback') or {}).get('value','unrated') for d in docs))}

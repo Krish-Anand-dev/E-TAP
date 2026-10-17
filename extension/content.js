@@ -14,7 +14,6 @@ const ETAP_ERROR_MESSAGES = {
     rate_limited: 'Too many analyses in a short time. Wait a minute, then try again.',
     too_large: 'This email is too large to analyze.',
     server_error: 'The analysis service reported an error. Try again shortly.',
-    unauthenticated: 'Set a valid personal API key in E-TAP extension options, then try again.',
     http_error: 'The analysis service rejected the request.',
     network: 'Could not reach the analysis service. Check your connection and try again.',
 };

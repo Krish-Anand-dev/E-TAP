@@ -14,7 +14,7 @@ These are the team's current demo deployments. Update this section if the servic
 
 The backend root `/` returns a small service index. `GET /health` is a liveness check only; `GET /ready` also checks database connectivity and returns HTTP 503 when the database is not ready. Use `/docs` for interactive API documentation.
 
-> **Workflow C access model:** current source requires personal API keys and isolates investigations, RAG and campaigns by owner. The hosted deployment has not been verified against this source. See [WORKFLOW-C-README.md](WORKFLOW-C-README.md) for migration, limitations and the pre-deploy checklist.
+> **Access model:** the API, web app and Gmail extension are open: no API keys, sign-in or per-user isolation. Authentication is deferred as future scope (see [WORKFLOW-C-README.md](WORKFLOW-C-README.md)). Do not host sensitive real mail on a public instance.
 
 ## Capabilities
 
@@ -166,4 +166,4 @@ E-TAP translates technical email-forensics findings into clear, evidence-backed 
 
 ## Workflow C setup changes
 
-See [WORKFLOW-C-README.md](WORKFLOW-C-README.md) for the authoritative feature status, API routes, security model and limitations. Data routes require personal Bearer keys; set ETAP_API_KEYS digest entries, migrate ownerless records, and schedule retention purge before deployment. Configure the extension key in its options page. Browser history now lasts for the signed-in tab session; server deletion is a separate control. Node >=22.12 is required for the patched build tools. Quotas currently require a single backend worker. Live hosted behavior is not verified.
+See [WORKFLOW-C-README.md](WORKFLOW-C-README.md) for the authoritative feature status, API routes, access model and limitations. The API is open (no keys or sign-in; authentication is documented as future scope). Schedule the retention purge for idle periods. Browser history lasts for the tab session; server deletion is a separate control. Node >=22.12 is required for the patched build tools. Live hosted behavior is not verified.

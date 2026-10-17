@@ -471,7 +471,7 @@ def _run_parsed_pipeline(parsed_email, source: str | None = None) -> dict:
             from db.schema import ANALYSES_COLLECTION
             rag_sum = build_summary(doc_snapshot)
             rag_vec = embed_text(rag_sum)
-            # Capture the already-scoped handle: native threads do not inherit ContextVars.
+            # `db` is captured from the enclosing scope so the worker thread reuses the same handle.
             # No upsert: a deleted record must never be resurrected by this worker.
             repository.update_analysis_fields(db, email_id, {
                 'rag_summary': rag_sum, 'rag_embedding': rag_vec,

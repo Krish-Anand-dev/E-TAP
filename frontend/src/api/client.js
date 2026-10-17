@@ -18,9 +18,3 @@ export const askSocAssistant = async (question, emailId = null, emailContext = n
 };
 
 export default apiClient;
-
-apiClient.interceptors.request.use(config => {
-  const key = sessionStorage.getItem('etap_api_key');
-  if (key) config.headers.Authorization = `Bearer ${key}`;
-  return config;
-});

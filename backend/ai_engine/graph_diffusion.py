@@ -106,8 +106,7 @@ def _get_or_build_adjacency(
 
     import hashlib
     import json
-    from security import principal
-    fingerprint = hashlib.sha256(json.dumps([principal.get(), nodes, edges], sort_keys=True).encode()).hexdigest()
+    fingerprint = hashlib.sha256(json.dumps([nodes, edges], sort_keys=True).encode()).hexdigest()
 
     with _cache_lock:
         if (

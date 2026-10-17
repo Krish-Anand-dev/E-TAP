@@ -109,4 +109,4 @@ The committed `extension/background.js` targets the hosted Render API and `exten
 
 ## Workflow C setup changes
 
-See [WORKFLOW-C-README.md](WORKFLOW-C-README.md) for the authoritative feature status, API routes, security model and limitations. Data routes require personal Bearer keys; set ETAP_API_KEYS digest entries, migrate ownerless records, and schedule retention purge before deployment. Configure the extension key in its options page. Browser history now lasts for the signed-in tab session; server deletion is a separate control. Node >=22.12 is required for the patched build tools. Quotas currently require a single backend worker. Live hosted behavior is not verified.
+See [WORKFLOW-C-README.md](WORKFLOW-C-README.md) for the authoritative feature status, API routes, access model and limitations. The API is open (no keys or sign-in; authentication is documented as future scope). Schedule the retention purge for idle periods. Browser history lasts for the tab session; server deletion is a separate control. Node >=22.12 is required for the patched build tools. Live hosted behavior is not verified.

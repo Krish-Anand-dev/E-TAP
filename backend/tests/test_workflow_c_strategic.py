@@ -1,5 +1,5 @@
 import pytest
-from test_workflow_c_security import client, headers
+from test_workflow_c_api import client
 from db.connection import get_db
 from integrations import MockOriginalMessageProvider, validate_target, webhook_body, sign, verify, retry_delay
 
@@ -28,15 +28,14 @@ def test_webhook_integrity_replay_and_reserved_event():
 
 def test_baseline_case_and_measured_analytics(client):
     db=get_db()
-    db['analyzed_emails'].insert_one({'_id':'a','owner_id':'alice','risk_score':99,'verdict':'HIGH-RISK PHISHING','ioc_analysis':{'domains':['vendor.example']},'provider_status':{'analysis_duration_ms':42,'providers':{'gemini':{'status':'disabled'}}}})
-    assert client.put('/baselines',headers=headers(),json={'domains':['vendor.example']}).status_code == 200
-    assert client.get('/baselines',headers=headers('bob')).json()['domains'] == []
+    db['analyzed_emails'].insert_one({'_id':'a','risk_score':99,'verdict':'HIGH-RISK PHISHING','ioc_analysis':{'domains':['vendor.example']},'provider_status':{'analysis_duration_ms':42,'providers':{'gemini':{'status':'disabled'}}}})
+    assert client.put('/baselines',json={'domains':['vendor.example']}).status_code == 200
+    assert client.get('/baselines').json()['domains'] == ['vendor.example']
     assert db['analyzed_emails'].find_one({'_id':'a'})['risk_score'] == 99
-    assert client.put('/investigations/bob-report/case',headers=headers('bob'),json={'label':'review','assignee':'bob'}).status_code == 403
-    assert client.put('/investigations/a/case',headers=headers(),json={'label':'review','assignee':'bob'}).status_code == 400
-    assert client.put('/investigations/a/case',headers=headers(),json={'label':'review','assignee':'alice'}).status_code == 200
-    assert client.put('/investigations/a/feedback',headers=headers(),json={'value':'helpful'}).status_code == 200
-    stats=client.get('/analytics',headers=headers()).json()
+    assert client.put('/investigations/missing/case',json={'label':'review','assignee':'analyst'}).status_code == 404
+    assert client.put('/investigations/a/case',json={'label':'review','assignee':'analyst'}).status_code == 200
+    assert client.put('/investigations/a/feedback',json={'value':'helpful'}).status_code == 200
+    stats=client.get('/analytics',).json()
     assert stats['investigations'] == 1
     assert stats['mean_latency_ms'] == 42 and stats['latency_samples'] == 1
     assert stats['mean_time_to_triage_seconds'] is None

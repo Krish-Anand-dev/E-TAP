@@ -36,8 +36,6 @@ logger = logging.getLogger("E-TAP.api")
 limiter = Limiter(key_func=get_remote_address, default_limits=["120/minute"])
 
 app = FastAPI(title="Threat Email Analysis Platform")
-from security import SecurityBoundary
-app.add_middleware(SecurityBoundary)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -182,11 +180,6 @@ class ChatRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=2000)
     email_id: Optional[str] = Field(None, description="Scope query strictly to the currently opened email artifact")
     email_context: Optional[dict[str, Any]] = Field(None, description="Active email dossier data from frontend")
-
-
-@app.get('/me')
-async def me(request: Request):
-    return request.state.principal
 
 
 @app.get('/investigations')

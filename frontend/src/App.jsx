@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { InvestigationProvider, useInvestigation } from './context/InvestigationContext';
 import WorkspaceTools from './components/common/WorkspaceTools';
-import AuthGate from './components/common/AuthGate';
 import Header from './components/common/Header';
 import UploadPage from './pages/UploadPage';
 import DashboardPage from './pages/DashboardPage';
@@ -77,9 +76,9 @@ function AppContent() {
 
 export function App() {
   return (
-    <AuthGate><InvestigationProvider>
+    <InvestigationProvider>
       <AppContent />
-    </InvestigationProvider></AuthGate>
+    </InvestigationProvider>
   );
 }
 

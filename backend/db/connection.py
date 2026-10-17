@@ -128,8 +128,4 @@ def reset_db() -> None:
 
 
 def get_db() -> Any:
-    from security import principal
-    from .scoped import ScopedDatabase
-    db = _get_raw_db()
-    user = principal.get()
-    return ScopedDatabase(db, user['owner_id']) if user else db
+    return _get_raw_db()
