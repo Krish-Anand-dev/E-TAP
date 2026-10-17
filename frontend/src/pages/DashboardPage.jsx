@@ -14,6 +14,8 @@ import EvidenceBreakdown from '../components/report/EvidenceBreakdown';
 import HistoricalCorrelationCard from '../components/report/HistoricalCorrelationCard';
 import ExportButton from '../components/report/ExportButton';
 import ProviderStatusPanel from '../components/report/ProviderStatusPanel';
+import ResponseWorkflow from '../components/report/ResponseWorkflow';
+import TrustControls from '../components/report/TrustControls';
 import PrivacyDataPanel from '../components/report/PrivacyDataPanel';
 
 export function DashboardPage() {
@@ -263,7 +265,9 @@ export function DashboardPage() {
           <ProviderStatusPanel status={data.provider_status} />
 
           {/* B10: make actual processing/storage/external-enrichment flows visible. */}
-          <PrivacyDataPanel report={data.privacy_report} />
+          <ResponseWorkflow emailId={data.email_id} band={data.verdict_band} baseline={data.baseline_context} />
+              <TrustControls data={data} onDeleted={() => window.location.reload()} />
+              <PrivacyDataPanel report={data.privacy_report} />
 
           {/* Core Envelope Header Metadata Card */}
           <div className="forensic-panel">

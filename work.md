@@ -18,8 +18,8 @@ E-TAP (Email-TAP) bridges the gap between email-forensics evidence and understan
 
 ## Current blockers and next actions
 
-1. **Security gate:** `/chat` and `/investigations/{email_id}` in the reviewed API do not enforce full per-user authorization. Use synthetic/non-sensitive test data only on the public demo until access isolation is implemented. CORS and rate limits are not authentication.
-2. **Validation gate:** backend suite (102 passing) and the frontend production build now pass. Still needed: a post-deploy Render/Vercel smoke test with live providers.
+1. **Workflow C source gate:** owner-scoped API authentication and regression tests are implemented; deploy only after the migration/key setup in WORKFLOW-C-README.md. Hosted behavior is not verified.
+2. **Validation gate:** see WORKFLOW-C-README.md for the current backend/frontend counts and commands; live provider and post-deploy checks remain.
 3. **Evaluation gate:** the offline fallback now flags almost nothing (1/15 benign, 0/9 spam flagged on the 24-message fixture). Rerun on an authorized, broader labelled corpus with real phishing before making any accuracy claim.
 4. **RAG quality:** hosted Render uses a deterministic hash-based fallback embedder rather than a trained semantic embedding model. Test retrieval grounding and quality before depending on historical answers.
 5. **Privacy:** external enrichment and Gemini may receive indicators or email-derived content. Review data flows, retention and deletion before using sensitive inbox data.
@@ -36,4 +36,8 @@ All B0–B11 implementation details, tests, known limitations and the pre-Workfl
 
 ## Later direction
 
-Workstream A covers dynamic sandbox feasibility and runtime behavior analysis. Workflow C adds separate product capabilities after the Workflow B security and verification gates are closed. A Tauri desktop shell can be evaluated later; E-TAP is not currently a full Gmail replacement.
+Workstream A covers dynamic sandbox feasibility and runtime behavior analysis. Workflow C now implements owner-scoped trust and response features; strategic capabilities are explicitly partial or scaffold-only. A Tauri desktop shell can be evaluated later; E-TAP is not currently a full Gmail replacement.
+
+## Workflow C setup changes
+
+See [WORKFLOW-C-README.md](WORKFLOW-C-README.md) for the authoritative feature status, API routes, security model and limitations. Data routes require personal Bearer keys; set ETAP_API_KEYS digest entries, migrate ownerless records, and schedule retention purge before deployment. Configure the extension key in its options page. Browser history now lasts for the signed-in tab session; server deletion is a separate control. Node >=22.12 is required for the patched build tools. Quotas currently require a single backend worker. Live hosted behavior is not verified.

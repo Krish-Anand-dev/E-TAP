@@ -253,6 +253,13 @@ class FakeCollection:
 
         return None
 
+    def delete_many(self, filt):
+        from types import SimpleNamespace
+        keys = [key for key, doc in self._docs.items() if _matches(doc, filt)]
+        for key in keys:
+            del self._docs[key]
+        return SimpleNamespace(deleted_count=len(keys))
+
     # -- reads --------------------------------------------------------
     @staticmethod
     def _project(doc: dict, projection: Optional[dict]) -> dict:

@@ -34,3 +34,8 @@ dist/
 backend/tests/*results.json
 .DS_Store
 Thumbs.db
+
+# Local validation and delivery artifacts
+tmp/
+.local/
+output/

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { InvestigationProvider, useInvestigation } from './context/InvestigationContext';
+import WorkspaceTools from './components/common/WorkspaceTools';
+import AuthGate from './components/common/AuthGate';
 import Header from './components/common/Header';
 import UploadPage from './pages/UploadPage';
 import DashboardPage from './pages/DashboardPage';
@@ -56,6 +58,7 @@ function AppContent() {
   return (
     <div className="app-shell">
       <Header currentView={currentView} setCurrentView={setCurrentView} />
+      <WorkspaceTools />
 
       {currentView === 'upload' && (
         <UploadPage onAnalysisComplete={() => setCurrentView('dashboard')} />
@@ -74,9 +77,9 @@ function AppContent() {
 
 export function App() {
   return (
-    <InvestigationProvider>
+    <AuthGate><InvestigationProvider>
       <AppContent />
-    </InvestigationProvider>
+    </InvestigationProvider></AuthGate>
   );
 }
 

@@ -14,7 +14,7 @@ These are the team's current demo deployments. Update this section if the servic
 
 The backend root `/` returns a small service index. `GET /health` is a liveness check only; `GET /ready` also checks database connectivity and returns HTTP 503 when the database is not ready. Use `/docs` for interactive API documentation.
 
-> **Public-demo safety:** this deployment is a student demo, not a multi-user production service. The reviewed `/chat` and `/investigations/{email_id}` routes do not yet provide full per-user authentication and authorization, and historical RAG uses shared stored records. Use synthetic/non-sensitive test emails only until access isolation and retention controls are implemented. CORS and rate limits are not authentication.
+> **Workflow C access model:** current source requires personal API keys and isolates investigations, RAG and campaigns by owner. The hosted deployment has not been verified against this source. See [WORKFLOW-C-README.md](WORKFLOW-C-README.md) for migration, limitations and the pre-deploy checklist.
 
 ## Capabilities
 
@@ -163,3 +163,7 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for the deployed Render/Vercel/Atlas configur
 ## Project statement
 
 E-TAP translates technical email-forensics findings into clear, evidence-backed explanations and practical next steps for ordinary users, while retaining deeper investigative detail for security practitioners.
+
+## Workflow C setup changes
+
+See [WORKFLOW-C-README.md](WORKFLOW-C-README.md) for the authoritative feature status, API routes, security model and limitations. Data routes require personal Bearer keys; set ETAP_API_KEYS digest entries, migrate ownerless records, and schedule retention purge before deployment. Configure the extension key in its options page. Browser history now lasts for the signed-in tab session; server deletion is a separate control. Node >=22.12 is required for the patched build tools. Quotas currently require a single backend worker. Live hosted behavior is not verified.

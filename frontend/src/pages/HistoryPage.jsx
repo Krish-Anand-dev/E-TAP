@@ -1,9 +1,13 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import apiClient from '../api/client';
 import { useInvestigation } from '../context/InvestigationContext';
 
 export function HistoryPage({ onSelectDossier }) {
   const { history, loadFromHistory, clearHistory } = useInvestigation();
 
+  const [stored, setStored] = useState([]);
+  const [storedError, setStoredError] = useState('');
+  useEffect(() => { apiClient.get('/investigations?limit=100').then(r => setStored(r.data)).catch(() => setStoredError('Stored reports unavailable.')); }, []);
   const handleSelect = (record) => {
     loadFromHistory(record);
     if (onSelectDossier) onSelectDossier();
@@ -38,6 +42,11 @@ export function HistoryPage({ onSelectDossier }) {
         )}
       </div>
 
+      <section className="forensic-panel" style={{padding:16}}>
+        <h2>Stored reports and review queue</h2><p>Your 100 most recent stored reports. Other owners' reports are not included.</p>
+        <p role="status">{storedError}</p>
+        <ul>{stored.map(r => <li key={r.email_id}><button onClick={() => handleSelect(r.email_id)}>{r.subject || r.email_id} — {r.review_state} — {r.verdict || 'Unknown'}</button></li>)}</ul>
+      </section>
       {/* Backend endpoint notice */}
       <div
         style={{

@@ -196,7 +196,7 @@ export function InvestigationProvider({ children }) {
   const [lastHealthCheck, setLastHealthCheck] = useState(null);
   const [history, setHistory] = useState(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = sessionStorage.getItem(STORAGE_KEY);
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -250,7 +250,7 @@ export function InvestigationProvider({ children }) {
 
       setHistory((prev) => {
         const updated = [record, ...prev.filter((item) => item.id !== record.id)].slice(0, 50);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
         return updated;
       });
     } catch (err) {
@@ -331,17 +331,9 @@ export function InvestigationProvider({ children }) {
       if (typeof record === 'object' && record.report) {
         reportToLoad = record.report;
       } else {
-        // 2. Check local storage history for the full report
-        const localRecord = history.find(item => item.id === id);
-        // Only use localRecord if it's a valid mapped report (must have .email object)
-        if (localRecord && localRecord.report && localRecord.report.email) {
-          reportToLoad = localRecord.report;
-        } else {
-          // 3. Not found locally or it's a broken cached version! Fetch from backend
-          reportToLoad = await fetchInvestigation(id);
-          // Auto-save to local history so it appears in the tab
-          persistInvestigation(reportToLoad, 'Network Ingest');
-        }
+        // Revalidate ownership, retention and deletion on every stored report open.
+        reportToLoad = await fetchInvestigation(id);
+        persistInvestigation(reportToLoad, 'Network Ingest');
       }
 
       if (reportToLoad) {
@@ -373,7 +365,7 @@ export function InvestigationProvider({ children }) {
   };
 
   const clearHistory = () => {
-    localStorage.removeItem(STORAGE_KEY);
+    sessionStorage.removeItem(STORAGE_KEY);
     setHistory([]);
   };
 

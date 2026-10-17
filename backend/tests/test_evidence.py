@@ -266,7 +266,7 @@ def test_payload_is_json_safe_with_unique_ids_and_resolving_sections():
     for section in r["sections"].values():
         assert set(section) <= known
     assert set(r["top_reasons"]) <= known and set(r["contradicting"]) <= known
-    assert r["schema_version"] == 1 and r["reconstructed"] is False
+    assert r["schema_version"] == 2 and r["reconstructed"] is False
     assert all(it["status"] in ("present", "absent", "unavailable") for it in r["evidence"])
     assert all(it["kind"] in ("observed", "reputation", "ai_inferred") for it in r["evidence"])
     assert _by_id(r)["rep.domain.young.0"]["direction"] == "raises_risk"

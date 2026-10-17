@@ -37,7 +37,7 @@ from typing import Any, Optional
 _db: Optional[Any] = None
 
 
-def get_db() -> Any:
+def _get_raw_db() -> Any:
     """
     Return the shared database handle, creating it on first use.
 
@@ -94,7 +94,7 @@ def get_db() -> Any:
     except Exception as exc:
         is_atlas = "mongodb+srv" in uri or ".mongodb.net" in uri
         sanitized_host = uri.split("@")[-1] if "@" in uri else uri
-        print(f"[MongoDB Connection Error] Failed to connect to {sanitized_host.split('?')[0]}: {exc}")
+        print(f"[MongoDB Connection Error] Connection failed ({type(exc).__name__})")
         if is_atlas:
             print("[MongoDB Atlas Diagnostic Guidance]")
             print("  1. Verify IP whitelist in MongoDB Atlas: Network Access -> Add IP Address -> Add Current IP Address (or 0.0.0.0/0).")
@@ -125,3 +125,11 @@ def reset_db() -> None:
     re-reads env vars and reconnects/re-creates from scratch."""
     global _db
     _db = None
+
+
+def get_db() -> Any:
+    from security import principal
+    from .scoped import ScopedDatabase
+    db = _get_raw_db()
+    user = principal.get()
+    return ScopedDatabase(db, user['owner_id']) if user else db

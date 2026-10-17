@@ -41,7 +41,7 @@ from verdicts import (
     normalize_label,
 )
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 KIND_OBSERVED = "observed"
 KIND_REPUTATION = "reputation"
@@ -128,6 +128,15 @@ def _item(
     if data:
         item["data"] = data
     item.update(extra)
+    item.update({
+        'raw_observation': data if data else (detail if kind != KIND_AI else None),
+        'normalized_explanation': why or title,
+        'confidence': 'unknown' if status == STATUS_UNAVAILABLE else ('inferred' if kind == KIND_AI else 'not_calibrated'),
+        'provenance_type': 'inferred' if kind == KIND_AI else ('external' if kind == KIND_REPUTATION else 'observed'),
+        'source_type': 'AI' if kind == KIND_AI else ('reputation' if kind == KIND_REPUTATION else 'static'),
+        'supports': list(extra.get('evidence_ids') or []),
+        'contradicts': [],
+    })
     return item
 
 

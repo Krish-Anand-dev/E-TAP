@@ -12,9 +12,15 @@ export const apiClient = axios.create({
 export const askSocAssistant = async (question, emailId = null, emailContext = null) => {
   const payload = { question };
   if (emailId) payload.email_id = emailId;
-  if (emailContext) payload.email_context = emailContext;
+  // Only server-owned records may supply chat context.
   const response = await apiClient.post('/chat', payload);
   return response.data;
 };
 
 export default apiClient;
+
+apiClient.interceptors.request.use(config => {
+  const key = sessionStorage.getItem('etap_api_key');
+  if (key) config.headers.Authorization = `Bearer ${key}`;
+  return config;
+});

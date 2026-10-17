@@ -1,6 +1,6 @@
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { bandFor, displayLabel } from './verdict';
+import { bandFor, displayLabel } from './verdict.js';
 
 /**
  * pdfGenerator.js
@@ -309,7 +309,7 @@ export function generatePdfDocument(data, options = {}) {
     [
       ['Subject', email.subject],
       ['From', email.from_raw || email.from_email],
-      ['Reply-To', email.reply_to || '(aligned with From address)'],
+      ['Reply-To', email.reply_to || 'Not recorded'],
       ['To', email.to],
       ['Date', email.date],
       ['Message-ID', email.message_id],
@@ -325,9 +325,9 @@ export function generatePdfDocument(data, options = {}) {
   y = tableBlock(doc, y, {
     head: [['Check', 'Result']],
     body: [
-      ['SPF', safe(headers.spf, 'none').toUpperCase()],
-      ['DKIM', safe(headers.dkim, 'none').toUpperCase()],
-      ['DMARC', safe(headers.dmarc, 'none').toUpperCase()],
+      ['SPF', safe(headers.spf, 'unavailable').toUpperCase()],
+      ['DKIM', safe(headers.dkim, 'unavailable').toUpperCase()],
+      ['DMARC', safe(headers.dmarc, 'unavailable').toUpperCase()],
       ['Originating IP', safe(headers.originating_ip)],
     ],
     columnStyles: { 0: { cellWidth: 120 } },
@@ -365,7 +365,7 @@ export function generatePdfDocument(data, options = {}) {
     doc.setFontSize(9);
     doc.setTextColor(...COLORS.textMuted);
     y = ensureSpace(doc, y, 16);
-    doc.text('No file attachments were present in this email.', PAGE_MARGIN, y);
+    doc.text('No attachments recorded in the inspected material.', PAGE_MARGIN, y);
     y += 20;
   } else {
     y = tableBlock(doc, y, {
@@ -581,7 +581,7 @@ export function generatePdfDocument(data, options = {}) {
 
   // ---------- 10. Historical Correlation & Campaign ----------
   y = sectionTitle(doc, '10. Historical Correlation & Campaign', 'Relationship to previously analyzed messages', y);
-  const isNewCategory = historicalCorrelation.is_new_category ?? correlation.is_new_campaign ?? true;
+  const isNewCategory = historicalCorrelation.is_new_category ?? correlation.is_new_campaign ?? null;
   const campaignId = historicalCorrelation.assigned_campaign_id || correlation.campaign_id || 'N/A';
   const metrics = historicalCorrelation.metrics_summary || {
     total_overlapping_iocs: correlation.shared_infrastructure?.length || 0,
@@ -592,7 +592,7 @@ export function generatePdfDocument(data, options = {}) {
   y = keyValueGrid(
     doc,
     [
-      ['Campaign status', isNewCategory ? 'New threat cluster' : 'Recurring adversary activity'],
+      ['Campaign status', isNewCategory === null ? 'Unknown' : (isNewCategory ? 'No prior matches in inspected history' : 'Related stored submissions')],
       ['Campaign ID', campaignId],
       ['Overlapping IOCs', metrics.total_overlapping_iocs],
       ['Prior incidents', metrics.total_prior_incidents],
@@ -653,7 +653,7 @@ export function generatePdfDocument(data, options = {}) {
   y = sectionTitle(doc, '12. Privacy & Data Flow', 'What was processed, stored, sent, cached or deliberately skipped', y);
   const urlLookups = privacyReport.url_lookups || {};
   y = keyValueGrid(doc, [
-    ['External lookups', privacyReport.external_lookups_enabled ? 'Enabled' : 'Disabled'],
+    ['External lookups', privacyReport.external_lookups_enabled == null ? 'Unknown' : (privacyReport.external_lookups_enabled ? 'Enabled' : 'Disabled')],
     ['URLs extracted', urlLookups.total_urls ?? 0],
     ['Remote full URL requests', urlLookups.sent_in_full ?? 0],
     ['Remote URL requests with query/fragment removed', urlLookups.sent_trimmed ?? 0],
@@ -691,8 +691,16 @@ export function generatePdfDocument(data, options = {}) {
     y
   );
 
+  doc.addPage();
+  doc.setFontSize(16); doc.text('Evidence Ledger v2', PAGE_MARGIN, 50);
+  autoTable(doc, { startY: 65, margin: PAGE_MARGIN, styles: { fontSize: 8, overflow: 'linebreak' },
+    head: [['Evidence / source', 'Provenance / confidence', 'Observation / explanation / links']],
+    body: (data.evidence_report?.evidence || []).map(e => [
+      `${e.id} / ${e.source_type || e.source}`,
+      `${e.provenance_type || e.kind} / ${e.confidence || 'unknown'}`,
+      `${JSON.stringify(e.raw_observation ?? null)}\n${e.normalized_explanation || e.why || ''}\nSupports: ${(e.supports || []).join(', ')}; contradicts: ${(e.contradicts || []).join(', ')}`
+    ]) });
   pageFooter(doc, generatedAt);
-
   return doc;
 }
 

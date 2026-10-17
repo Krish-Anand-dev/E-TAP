@@ -105,5 +105,9 @@ The extension is distributed separately from the hosted web application. The com
 - Understand that live threat intelligence and Gemini may receive indicators or email-derived content.
 - Monitor Render logs and provider quotas. Free instances can spin down and have constrained CPU/RAM. Each provider lookup has a bounded timeout; `GEMINI_REQUEST_TIMEOUT_MS` defaults to 8000 ms (clamped 1000–60000), and `THREAT_INTEL_MAX_LOOKUPS_PER_PROVIDER` defaults to 2 (clamped 1–20).
 - Treat automated scores as triage, not proof. Test with both benign and suspicious artifacts. Provider coverage in each report distinguishes success, fallback, timeout, rate limits, configuration gaps and intentional policy/privacy skips; unavailable/skipped never means clean.
-- The browser History view uses `localStorage`; it is not a server-wide history listing endpoint. The backend does expose `GET /investigations/{email_id}` for retrieving an individual stored investigation.
+- The browser History view uses `sessionStorage`; it is not a server-wide history listing endpoint. The backend does expose `GET /investigations/{email_id}` for retrieving an individual stored investigation.
 - Do not describe E-TAP as fully local-only, a guaranteed detector, or a full Gmail replacement.
+
+## Workflow C setup changes
+
+See [WORKFLOW-C-README.md](WORKFLOW-C-README.md) for the authoritative feature status, API routes, security model and limitations. Data routes require personal Bearer keys; set ETAP_API_KEYS digest entries, migrate ownerless records, and schedule retention purge before deployment. Configure the extension key in its options page. Browser history now lasts for the signed-in tab session; server deletion is a separate control. Node >=22.12 is required for the patched build tools. Quotas currently require a single backend worker. Live hosted behavior is not verified.

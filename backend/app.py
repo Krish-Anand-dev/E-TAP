@@ -6,7 +6,7 @@ except ImportError:  # pragma: no cover
     load_dotenv = None
 
 if load_dotenv is not None:
-    load_dotenv(override=True)
+    load_dotenv(override=False)
 
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -36,6 +36,8 @@ logger = logging.getLogger("E-TAP.api")
 limiter = Limiter(key_func=get_remote_address, default_limits=["120/minute"])
 
 app = FastAPI(title="Threat Email Analysis Platform")
+from security import SecurityBoundary
+app.add_middleware(SecurityBoundary)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -70,7 +72,7 @@ def startup_event():
         host = uri.split("@")[-1].split("/")[0] if "@" in uri else "Atlas Cluster"
         print(f"  [DB STATUS] MONGODB ATLAS CLUSTER (Cloud): {host}")
     else:
-        print(f"  [DB STATUS] LOCAL MONGODB: {uri.split('?')[0]}")
+        print("  [DB STATUS] LOCAL MONGODB")
 
     try:
         db = get_db()
@@ -79,7 +81,7 @@ def startup_event():
         print(f"  [SECURITY]  Upload Limit: 25 MB | XSS Iframe Isolation active")
         print(f"  [STATUS]    Ready to receive forensic email artifacts on port {os.environ.get('PORT', '5000')}")
     except Exception as exc:
-        print(f"  [DB ERROR]  Connection failed: {exc}")
+        print(f"  [DB ERROR]  Connection failed ({type(exc).__name__})")
     print("=" * 68 + "\n")
 
 
@@ -155,7 +157,9 @@ async def analyze(
 
         # Run heavy synchronous pipeline (WHOIS, VirusTotal, Gemini, DB) in worker thread
         # to ensure the main asyncio event loop never freezes during /health checks
-        return await asyncio.to_thread(analyze_email_upload, filename, bytes(raw_bytes), source)
+        report = await asyncio.to_thread(analyze_email_upload, filename, bytes(raw_bytes), source)
+        from workflow_c import finish_analysis
+        return await asyncio.to_thread(finish_analysis, report)
 
     except UnsupportedFileTypeError as exc:
         # Clean 400 with descriptive client error
@@ -164,7 +168,7 @@ async def analyze(
         raise
     except Exception as exc:
         # Prevent stack trace and filesystem path leakage
-        logger.exception(f"Unhandled error analyzing {filename}: {exc}")
+        logger.warning("Analysis failed (%s)", type(exc).__name__)
         raise HTTPException(
             status_code=500,
             detail="An error occurred while analyzing the email artifact. Verify the file is an undamaged RFC 822 (.eml) or Outlook (.msg) file."
@@ -180,6 +184,26 @@ class ChatRequest(BaseModel):
     email_context: Optional[dict[str, Any]] = Field(None, description="Active email dossier data from frontend")
 
 
+@app.get('/me')
+async def me(request: Request):
+    return request.state.principal
+
+
+@app.get('/investigations')
+async def investigations(request: Request, offset: int = 0, limit: int = 50):
+    from db.connection import get_db
+    if offset < 0 or offset > 5000 or not 1 <= limit <= 100:
+        raise HTTPException(400, 'Invalid page')
+    docs = list(get_db()['analyzed_emails'].find({}, {'subject': 1, 'verdict': 1, 'analyzed_at': 1, 'workflow.state':1}).sort('analyzed_at', -1))
+    return [{'email_id': str(d['_id']), 'subject': d.get('subject'), 'verdict': d.get('verdict'), 'review_state': (d.get('workflow') or {}).get('state', d.get('workflow.state', 'unrecorded'))} for d in docs[offset:offset+limit]]
+
+
+@app.get('/campaigns')
+async def campaigns(request: Request):
+    from correlation.queries import list_campaigns
+    return list_campaigns()
+
+
 @app.post("/chat")
 @limiter.limit("30/minute")
 async def chat(request: Request, payload: ChatRequest) -> dict:
@@ -188,15 +212,23 @@ async def chat(request: Request, payload: ChatRequest) -> dict:
     from rag.chat import answer_query
     try:
         db = get_db()
+        if payload.email_context is not None:
+            raise HTTPException(400, "Client-supplied investigation context is not accepted; use email_id.")
+        if payload.email_id:
+            from db.repository import get_analysis
+            if get_analysis(db, payload.email_id) is None:
+                raise HTTPException(404, "Investigation not found")
         return await asyncio.to_thread(
             answer_query,
             payload.question,
             db,
             payload.email_id,
-            payload.email_context,
+            None,
         )
+    except HTTPException:
+        raise
     except Exception as exc:
-        logger.exception(f"Error during RAG chat query: {exc}")
+        logger.warning("Chat failed (%s)", type(exc).__name__)
         raise HTTPException(
             status_code=500,
             detail="An error occurred while answering the query against historical investigations."
@@ -208,15 +240,11 @@ async def chat(request: Request, payload: ChatRequest) -> dict:
 async def get_investigation(request: Request, email_id: str) -> dict:
     """Retrieve a specific investigation dossier by ID."""
     from db.connection import get_db
-    from db.schema import ANALYSES_COLLECTION
-    from bson import ObjectId
     try:
         db = get_db()
         
-        # Determine if email_id is a valid ObjectId, otherwise try string search
-        query = {"_id": ObjectId(email_id)} if ObjectId.is_valid(email_id) else {"email_id": email_id}
-        
-        doc = db[ANALYSES_COLLECTION].find_one(query)
+        from db.repository import get_analysis
+        doc = get_analysis(db, email_id)
         
         if not doc:
             raise HTTPException(status_code=404, detail="Investigation not found")
@@ -247,12 +275,15 @@ async def get_investigation(request: Request, email_id: str) -> dict:
             "analysis_provenance": doc.get("analysis_provenance"),
             # Stored with the record when available; older records are rebuilt
             # from what they kept and marked `reconstructed`.
-            "evidence_report": doc.get("evidence_report") or build_for_stored_record(doc, decision),
+            "evidence_report": doc.get("evidence_report") if (doc.get("evidence_report") or {}).get("schema_version") == 2 else build_for_stored_record(doc, decision),
             # B5/B6/B10: absent on records saved before these existed (not rebuilt:
             # the stored record never kept the HTML or the images).
             "link_analysis": doc.get("link_analysis"),
             "qr_trace": doc.get("qr_trace"),
             "privacy_report": doc.get("privacy_report"),
+            "baseline_context": doc.get("baseline_context"),
+            "case": doc.get("case"),
+            "retention": {"days": doc.get("retention_days", 30), "expires_at": doc.get("expires_at")},
             "provider_status": doc.get("provider_status"),
             "email": {
                 "subject": doc.get("subject", "(No Subject Header)"),
@@ -286,6 +317,9 @@ async def get_investigation(request: Request, email_id: str) -> dict:
     except HTTPException:
         raise
     except Exception as exc:
-        logger.exception(f"Error fetching investigation {email_id}: {exc}")
+        logger.warning("Investigation read failed (%s)", type(exc).__name__)
         raise HTTPException(status_code=500, detail="Database query failed")
 
+
+from workflow_c import router as workflow_router
+app.include_router(workflow_router)

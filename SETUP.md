@@ -5,7 +5,7 @@ This guide runs the existing web application on a Windows development machine. I
 ## Prerequisites
 
 - Python 3.11 (recommended; the Docker image uses Python 3.11).
-- Node.js 20+ and npm.
+- Node.js >=22.12 and npm.
 - For persistent local storage: MongoDB Community Server. MongoDB Compass is a GUI client, not the database server.
 - Optional provider API keys for Gemini and live threat intelligence.
 
@@ -105,4 +105,8 @@ The committed `extension/background.js` targets the hosted Render API and `exten
 - **Frontend says Engine Offline:** test `/health`, verify `VITE_API_BASE_URL` in the deployed build if applicable, and ensure the backend's `ALLOWED_ORIGINS` includes the exact browser origin.
 - **CORS error:** update `ALLOWED_ORIGINS` on the backend, save/restart it, and use the exact scheme + hostname (no path or trailing slash).
 - **Gemini or intelligence lookup fails:** test with the live integrations disabled first, then check provider model availability, credentials, network access and quota.
-- **History differs between browsers:** the History page is currently backed by browser `localStorage`; it is not a shared all-investigations list from the server.
+- **History differs between browsers:** the History page is currently backed by browser `sessionStorage`; it is not a shared all-investigations list from the server.
+
+## Workflow C setup changes
+
+See [WORKFLOW-C-README.md](WORKFLOW-C-README.md) for the authoritative feature status, API routes, security model and limitations. Data routes require personal Bearer keys; set ETAP_API_KEYS digest entries, migrate ownerless records, and schedule retention purge before deployment. Configure the extension key in its options page. Browser history now lasts for the signed-in tab session; server deletion is a separate control. Node >=22.12 is required for the patched build tools. Quotas currently require a single backend worker. Live hosted behavior is not verified.

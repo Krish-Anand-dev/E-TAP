@@ -10,6 +10,7 @@ export default defineConfig({
     host: '127.0.0.1',
     port: 5173,
     proxy: {
+      ...Object.fromEntries(['/me', '/campaigns', '/preferences', '/recovery', '/analytics', '/baselines'].map(path => [path, { target: 'http://127.0.0.1:5000', changeOrigin: true }])),
       '/analyze': {
         target: 'http://127.0.0.1:5000',
         changeOrigin: true,

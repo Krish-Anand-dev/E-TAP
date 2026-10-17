@@ -470,15 +470,11 @@ def _run_parsed_pipeline(parsed_email, source: str | None = None) -> dict:
             from db.schema import ANALYSES_COLLECTION
             rag_sum = build_summary(doc_snapshot)
             rag_vec = embed_text(rag_sum)
-            active_db = connection.get_db()
-            for coll_name in (ANALYSES_COLLECTION, "emails"):
-                try:
-                    active_db[coll_name].update_one(
-                        {"$or": [{"email_id": email_id}, {"_id": email_id}]},
-                        {"$set": {"rag_summary": rag_sum, "rag_embedding": rag_vec}},
-                    )
-                except Exception:
-                    pass
+            # Capture the already-scoped handle: native threads do not inherit ContextVars.
+            # No upsert: a deleted record must never be resurrected by this worker.
+            repository.update_analysis_fields(db, email_id, {
+                'rag_summary': rag_sum, 'rag_embedding': rag_vec,
+            })
         except Exception:
             # Non-blocking defensive catch
             pass

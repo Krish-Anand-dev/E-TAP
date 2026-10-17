@@ -48,6 +48,12 @@ function EvidenceRow({ item }) {
           <DirectionTag item={item} />
         </span>
       </div>
+      <details><summary>Evidence {item.id}: provenance and observation</summary>
+        <p>{item.provenance_type || item.kind} · {item.source_type || item.source} · confidence: {item.confidence || 'unknown'}</p>
+        <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{JSON.stringify(item.raw_observation ?? null, null, 2)}</pre>
+        <p>{item.normalized_explanation || item.why}</p>
+        <p>Supports: {(item.supports || []).join(', ') || 'None recorded'}; contradicts: {(item.contradicts || []).join(', ') || 'None recorded'}</p>
+      </details>
       {item.detail ? <div className="ev-row-detail">{item.detail}</div> : null}
     </li>
   );

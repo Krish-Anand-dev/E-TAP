@@ -37,11 +37,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), ETAP_REQUEST_TIMEOUT_MS);
 
-    fetch(`${ETAP_API_BASE_URL}/analyze`, {
+    chrome.storage.session.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' });
+    chrome.storage.session.get('apiKey').then(({ apiKey }) => {
+      if (!apiKey) { const error = new Error('Configure your API key in extension options.'); error.status = 401; throw error; }
+      return fetch(`${ETAP_API_BASE_URL}/analyze`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
         method: 'POST',
         body: formData,
         signal: controller.signal,
-    })
+    }); })
         .then((response) => {
             if (!response.ok) {
                 const err = new Error(`HTTP ${response.status}`);
@@ -54,6 +58,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         .catch((error) => {
             let code = 'network';
             if (error.name === 'AbortError') code = 'timeout';
+            else if (error.status === 401) code = 'unauthenticated';
             else if (error.status === 429) code = 'rate_limited';
             else if (error.status === 413) code = 'too_large';
             else if (error.status >= 500) code = 'server_error';
