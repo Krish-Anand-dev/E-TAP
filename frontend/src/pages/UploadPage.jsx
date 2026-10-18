@@ -122,11 +122,11 @@ export function UploadPage({ onAnalysisComplete }) {
   return (
     <div className="upload-container">
       <div className="ingest-header">
-        <span className="ingest-badge">STATION 01 // EVIDENCE INGEST</span>
-        <h1 className="ingest-title">Suspicious Email Forensic Pipeline</h1>
+        <span className="ingest-badge">NEW INVESTIGATION</span>
+        <h1 className="ingest-title">Every investigation starts with an email.</h1>
         <p className="ingest-desc">
           Drop a raw email artifact to trigger automated header verification (SPF/DKIM/DMARC),
-          sandbox attachment decomposition, reputation correlation, and Gemini-assisted threat verdict generation.
+          static attachment inspection, reputation correlation, and Gemini-assisted threat verdict generation.
         </p>
       </div>
 
@@ -184,7 +184,7 @@ export function UploadPage({ onAnalysisComplete }) {
           </div>
           <div className="spec-item">
             <span className="spec-dot" />
-            <span>Zero Data Leakage</span>
+            <span>Visible Data Flows</span>
           </div>
         </div>
       </div>
@@ -222,7 +222,7 @@ export function UploadPage({ onAnalysisComplete }) {
                 handleSubmit();
               }}
             >
-              Execute Forensic Pipeline
+              Analyze email
             </button>
           </div>
         </div>
@@ -303,9 +303,9 @@ export function UploadPage({ onAnalysisComplete }) {
       <div className="demo-strip" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '12px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div className="demo-text">
-            <strong>Live Backend Pipeline Test:</strong> Send sample <code>.eml</code> files to the configured E-TAP backend via <code>POST /analyze</code>:
+            <strong>Try a sample investigation:</strong> Explore the workflow with a sample email, or preview a report without running an analysis.
           </div>
-          <span className="rail-item-badge">REAL BACKEND PIPELINE</span>
+          <span className="rail-item-badge">SAMPLE EMAILS</span>
         </div>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <button
@@ -315,7 +315,7 @@ export function UploadPage({ onAnalysisComplete }) {
             onClick={() => handleTestRealPipeline(REAL_SAMPLE_PHISHING_EML, 'set01_002.eml')}
             disabled={isBusy}
           >
-            ⚡ Test Real EML: set01_002.eml (Password Expiry Phish)
+            Analyze phishing sample
           </button>
           <button
             type="button"
@@ -324,7 +324,7 @@ export function UploadPage({ onAnalysisComplete }) {
             onClick={() => handleTestRealPipeline(REAL_SAMPLE_CLEAN_EML, 'set01_001.eml')}
             disabled={isBusy}
           >
-            ✓ Test Real EML: set01_001.eml (Team Standup Clean)
+            Analyze benign sample
           </button>
           <button
             type="button"
@@ -336,7 +336,7 @@ export function UploadPage({ onAnalysisComplete }) {
             }}
             disabled={isBusy}
           >
-            View Static Mock Sample
+            Preview sample report
           </button>
         </div>
       </div>

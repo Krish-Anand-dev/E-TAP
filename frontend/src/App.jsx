@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { InvestigationProvider, useInvestigation } from './context/InvestigationContext';
+import OverviewPage from './pages/OverviewPage';
 import WorkspaceTools from './components/common/WorkspaceTools';
 import Header from './components/common/Header';
 import UploadPage from './pages/UploadPage';
@@ -10,7 +11,7 @@ import { fetchInvestigation } from './api/analyze';
 
 function AppContent() {
   const { status, data, setData, setStatus, setError, setActiveFile, persistInvestigation } = useInvestigation();
-  const [currentView, setCurrentView] = useState('upload'); // 'upload' | 'dashboard' | 'history'
+  const [currentView, setCurrentView] = useState('overview');
   const deepLinkHandled = useRef(false);
 
   // If status transitions to success, jump to dashboard
@@ -57,7 +58,9 @@ function AppContent() {
   return (
     <div className="app-shell">
       <Header currentView={currentView} setCurrentView={setCurrentView} />
-      <WorkspaceTools />
+      <div className="workspace-main" id="main-content">
+      {currentView === 'overview' && <OverviewPage navigate={setCurrentView} />}
+      <div className="workspace-settings-page" hidden={currentView !== 'workspace'}><div className="page-heading"><div><div className="eyebrow">YOUR WORKSPACE</div><h1>Insights & preferences</h1><p>Measured activity, provider coverage and trusted vendor context.</p></div></div><WorkspaceTools /></div>
 
       {currentView === 'upload' && (
         <UploadPage onAnalysisComplete={() => setCurrentView('dashboard')} />
@@ -69,6 +72,7 @@ function AppContent() {
         <HistoryPage onSelectDossier={() => setCurrentView('dashboard')} />
       )}
 
+      </div>
       <SocChatDrawer />
     </div>
   );
