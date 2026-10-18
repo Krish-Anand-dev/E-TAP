@@ -2,6 +2,52 @@
 
 This guide runs the existing web application on a Windows development machine. It does not package a Tauri desktop app.
 
+## Single-command startup (recommended)
+
+From the repository root:
+
+```powershell
+.\start-local.cmd --install --memory-db
+```
+
+This creates `.venv`, installs backend and frontend dependencies, creates `.env`
+from `.env.example` if absent, and starts both services. It preserves existing
+`.env` files. Python 3.10+ and Node.js 20+ must be installed. If the Windows Python
+launcher is unavailable, use your Python 3.10+ executable to run
+`start-local.py --install --memory-db` directly.
+
+Fill these placeholders in the root `.env`, then restart:
+
+```dotenv
+GEMINI_API_KEY=
+VIRUSTOTAL_API_KEY=
+ABUSEIPDB_API_KEY=
+THREAT_INTEL_LIVE=1
+```
+
+Provider keys stay on the backend. No frontend key configuration is necessary.
+Empty keys allow fallback analysis, and the startup output identifies unconfigured
+providers. Existing metadata triage can still skip Gemini for high-confidence
+benign messages. Provider availability, quotas and the configured Gemini model
+still determine whether live analysis succeeds.
+
+The frontend prefers `http://127.0.0.1:5173`. The backend uses a random available
+port. The launcher prints the actual URLs and opens the dashboard, where you can
+upload an `.eml`/`.msg` and view/export its report. The frontend proxy forwards
+analysis, health, chat and investigation requests to the selected backend.
+The launcher overrides deployed `VITE_API_BASE_URL` values for this local session.
+
+After the first install, run `.\start-local.cmd --memory-db`. Ctrl+C stops both
+services. Optional arguments: `--no-browser`, `--backend-port 5000`,
+`--frontend-port 5174`. If a preferred port is busy an available port is selected.
+
+`--memory-db` is explicitly temporary: stored investigations and correlation data
+are lost on shutdown. For persistent storage, run MongoDB locally or set an Atlas
+URI in `.env`, use `USE_FAKE_DB=0`, and launch `.\start-local.cmd` without
+`--memory-db`. The launcher checks the database before starting the services.
+
+The manual setup below remains available when you prefer separate terminals.
+
 ## Prerequisites
 
 - Python 3.11 (recommended; the Docker image uses Python 3.11).

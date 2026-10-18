@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { analyzeEmailFile, checkBackendHealth, fetchInvestigation } from '../api/analyze';
+import apiClient from '../api/client';
+import { capabilitiesFromSpec } from '../utils/backendCapabilities';
 
 const InvestigationContext = createContext(null);
 
@@ -194,14 +196,24 @@ export function InvestigationProvider({ children }) {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [backendOnline, setBackendOnline] = useState(null);
   const [lastHealthCheck, setLastHealthCheck] = useState(null);
+  const [backendCapabilities, setBackendCapabilities] = useState(() => capabilitiesFromSpec());
   const [history, setHistory] = useState(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = sessionStorage.getItem(STORAGE_KEY) || localStorage.getItem(STORAGE_KEY);
+      if (saved) sessionStorage.setItem(STORAGE_KEY, saved);
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
     }
   });
+
+  useEffect(() => {
+    let active = true;
+    apiClient.get('/openapi.json').then(({ data: spec }) => {
+      if (active) setBackendCapabilities(capabilitiesFromSpec(spec));
+    }).catch(() => { /* Optional hosted controls stay hidden when unavailable. */ });
+    return () => { active = false; };
+  }, []);
 
   // Check backend connectivity on mount and recurring timer every 15s with jitter debounce
   useEffect(() => {
@@ -250,7 +262,7 @@ export function InvestigationProvider({ children }) {
 
       setHistory((prev) => {
         const updated = [record, ...prev.filter((item) => item.id !== record.id)].slice(0, 50);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
         return updated;
       });
     } catch (err) {
@@ -291,7 +303,7 @@ export function InvestigationProvider({ children }) {
       let message = err.response?.data?.detail;
       if (!message) {
         if (err.message === 'Network Error' || !err.response || err.response?.status === 502) {
-          message = 'Unable to reach forensic backend. The cloud service may be waking up from free-tier sleep (~30-50s cold-start on Render). Please retry in a few moments.';
+          message = 'Unable to reach the local analysis backend. Check that uvicorn is running on port 5000, then retry.';
         } else {
           message = err.message || 'Failed to connect to forensic backend service.';
         }
@@ -331,17 +343,9 @@ export function InvestigationProvider({ children }) {
       if (typeof record === 'object' && record.report) {
         reportToLoad = record.report;
       } else {
-        // 2. Check local storage history for the full report
-        const localRecord = history.find(item => item.id === id);
-        // Only use localRecord if it's a valid mapped report (must have .email object)
-        if (localRecord && localRecord.report && localRecord.report.email) {
-          reportToLoad = localRecord.report;
-        } else {
-          // 3. Not found locally or it's a broken cached version! Fetch from backend
-          reportToLoad = await fetchInvestigation(id);
-          // Auto-save to local history so it appears in the tab
-          persistInvestigation(reportToLoad, 'Network Ingest');
-        }
+        // Revalidate retention and deletion on every stored report open.
+        reportToLoad = await fetchInvestigation(id);
+        persistInvestigation(reportToLoad, 'Network Ingest');
       }
 
       if (reportToLoad) {
@@ -373,6 +377,7 @@ export function InvestigationProvider({ children }) {
   };
 
   const clearHistory = () => {
+    sessionStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(STORAGE_KEY);
     setHistory([]);
   };
@@ -386,6 +391,7 @@ export function InvestigationProvider({ children }) {
         activeFile,
         uploadProgress,
         backendOnline,
+        backendCapabilities,
         lastHealthCheck,
         history,
         startAnalysis,

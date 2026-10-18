@@ -1,0 +1,86 @@
+[rule]
+description = """
+Detects Windows Memory API calls by a process with a fake parent process identity set to Windows Explorer often to blend
+in with user interactive activity.
+"""
+id = "e62f022c-88e2-403f-9f83-f76a91dd2203"
+license = "Elastic License v2"
+name = "API Call from a Process with a Spoofed Parent"
+os_list = ["windows"]
+version = "1.0.10"
+
+query = '''
+sequence by process.entity_id
+ [process where event.action == "start" and process.parent.name : "explorer.exe" and process.parent.Ext.real.pid > 0 and 
+  process.parent.thread.Ext.call_stack_summary : "?*" and process.executable != null and
+  not _arraysearch(process.parent.thread.Ext.call_stack, $entry,
+                   $entry.symbol_info : ("*advapi32.dll!CreateProcessAsUser*", "*advapi32.dll+0x*",
+                    "C:\\Program Files (x86)\\ManageEngine\\UEMS_Agent\\appctrl\\bin\\Privilager.exe*")) and
+  not (process.executable : ("?:\\Program Files\\*.exe", "?:\\Program Files (x86)\\*.exe") and
+       process.code_signature.trusted == true and not process.code_signature.subject_name : "Microsoft*") and 
+  not process.parent.thread.Ext.call_stack_summary : 
+                                      ("*|rpcrt4.dll|*", 
+                                       "*faultrep.dll|wersvc.dll*", 
+                                       "*windows.storage.dll|shell32.dll*", 
+                                       "*systemsettingsviewmodel.desktop.dll*")]
+ [api where process.Ext.api.name : ("WriteProcessMemory", "VirtualProtect*", "VirtualAlloc*", "MapViewOfFile*") and
+  _arraysearch(process.thread.Ext.call_stack_final_user_module.code_signature, $entry, $entry.trusted == false or $entry.exists == false) and
+  not process.thread.Ext.call_stack_final_user_module.protection_provenance like ("Kernel", "Kernel|*") and
+  not process.thread.Ext.call_stack_final_user_module.name in ("Kernel", "Unknown", "Undetermined", "sophosed.dll", "hmpalert.dll") and
+  not process.thread.Ext.call_stack_final_user_module.hash.sha256 in
+                                         ("d1e1d111eff2d7d3e60e5ed47d1919a43fe5a44e45f75d4a33f7a6cbc39a4aac",
+                                          "3afe14049a0baabf0519d5502d465abc6050d5a0f4a4fdb3bca22ab419c33f2a",
+                                          "cfcaf06eaa34d603ff3a89dd0ddfe4b17c0ee7ad8fa4534634d24e1692a5e352",
+                                          "eb278baed0f9c422e9abb6bd947d7934086ea73080575ecb2ef4a7306ca5b037",
+                                          "d807a7b13f948f60bc9c299f2b6976bf3988532adc02df5ed4f44538f13f4275",
+                                          "8c5350999da9836037c67fd08bfb4e261d6e288a79c6b4fc3c8e3bd3d1f4171e",
+                                          "108bddeccbd09a4621d7702e53442c236a2623cb03b653ed89a1fa26007388ca",
+                                          "2319da9f696d1589aa7f7a0d9b8d9e87d103f13a86817b275789d3787f2cbf77",
+                                          "b4e1daaee72eb9ea621918eaa4293a50bcf9c4d71fb545325b7dcd8b0e858f34",
+                                          "38011e713b4be8577576062754cad03e9899859488932ae4c9c83e5fbb5cb7d2",
+                                          "4328398412fdc6eadf57c4e659a45a34716cbccea0f4c025ef7fcd6e27d8ca48")]
+ until [process where event.action:"end"]
+'''
+
+min_endpoint_version = "8.14.2"
+[[actions]]
+action = "kill_process"
+field = "process.entity_id"
+state = 1
+tree = true
+
+[[optional_actions]]
+action = "rollback"
+field = "process.entity_id"
+state = 0
+
+[[threat]]
+framework = "MITRE ATT&CK"
+[[threat.technique]]
+id = "T1036"
+name = "Masquerading"
+reference = "https://attack.mitre.org/techniques/T1036/"
+
+[[threat.technique]]
+id = "T1055"
+name = "Process Injection"
+reference = "https://attack.mitre.org/techniques/T1055/"
+
+[[threat.technique]]
+id = "T1134"
+name = "Access Token Manipulation"
+reference = "https://attack.mitre.org/techniques/T1134/"
+[[threat.technique.subtechnique]]
+id = "T1134.004"
+name = "Parent PID Spoofing"
+reference = "https://attack.mitre.org/techniques/T1134/004/"
+
+
+
+[threat.tactic]
+id = "TA0005"
+name = "Defense Evasion"
+reference = "https://attack.mitre.org/tactics/TA0005/"
+
+[internal]
+min_endpoint_version = "8.14.2"

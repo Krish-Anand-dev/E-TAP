@@ -53,6 +53,35 @@ FastAPI backend (backend/app.py)
 
 ## Run locally (Windows PowerShell)
 
+For a single command that starts both services, installs dependencies on first
+use, and automatically connects the frontend to a random available backend port:
+
+```powershell
+.\start-local.cmd --install --memory-db
+```
+
+Add your keys to the generated root `.env`: `GEMINI_API_KEY`,
+`VIRUSTOTAL_API_KEY`, and `ABUSEIPDB_API_KEY`. `THREAT_INTEL_LIVE=1` keeps live
+lookups enabled. Restart the launcher after editing `.env`. The dashboard opens
+automatically; upload your `.eml`/`.msg` to receive the full pipeline report.
+Both services bind to `127.0.0.1`. Press Ctrl+C to stop them.
+
+`--memory-db` uses temporary storage and loses server-side investigations on
+shutdown. For persistent history/correlation, configure local MongoDB or Atlas
+in `.env` and omit `--memory-db`. Later launches can omit `--install`:
+
+```powershell
+.\start-local.cmd --memory-db
+```
+
+Use `--backend-port 5000` to prefer a specific backend port, or
+`--frontend-port 5174` to prefer a different frontend port. Busy preferred ports
+fall back to an available port; the launcher prints both actual URLs.
+Python 3.10+ (3.11/3.12 recommended) and Node.js 20+ are required. On other
+platforms use `python start-local.py --install --memory-db`.
+
+### Manual two-terminal setup
+
 Recommended prerequisites: Python 3.11, Node.js 20+, npm, and either a local MongoDB Community Server or a MongoDB Atlas database. MongoDB Compass is a GUI client; it does not run the MongoDB server itself.
 
 From the repository root, create `.env` **only if it does not already exist**:

@@ -1,5 +1,6 @@
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { bandFor, displayLabel } from './verdict.js';
 
 /**
  * pdfGenerator.js
@@ -57,13 +58,8 @@ function statusColor(status) {
   return COLORS.neutral;
 }
 
-function verdictStatusClass(verdict = '', riskScore = 0) {
-  const v = String(verdict || '');
-  if (riskScore >= 70 || v.includes('HIGH') || v.includes('PHISH') || v.includes('MALICIOUS')) {
-    return 'danger';
-  }
-  if (riskScore >= 40 || v.includes('SUSPICIOUS')) return 'caution';
-  return 'safe';
+function verdictStatusClass(verdict = '', riskScore = 0, verdictBand = null) {
+  return bandFor({ verdictBand, verdict, riskScore });
 }
 
 /** Ensure there is enough vertical room left on the page; otherwise start a new page. */
@@ -235,6 +231,7 @@ export function generatePdfDocument(data, options = {}) {
     email_id,
     risk_score = 0,
     verdict = 'UNKNOWN',
+    verdict_band = null,
     email = {},
     headers = {},
     attachments = [],
@@ -248,6 +245,8 @@ export function generatePdfDocument(data, options = {}) {
     data.historical_correlation || correlation.historical_stats || {};
   const finalAssessment = ai_analysis.final_assessment || {};
   const contentClassification = ai_analysis.content_classification || {};
+  const providerStatus = data.provider_status || {};
+  const privacyReport = data.privacy_report || {};
   const evidenceAssessments = finalAssessment.evidence_assessments || [];
   const mitreAttack =
     (finalAssessment.mitre_attack && finalAssessment.mitre_attack.length > 0
@@ -276,14 +275,14 @@ export function generatePdfDocument(data, options = {}) {
   y = 110;
 
   // ---------- Verdict banner ----------
-  const vClass = verdictStatusClass(verdict, risk_score);
+  const vClass = verdictStatusClass(verdict, risk_score, verdict_band);
   const vColor = statusColor(vClass);
   doc.setFillColor(vColor[0], vColor[1], vColor[2]);
   doc.roundedRect(PAGE_MARGIN, y, 515, 56, 3, 3, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(15);
-  doc.text(safe(verdict), PAGE_MARGIN + 16, y + 26);
+  doc.text(safe(displayLabel(verdict, risk_score)), PAGE_MARGIN + 16, y + 26);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.text(
@@ -310,7 +309,7 @@ export function generatePdfDocument(data, options = {}) {
     [
       ['Subject', email.subject],
       ['From', email.from_raw || email.from_email],
-      ['Reply-To', email.reply_to || '(aligned with From address)'],
+      ['Reply-To', email.reply_to || 'Not recorded'],
       ['To', email.to],
       ['Date', email.date],
       ['Message-ID', email.message_id],
@@ -326,9 +325,9 @@ export function generatePdfDocument(data, options = {}) {
   y = tableBlock(doc, y, {
     head: [['Check', 'Result']],
     body: [
-      ['SPF', safe(headers.spf, 'none').toUpperCase()],
-      ['DKIM', safe(headers.dkim, 'none').toUpperCase()],
-      ['DMARC', safe(headers.dmarc, 'none').toUpperCase()],
+      ['SPF', safe(headers.spf, 'unavailable').toUpperCase()],
+      ['DKIM', safe(headers.dkim, 'unavailable').toUpperCase()],
+      ['DMARC', safe(headers.dmarc, 'unavailable').toUpperCase()],
       ['Originating IP', safe(headers.originating_ip)],
     ],
     columnStyles: { 0: { cellWidth: 120 } },
@@ -366,7 +365,7 @@ export function generatePdfDocument(data, options = {}) {
     doc.setFontSize(9);
     doc.setTextColor(...COLORS.textMuted);
     y = ensureSpace(doc, y, 16);
-    doc.text('No file attachments were present in this email.', PAGE_MARGIN, y);
+    doc.text('No attachments recorded in the inspected material.', PAGE_MARGIN, y);
     y += 20;
   } else {
     y = tableBlock(doc, y, {
@@ -582,7 +581,7 @@ export function generatePdfDocument(data, options = {}) {
 
   // ---------- 10. Historical Correlation & Campaign ----------
   y = sectionTitle(doc, '10. Historical Correlation & Campaign', 'Relationship to previously analyzed messages', y);
-  const isNewCategory = historicalCorrelation.is_new_category ?? correlation.is_new_campaign ?? true;
+  const isNewCategory = historicalCorrelation.is_new_category ?? correlation.is_new_campaign ?? null;
   const campaignId = historicalCorrelation.assigned_campaign_id || correlation.campaign_id || 'N/A';
   const metrics = historicalCorrelation.metrics_summary || {
     total_overlapping_iocs: correlation.shared_infrastructure?.length || 0,
@@ -593,7 +592,7 @@ export function generatePdfDocument(data, options = {}) {
   y = keyValueGrid(
     doc,
     [
-      ['Campaign status', isNewCategory ? 'New threat cluster' : 'Recurring adversary activity'],
+      ['Campaign status', isNewCategory === null ? 'Unknown' : (isNewCategory ? 'No prior matches in inspected history' : 'Related stored submissions')],
       ['Campaign ID', campaignId],
       ['Overlapping IOCs', metrics.total_overlapping_iocs],
       ['Prior incidents', metrics.total_prior_incidents],
@@ -620,8 +619,67 @@ export function generatePdfDocument(data, options = {}) {
     });
   }
 
-  // ---------- Technical appendix ----------
-  y = sectionTitle(doc, '11. Technical Appendix', 'Execution metadata for analyst traceability', y);
+  // ---------- 11. Provider status and analysis coverage ----------
+  y = sectionTitle(doc, '11. Provider Status & Coverage', 'Provider availability is separate from the threat verdict', y);
+  const providerEntries = Object.entries(providerStatus.providers || {});
+  if (providerStatus.summary) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...(providerStatus.coverage_status === 'complete' ? COLORS.safe : COLORS.caution));
+    const summaryLines = doc.splitTextToSize(safe(providerStatus.summary), 515);
+    y = ensureSpace(doc, y, summaryLines.length * 12 + 8);
+    doc.text(summaryLines, PAGE_MARGIN, y);
+    y += summaryLines.length * 12 + 8;
+  }
+  if (providerEntries.length) {
+    y = tableBlock(doc, y, {
+      head: [['Provider', 'Status', 'Summary']],
+      body: providerEntries.map(([id, provider]) => [
+        safe(provider?.name || id),
+        safe(provider?.status, 'unknown').replaceAll('_', ' '),
+        safe(provider?.summary),
+      ]),
+      styles: { fontSize: 7.2, cellPadding: 4, overflow: 'linebreak' },
+      columnStyles: { 0: { cellWidth: 105 }, 1: { cellWidth: 90 } },
+    });
+  } else {
+    y = keyValueGrid(doc, [['Provider status', 'Not present in this stored report; re-analyze to collect it.']], y);
+  }
+  if (providerStatus.analysis_duration_ms != null) {
+    y = keyValueGrid(doc, [['Core analysis duration', `${safe(providerStatus.analysis_duration_ms)} ms`]], y);
+  }
+
+  // ---------- 12. Privacy and data flows ----------
+  y = sectionTitle(doc, '12. Privacy & Data Flow', 'What was processed, stored, sent, cached or deliberately skipped', y);
+  const urlLookups = privacyReport.url_lookups || {};
+  y = keyValueGrid(doc, [
+    ['External lookups', privacyReport.external_lookups_enabled == null ? 'Unknown' : (privacyReport.external_lookups_enabled ? 'Enabled' : 'Disabled')],
+    ['URLs extracted', urlLookups.total_urls ?? 0],
+    ['Remote full URL requests', urlLookups.sent_in_full ?? 0],
+    ['Remote URL requests with query/fragment removed', urlLookups.sent_trimmed ?? 0],
+    ['Cached URL results reused', (urlLookups.cached_full || 0) + (urlLookups.cached_trimmed || 0)],
+    ['URLs skipped for privacy', (urlLookups.skipped_for_privacy || []).length],
+    ['URLs skipped by policy/limits', (urlLookups.skipped_by_policy || []).length],
+  ], y);
+  const flowEntries = privacyReport.flows || [];
+  if (flowEntries.length) {
+    y = tableBlock(doc, y, {
+      head: [['Data flow', 'Status', 'What is involved']],
+      body: flowEntries.map((flow) => [
+        safe(flow.name),
+        safe(flow.status).replaceAll('_', ' '),
+        (flow.sends || []).map((item) => safe(item)).join('; '),
+      ]),
+      styles: { fontSize: 6.8, cellPadding: 4, overflow: 'linebreak' },
+      columnStyles: { 0: { cellWidth: 110 }, 1: { cellWidth: 80 } },
+    });
+  }
+  if (Array.isArray(privacyReport.caveats) && privacyReport.caveats.length) {
+    y = bulletList(doc, privacyReport.caveats, y);
+  }
+
+  // ---------- 13. Technical appendix ----------
+  y = sectionTitle(doc, '13. Technical Appendix', 'Execution metadata for analyst traceability', y);
   y = keyValueGrid(
     doc,
     [
@@ -633,8 +691,40 @@ export function generatePdfDocument(data, options = {}) {
     y
   );
 
+  doc.addPage();
+  doc.setFontSize(16); doc.text('Evidence Ledger v2', PAGE_MARGIN, 50);
+  autoTable(doc, { startY: 65, margin: PAGE_MARGIN, styles: { fontSize: 8, overflow: 'linebreak' },
+    head: [['Evidence / source', 'Provenance / confidence', 'Observation / explanation / links']],
+    body: (data.evidence_report?.evidence || []).map(e => [
+      `${e.id} / ${e.source_type || e.source}`,
+      `${e.provenance_type || e.kind} / ${e.confidence || 'unknown'}`,
+      `${JSON.stringify(e.raw_observation ?? null)}\n${e.normalized_explanation || e.why || ''}\nSupports: ${(e.supports || []).join(', ')}; contradicts: ${(e.contradicts || []).join(', ')}`
+    ]) });
+  if (data.sandbox) {
+    const sandbox = data.sandbox;
+    doc.addPage();
+    let sandboxY = sectionTitle(doc, 'Sandbox Analysis', 'Observed guest behavior and Windows security evidence', 50);
+    sandboxY = keyValueGrid(doc, [
+      ['Mode / status', `${sandbox.mode || 'unknown'} / ${sandbox.status || 'unknown'}`],
+      ['Job ID', sandbox.job_id || 'Not recorded'],
+      ['Detection coverage', `${sandbox.coverage?.rules_loaded ?? 'Unknown'} rules loaded`],
+      ['Finished', sandbox.finished_at || 'Not finished'],
+    ], sandboxY);
+    sandboxY = tableBlock(doc, sandboxY, {
+      head: [['Attachment / sample', 'Verdict / events', 'Matched rules / observation notes']],
+      body: (sandbox.items || []).map(item => [
+        `${item.filename || 'Unknown'}\n${item.sample || ''}`,
+        `${item.verdict || 'unknown'}\n${item.event_count || 0} events`,
+        `${(item.matches || []).map(match => `${match.rule_id}: ${match.rule}`).join('\n')}\n${item.note || item.launch_error || ''}`,
+      ]),
+    });
+    const security = sandbox.security_events || (sandbox.items || []).flatMap(item => item.security_events || []);
+    if (security.length) tableBlock(doc, sandboxY, {
+      head: [['Windows event', 'Security evidence']],
+      body: security.map(event => [String(event.event_id), event.message || '']),
+    });
+  }
   pageFooter(doc, generatedAt);
-
   return doc;
 }
 

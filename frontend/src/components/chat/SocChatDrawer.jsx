@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { askSocAssistant } from '../../api/client';
 import { useInvestigation } from '../../context/InvestigationContext';
+import { bandFor } from '../../utils/verdict';
 
 export function SocChatDrawer() {
   const { data } = useInvestigation();
@@ -364,7 +365,7 @@ export function SocChatDrawer() {
                           padding: '1px 6px',
                           borderRadius: '8px',
                           backgroundColor: src.is_active_file ? 'rgba(232, 162, 61, 0.15)' : 'rgba(255,255,255,0.06)',
-                          color: src.is_active_file ? '#E8A23D' : (src.verdict?.includes('PHISH') || (src.risk_score >= 70) ? '#F87171' : '#10B981'),
+                          color: src.is_active_file ? '#E8A23D' : (bandFor({ verdict: src.verdict, riskScore: src.risk_score }) === 'danger' ? '#F87171' : '#10B981'),
                           border: src.is_active_file ? '1px solid rgba(232, 162, 61, 0.4)' : '1px solid rgba(255,255,255,0.1)',
                         }}
                         title={`Verdict: ${src.verdict} | Risk: ${src.risk_score} | Similarity: ${src.similarity}`}

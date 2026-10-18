@@ -26,6 +26,8 @@ export async function analyzeEmailFile(file, onUploadProgress) {
  */
 export async function checkBackendHealth() {
   try {
+    // The local sandbox backend exposes liveness at /health. The deployment
+    // project's /ready endpoint is not part of this backend's API contract.
     const response = await apiClient.get('/health', { timeout: 15000 });
     return response.status === 200 && response.data?.status === 'ok';
   } catch {

@@ -8,6 +8,7 @@ the HTTP API. It keeps one canonical A -> B/B2 -> D -> E -> F -> G flow.
 from __future__ import annotations
 
 import os
+import logging
 from datetime import date, datetime
 from typing import Any
 
@@ -280,6 +281,29 @@ def _run_parsed_pipeline(parsed_email) -> dict:
             "H": "complete",
         },
     }
+
+    # --- Sandbox: submit eligible attachments for behavioral analysis ---
+    sandbox_status = {"status": "not_applicable", "email_id": correlation_result["email_id"], "mode": "none"}
+    try:
+        from sandbox import submit as sandbox_submit, get_backend as sandbox_get_backend
+        sb_backend = sandbox_get_backend()
+        if sb_backend != "none":
+            sandbox_status = sandbox_submit(
+                correlation_result["email_id"],
+                data.get("attachments") or [],
+                attachment_analysis,
+            )
+            result["stage_status"]["S"] = sandbox_status.get("status", "submitted")
+        else:
+            result["stage_status"]["S"] = "unavailable"
+    except Exception as sb_exc:
+        # Sandbox must never crash the pipeline
+        logging.getLogger("E-TAP.pipeline").warning("Sandbox submit failed (non-fatal): %s", sb_exc)
+        result["stage_status"]["S"] = "error"
+        sandbox_status = {"status": "error", "email_id": correlation_result["email_id"],
+                          "mode": "none", "message": str(sb_exc)[:200]}
+
+    result["sandbox"] = sandbox_status
 
     # Fire-and-forget background persistence of RAG summary and vector embedding
     def _bg_persist_rag(email_id: str, doc_snapshot: dict):

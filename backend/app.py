@@ -6,7 +6,10 @@ except ImportError:  # pragma: no cover
     load_dotenv = None
 
 if load_dotenv is not None:
-    load_dotenv(override=True)
+    from pathlib import Path
+    # Resolve independently of the terminal's working directory; explicit
+    # process environment (including launcher options) takes precedence.
+    load_dotenv(Path(__file__).resolve().parents[1] / '.env', override=False)
 
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
@@ -74,7 +77,7 @@ def startup_event():
         print(f"  [DATABASE]  Active Database: '{db.name}'")
         print(f"  [SECURITY]  Rate limiter configured (per-endpoint limits apply)")
         print(f"  [SECURITY]  Upload Limit: 25 MB | XSS Iframe Isolation active")
-        print(f"  [STATUS]    Ready to receive forensic email artifacts on port 5000")
+        print(f"  [STATUS]    Ready to receive forensic email artifacts on port {os.getenv('PORT', '5000')}")
     except Exception as exc:
         print(f"  [DB ERROR]  Connection failed: {exc}")
     print("=" * 68 + "\n")
@@ -159,6 +162,38 @@ async def chat(request: Request, payload: ChatRequest) -> dict:
         ) from None
 
 
+@app.get("/sandbox/{email_id}")
+@limiter.limit("60/minute")
+async def get_sandbox_status(request: Request, email_id: str) -> dict:
+    """Retrieve current sandbox analysis status for an email."""
+    from db.connection import get_db
+    from db.schema import ANALYSES_COLLECTION
+    from bson import ObjectId
+    try:
+        db = get_db()
+        query = {"_id": ObjectId(email_id)} if ObjectId.is_valid(email_id) else {"email_id": email_id}
+        doc = db[ANALYSES_COLLECTION].find_one(query)
+
+        if not doc:
+            raise HTTPException(status_code=404, detail="Investigation not found")
+
+        sandbox = doc.get("sandbox_analysis") or {}
+        from sandbox.worker import current_analysis
+        sandbox = current_analysis(email_id, sandbox)
+
+        return {
+            "email_id": email_id,
+            "sandbox": sandbox,
+            "risk_score": doc.get("risk_score"),
+            "verdict": doc.get("verdict"),
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception(f"Error fetching sandbox status {email_id}: {exc}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve sandbox status")
+
+
 @app.get("/investigations/{email_id}")
 @limiter.limit("60/minute")
 async def get_investigation(request: Request, email_id: str) -> dict:
@@ -187,6 +222,8 @@ async def get_investigation(request: Request, email_id: str) -> dict:
         #   triage, graph_diffusion
         
         fa = doc.get("final_assessment") or {}
+        from sandbox.worker import current_analysis
+        sandbox = current_analysis(email_id, doc.get("sandbox_analysis"))
         
         mapped_doc = {
             "email_id": str(doc["_id"]),
@@ -216,6 +253,7 @@ async def get_investigation(request: Request, email_id: str) -> dict:
             },
             "mitre_attack": doc.get("mitre_attack") or [],
             "triage": doc.get("triage") or {},
+            "sandbox": sandbox or {"status": "not_applicable", "mode": "none"},
             "stage_status": doc.get("stage_status") or {
                 "A": "complete", "B": "complete", "B2": "complete",
                 "D": "complete", "E": "live", "F": "complete",

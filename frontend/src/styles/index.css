@@ -281,3 +281,9 @@ input:focus-visible {
   outline: 2px solid var(--accent-amber);
   outline-offset: 1px;
 }
+
+/* Workflow C keyboard visibility and native control readability. */
+button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, summary:focus-visible { outline: 3px solid #ffc857; outline-offset: 3px; }
+label { display: block; margin-top: 12px; }
+input, textarea, select { color: #f5f5f5; background: #202630; border: 1px solid #929baa; padding: 8px; max-width: 100%; }
+textarea { display: block; width: min(100%, 600px); min-height: 72px; }

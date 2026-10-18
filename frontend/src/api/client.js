@@ -12,7 +12,7 @@ export const apiClient = axios.create({
 export const askSocAssistant = async (question, emailId = null, emailContext = null) => {
   const payload = { question };
   if (emailId) payload.email_id = emailId;
-  if (emailContext) payload.email_context = emailContext;
+  // Only server-owned records may supply chat context.
   const response = await apiClient.post('/chat', payload);
   return response.data;
 };

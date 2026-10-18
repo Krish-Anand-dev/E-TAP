@@ -1,6 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+// The local launcher passes its selected backend port here. No provider keys
+// belong in VITE_* variables: those are bundled into the browser application.
+const backendUrl = process.env.ETAP_BACKEND_URL || 'http://127.0.0.1:5000';
+
 export default defineConfig({
   plugins: [react()],
   server: {
@@ -10,20 +14,22 @@ export default defineConfig({
     host: '127.0.0.1',
     port: 5173,
     proxy: {
+      '/openapi.json': { target: backendUrl, changeOrigin: true },
+      '/sandbox': { target: backendUrl, changeOrigin: true },
       '/analyze': {
-        target: 'http://127.0.0.1:5000',
+        target: backendUrl,
         changeOrigin: true,
       },
       '/health': {
-        target: 'http://127.0.0.1:5000',
+        target: backendUrl,
         changeOrigin: true,
       },
       '/chat': {
-        target: 'http://127.0.0.1:5000',
+        target: backendUrl,
         changeOrigin: true,
       },
       '/investigations': {
-        target: 'http://127.0.0.1:5000',
+        target: backendUrl,
         changeOrigin: true,
       },
     },

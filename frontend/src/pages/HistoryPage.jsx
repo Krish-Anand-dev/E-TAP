@@ -1,9 +1,19 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import apiClient from '../api/client';
 import { useInvestigation } from '../context/InvestigationContext';
 
 export function HistoryPage({ onSelectDossier }) {
-  const { history, loadFromHistory, clearHistory } = useInvestigation();
+  const { history, loadFromHistory, clearHistory, backendCapabilities } = useInvestigation();
 
+  const [stored, setStored] = useState([]);
+  const [storedError, setStoredError] = useState('');
+  useEffect(() => {
+    if (!backendCapabilities.storedReports) return;
+    let active = true;
+    apiClient.get('/investigations?limit=100').then(r => { if (active) setStored(r.data); })
+      .catch(() => { if (active) setStoredError('Stored reports unavailable.'); });
+    return () => { active = false; };
+  }, [backendCapabilities.storedReports]);
   const handleSelect = (record) => {
     loadFromHistory(record);
     if (onSelectDossier) onSelectDossier();
@@ -38,6 +48,11 @@ export function HistoryPage({ onSelectDossier }) {
         )}
       </div>
 
+      {backendCapabilities.storedReports && <section className="forensic-panel" style={{padding:16}}>
+        <h2>Stored reports and review queue</h2><p>The 100 most recent stored reports.</p>
+        <p role="status">{storedError}</p>
+        <ul>{stored.map(r => <li key={r.email_id}><button onClick={() => handleSelect(r.email_id)}>{r.subject || r.email_id} — {r.review_state} — {r.verdict || 'Unknown'}</button></li>)}</ul>
+      </section>}
       {/* Backend endpoint notice */}
       <div
         style={{
@@ -57,9 +72,8 @@ export function HistoryPage({ onSelectDossier }) {
           [NOTICE]
         </span>
         <span>
-          Backend triage records currently cached client-side. Backend owner requested to expose{' '}
-          <code className="mono-val" style={{ color: 'var(--accent-amber)' }}>GET /investigations</code> &{' '}
-          <code className="mono-val" style={{ color: 'var(--accent-amber)' }}>GET /investigations/{'{id}'}</code> for shared server-side persistence.
+          This list is a browser-local convenience history; it is not a shared server-side investigations feed. Individual stored dossiers can be fetched by ID via{' '}
+          <code className="mono-val" style={{ color: 'var(--accent-amber)' }}>GET /investigations/{'{id}'}</code>. Clearing this list does not delete server-side analysis records.
         </span>
       </div>
 

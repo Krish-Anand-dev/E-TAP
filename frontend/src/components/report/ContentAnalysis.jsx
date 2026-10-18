@@ -26,7 +26,8 @@ export function ContentAnalysis({ aiAnalysis = {}, email = {} }) {
     verdictClass = 'safe';
   }
 
-  const providerName = content.provider === 'gemini' ? 'Gemini 1.5 Pro' : 'Stage G Heuristic Engine';
+  const finalAssessment = aiAnalysis.final_assessment || {};
+  const providerName = content.provider === 'gemini' ? (content.model || finalAssessment.model || 'Gemini') : (content.provider === 'xgboost_triage' ? 'XGBoost Triage' : 'Deterministic Fallback');
 
   return (
     <div className="forensic-panel">

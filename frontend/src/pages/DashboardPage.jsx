@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useInvestigation } from '../context/InvestigationContext';
 
 import VerdictBanner from '../components/report/VerdictBanner';
+import EvidenceNarrative from '../components/report/EvidenceNarrative';
 import HeaderAnalysis from '../components/report/HeaderAnalysis';
 import AttachmentTable from '../components/report/AttachmentTable';
 import ContentAnalysis from '../components/report/ContentAnalysis';
@@ -12,10 +13,71 @@ import MitreCards from '../components/report/MitreCards';
 import EvidenceBreakdown from '../components/report/EvidenceBreakdown';
 import HistoricalCorrelationCard from '../components/report/HistoricalCorrelationCard';
 import ExportButton from '../components/report/ExportButton';
+import ProviderStatusPanel from '../components/report/ProviderStatusPanel';
+import ResponseWorkflow from '../components/report/ResponseWorkflow';
+import TrustControls from '../components/report/TrustControls';
+import PrivacyDataPanel from '../components/report/PrivacyDataPanel';
+import SandboxPanel from '../components/report/SandboxPanel';
+import { fetchInvestigation } from '../api/analyze';
+import { ACTIVE_SANDBOX_STATUSES, TERMINAL_SANDBOX_STATUSES, mergeSandboxReport } from '../utils/sandbox';
 
 export function DashboardPage() {
-  const { data, activeFile, resetInvestigation } = useInvestigation();
+  const { data, activeFile, resetInvestigation, setData, persistInvestigation, backendCapabilities } = useInvestigation();
   const [activeSection, setActiveSection] = useState('sec-overview');
+
+  useEffect(() => {
+    if (!data?.email_id || !ACTIVE_SANDBOX_STATUSES.has(data.sandbox?.status)) return;
+    let cancelled = false;
+    let inFlight = false;
+    const poll = async () => {
+      if (inFlight) return;
+      inFlight = true;
+      try {
+        const updated = await fetchInvestigation(data.email_id);
+        if (!cancelled) setData(current => mergeSandboxReport(current, updated));
+      } catch { /* A temporary request failure does not end an active job. */ }
+      finally { inFlight = false; }
+    };
+    const interval = setInterval(poll, 4000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [data?.email_id, data?.sandbox?.status, setData]);
+
+  useEffect(() => {
+    if (data?.email_id && TERMINAL_SANDBOX_STATUSES.has(data.sandbox?.status)) {
+      persistInvestigation(data, activeFile?.name);
+    }
+  }, [data?.email_id, data?.sandbox?.status]);
+
+  // Track active scroll section for left rail highlighting
+  useEffect(() => {
+    const handleScroll = () => {
+      const sections = [
+        'sec-overview',
+        'sec-headers',
+        'sec-attachments',
+        'sec-sandbox',
+        'sec-content',
+        'sec-iocs',
+        'sec-evidence',
+        'sec-mitre',
+        'sec-correlation',
+        'sec-graph',
+        'sec-geo',
+      ];
+      for (const id of sections) {
+        const el = document.getElementById(id);
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          if (rect.top <= 120 && rect.bottom >= 120) {
+            setActiveSection(id);
+            break;
+          }
+        }
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   if (!data) {
     return (
@@ -57,35 +119,7 @@ export function DashboardPage() {
       : data.mitre_attack || [];
   const recommendedActions = finalAssessment.recommended_actions || [];
 
-  // Track active scroll section for left rail highlighting
-  useEffect(() => {
-    const handleScroll = () => {
-      const sections = [
-        'sec-overview',
-        'sec-headers',
-        'sec-attachments',
-        'sec-content',
-        'sec-iocs',
-        'sec-evidence',
-        'sec-mitre',
-        'sec-correlation',
-        'sec-graph',
-        'sec-geo',
-      ];
-      for (const id of sections) {
-        const el = document.getElementById(id);
-        if (el) {
-          const rect = el.getBoundingClientRect();
-          if (rect.top <= 120 && rect.bottom >= 120) {
-            setActiveSection(id);
-            break;
-          }
-        }
-      }
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+
 
   const totalIocs =
     (iocs.ips?.length || 0) +
@@ -149,6 +183,12 @@ export function DashboardPage() {
               >
                 <span>Attachments</span>
                 <span className="rail-item-badge">{attachments.length}</span>
+              </a>
+            </li>
+            <li className="rail-nav-item">
+              <a href="#sec-sandbox" className={activeSection === 'sec-sandbox' ? 'active' : ''}>
+                <span>Sandbox Analysis</span>
+                <span className="rail-item-badge">{data.sandbox?.status === 'done' ? 'Complete' : (data.sandbox?.status || 'Not recorded').replaceAll('_', ' ')}</span>
               </a>
             </li>
             <li className="rail-nav-item">
@@ -245,9 +285,24 @@ export function DashboardPage() {
             verdict={verdict}
             riskScore={risk_score}
             confidence={finalAssessment.confidence}
-            explanation={finalAssessment.explanation}
+            explanation={data.evidence_report?.headline || finalAssessment.explanation}
+            confidenceLevel={data.evidence_report?.conclusion?.confidence_level}
             triage={data.triage}
+            band={data.verdict_band}
+            provenance={data.analysis_provenance}
+            stageStatus={data.stage_status}
           />
+
+          {/* What we observed / Why it matters / What to do */}
+          <EvidenceNarrative report={data.evidence_report} />
+
+          {/* B11: provider availability is separate from the threat verdict. */}
+          {data.provider_status && <ProviderStatusPanel status={data.provider_status} />}
+
+          {/* B10: make actual processing/storage/external-enrichment flows visible. */}
+          {backendCapabilities.workflow && <ResponseWorkflow emailId={data.email_id} band={data.verdict_band} baseline={data.baseline_context} />}
+              {backendCapabilities.retention && <TrustControls data={data} onDeleted={() => window.location.reload()} />}
+              <PrivacyDataPanel report={data.privacy_report} />
 
           {/* Core Envelope Header Metadata Card */}
           <div className="forensic-panel">
@@ -300,6 +355,10 @@ export function DashboardPage() {
           <AttachmentTable attachments={attachments} />
         </section>
 
+        <section id="sec-sandbox" className="dossier-section">
+          <SandboxPanel sandbox={data.sandbox || { status: 'unknown', mode: 'virtualbox', message: 'No sandbox result is recorded for this report. Upload the original email to run behavioral analysis.' }} />
+        </section>
+
         {/* Section: AI Content Analysis */}
         <section id="sec-content" className="dossier-section">
           <ContentAnalysis aiAnalysis={ai_analysis} email={email} />
@@ -348,7 +407,11 @@ export function DashboardPage() {
 
         {/* Section: Geo Footprint */}
         <section id="sec-geo" className="dossier-section">
-          <GeoMap geoPoints={threat_intel.geo || []} />
+          <GeoMap
+            hops={headers.hops || []}
+            origin={headers.origin_analysis || null}
+            geoPoints={threat_intel.geo || []}
+          />
         </section>
       </main>
     </div>

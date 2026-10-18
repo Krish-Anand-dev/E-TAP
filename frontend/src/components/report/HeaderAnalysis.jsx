@@ -8,6 +8,8 @@ export function HeaderAnalysis({ headers = {} }) {
     spf = 'none',
     dkim = 'none',
     dmarc = 'none',
+    available = true,
+    unavailable_reason = null,
     originating_ip = 'N/A',
     received_chain = [],
     red_flags = [],
@@ -19,7 +21,9 @@ export function HeaderAnalysis({ headers = {} }) {
     let ledColor = 'var(--text-muted)';
     let statusLabel = 'NONE';
 
-    if (v === 'pass') {
+    if (v === 'not_available') {
+      statusLabel = 'NOT AVAILABLE';
+    } else if (v === 'pass') {
       statusClass = 'safe';
       ledColor = 'var(--verdict-safe)';
       statusLabel = 'PASS';
@@ -75,6 +79,14 @@ export function HeaderAnalysis({ headers = {} }) {
         </div>
       </div>
 
+      {available === false && (
+        <div className="headers-unavailable-note">
+          <strong>Headers not available.</strong>{' '}
+          {unavailable_reason || 'The original message headers were not provided, so SPF, DKIM, DMARC and routing were not evaluated.'}{' '}
+          Upload the original .eml/.msg file for full header forensics.
+        </div>
+      )}
+
       {/* Protocol Authentication Instrument Lights */}
       <div className="auth-status-grid">
         {renderStatusLight('SPF', spf)}
@@ -99,12 +111,14 @@ export function HeaderAnalysis({ headers = {} }) {
         <div className="meta-field">
           <div className="meta-field-label">ORIGINATING IP</div>
           <div className="meta-field-value mono-val">
-            {originating_ip || 'None detected (Internal/Relay)'}
+            {available === false ? 'Not available' : (originating_ip || 'None detected (Internal/Relay)')}
           </div>
         </div>
         <div className="meta-field">
           <div className="meta-field-label">MTA HOPS DETECTED</div>
-          <div className="meta-field-value mono-val">{received_chain.length} Relay Nodes</div>
+          <div className="meta-field-value mono-val">
+            {available === false ? 'Not available' : `${received_chain.length} Relay Nodes`}
+          </div>
         </div>
       </div>
 
@@ -131,7 +145,7 @@ export function HeaderAnalysis({ headers = {} }) {
         </div>
         {received_chain.length === 0 ? (
           <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', padding: '8px' }}>
-            No intermediate received hops logged.
+            {available === false ? 'Not available — original headers were not provided.' : 'No intermediate received hops logged.'}
           </div>
         ) : (
           <ul className="hop-list">

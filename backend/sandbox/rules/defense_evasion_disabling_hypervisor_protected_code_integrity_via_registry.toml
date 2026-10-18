@@ -1,0 +1,71 @@
+[rule]
+description = """
+Identifies registry modifications to disable Hypervisor-protected Code Integrity. HVCI enforces code integrity in the
+kernel and allows only signed code to be executed.
+"""
+id = "6bda13bc-f952-4353-9a97-2c7a38b21010"
+license = "Elastic License v2"
+name = "Disabling Hypervisor-protected Code Integrity via Registry"
+os_list = ["windows"]
+reference = [
+    "https://www.welivesecurity.com/2023/03/01/blacklotus-uefi-bootkit-myth-confirmed/",
+    "https://learn.microsoft.com/en-us/windows/security/threat-protection/device-guard/enable-virtualization-based-protection-of-code-integrity",
+]
+version = "1.0.22"
+
+query = '''
+registry where event.action == "modification" and 
+ process.executable != null and 
+ registry.path :
+       ("HKLM\\SYSTEM\\*ControlSet*\\DeviceGuard\\Scenarios\\HypervisorEnforcedCodeIntegrity\\Enabled",
+        "HKLM\\SYSTEM\\*ControlSet*\\DeviceGuard\\HypervisorEnforcedCodeIntegrity") and 
+ registry.data.strings : "0" and 
+ not process.executable :
+           ("?:\\Windows\\System32\\DeviceEnroller.exe",
+            "?:\\Windows\\System32\\omadmclient.exe",
+            "?:\\Windows\\System32\\svchost.exe",
+            "?:\\Windows\\System32\\SecurityHealthService.exe",
+            "?:\\Program Files\\HONOR\\PCManager\\MBAMessageCenter.exe",
+            "?:\\Program Files (x86)\\ASUS\\AI Suite III\\AISuite3.exe",
+            "C:\\Program Files\\Tenable\\Nessus Agent\\nessusd.exe",
+            "C:\\Program Files (x86)\\Faronics\\Deep Freeze\\Install C-0\\DFServ.exe",
+            "C:\\Program Files (x86)\\Common Files\\InstallShield\\engine\\?\\Intel 32\\IKernel.exe",
+            "?:\\Windows\\regedit.exe",
+            "C:\\Windows\\System32\\provtool.exe",
+            "C:\\Windows\\System32\\backgroundTaskHost.exe",
+            "C:\\Windows\\UUS\\Packages\\Preview\\amd64\\MoUsoCoreWorker.exe",
+            "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\*\\Installer\\setup.exe",
+            "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\*\\msedgewebview2.exe",
+            "C:\\Windows\\UUS\\amd64\\MoUsoCoreWorker.exe",
+            "C:\\Program Files\\Omnilert\\Omnilert.exe") and
+ not process.thread.Ext.call_stack_summary in
+             ("sysfer.dll|kernelbase.dll|dggpext.dll|policymanagerprecheck.dll|policymanager.dll|deviceenroller.exe|kernel32.dll|ntdll.dll",
+              "sysfer.dll|kernelbase.dll|dggpext.dll|enterprisecsps.dll|configmanager2.dll|enterprisecsps.dll|configmanager2.dll|coredpus.dll|omadmclient.exe|kernel32.dll|ntdll.dll")
+'''
+
+min_endpoint_version = "8.7.0"
+[[actions]]
+action = "kill_process"
+field = "process.entity_id"
+state = 0
+
+[[optional_actions]]
+action = "rollback"
+field = "process.entity_id"
+state = 0
+
+[[threat]]
+framework = "MITRE ATT&CK"
+[[threat.technique]]
+id = "T1112"
+name = "Modify Registry"
+reference = "https://attack.mitre.org/techniques/T1112/"
+
+
+[threat.tactic]
+id = "TA0005"
+name = "Defense Evasion"
+reference = "https://attack.mitre.org/tactics/TA0005/"
+
+[internal]
+min_endpoint_version = "8.7.0"

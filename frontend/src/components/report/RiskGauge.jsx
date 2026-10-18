@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { bandFor } from '../../utils/verdict';
 
 /**
  * RiskGauge: Single deliberate 0-100 arc fill on load.
- * Semantics: Safe (<40: #4CAF7D), Caution (40-70: #E8A23D), Danger (>70: #D9534F)
+ * Band comes from the backend's `verdict_band` (see backend/verdicts.py):
+ * safe <40, caution 40-64, danger >=65.
  */
-export function RiskGauge({ score = 0, verdict = '' }) {
+export function RiskGauge({ score = 0, verdict = '', band = null }) {
   const [animatedScore, setAnimatedScore] = useState(0);
 
   useEffect(() => {
@@ -19,12 +21,7 @@ export function RiskGauge({ score = 0, verdict = '' }) {
   const circumference = Math.PI * radius; // Half-circle arc
   const strokeDashoffset = circumference - (animatedScore / 100) * circumference;
 
-  let bandClass = 'safe';
-  if (score >= 70 || verdict.includes('HIGH') || verdict.includes('PHISH')) {
-    bandClass = 'danger';
-  } else if (score >= 40 || verdict.includes('SUSPICIOUS')) {
-    bandClass = 'caution';
-  }
+  const bandClass = bandFor({ verdictBand: band, verdict, riskScore: score });
 
   return (
     <div className="risk-gauge-container">

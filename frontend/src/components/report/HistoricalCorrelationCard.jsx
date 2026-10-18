@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { bandFor } from '../../utils/verdict';
 
 export function HistoricalCorrelationCard({
   correlation = {},
@@ -502,10 +503,10 @@ export function HistoricalCorrelationCard({
                                   fontFamily: 'var(--font-mono)',
                                   padding: '1px 6px',
                                   borderRadius: 'var(--radius-xs)',
-                                  backgroundColor: inc.verdict.includes('PHISH') || (inc.risk_score && inc.risk_score > 60)
+                                  backgroundColor: bandFor({ verdict: inc.verdict, riskScore: inc.risk_score }) !== 'safe'
                                     ? 'rgba(217, 83, 79, 0.2)'
                                     : 'rgba(76, 175, 125, 0.2)',
-                                  color: inc.verdict.includes('PHISH') || (inc.risk_score && inc.risk_score > 60)
+                                  color: bandFor({ verdict: inc.verdict, riskScore: inc.risk_score }) !== 'safe'
                                     ? '#D9534F'
                                     : '#4CAF7D',
                                   fontWeight: 600,

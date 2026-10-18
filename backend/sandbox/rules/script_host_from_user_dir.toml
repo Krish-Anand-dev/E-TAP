@@ -1,0 +1,22 @@
+[rule]
+id = "etap-004"
+name = "Suspicious Script Host Execution of Script File"
+description = "Detects wscript or cscript executing script files (.js, .vbs, .wsf) from user-writable directories, common in phishing payloads."
+version = "1"
+os_list = ["windows"]
+query = '''process where
+  process.name : ("wscript.exe", "cscript.exe")
+  and process.command_line : ("\\Users\\", "\\Temp\\", "\\AppData\\", "\\Downloads\\", "\\Desktop\\", "\\sandbox\\")
+'''
+
+[[actions]]
+action = "kill_process"
+
+[[threat]]
+tactic.name = "Execution"
+[[threat.technique]]
+id = "T1059.005"
+name = "Visual Basic"
+[[threat.technique]]
+id = "T1059.007"
+name = "JavaScript"
