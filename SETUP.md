@@ -96,7 +96,7 @@ Live queries transmit indicators to external services. Gemini prompts may contai
 4. Select the repository's `extension/` folder.
 5. Test with a dedicated, non-sensitive mailbox.
 
-The committed `extension/background.js` targets the hosted Render API and `extension/content.js` links to the hosted Vercel dashboard. For local development, change those constants to `http://127.0.0.1:5000` and `http://127.0.0.1:5173`, confirm `manifest.json` host permissions, then reload the unpacked extension. The extension reads visible Gmail DOM content and constructs a simplified message; it does not recover the original raw message and its complete headers/attachments.
+Configure API and dashboard URLs in `extension/config.js`. The defaults target the hosted Render API and Vercel dashboard. For local development, use `http://127.0.0.1:5000` and `http://127.0.0.1:5173`, confirm `manifest.json` host permissions, then reload the unpacked extension and refresh Gmail. **Analyze in E-TAP** opens a new analysis tab immediately, tries original-message retrieval, and opens the hosted full report automatically. If retrieval fails, it submits a clearly labeled content-only check. The tab also accepts an original `.eml`, keeps retry controls, and always offers **Open E-TAP**. Version 1.5.0 needs no frontend deployment or additional permissions.
 
 ## Troubleshooting
 

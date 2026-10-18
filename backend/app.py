@@ -129,8 +129,10 @@ async def analyze(
 ) -> dict:
     """
     `source` is optional. Send "quick_content_check" when the .eml was rebuilt
-    from visible mail-client text (e.g. the Gmail extension) so the backend
-    does not pretend to have original headers. Omitted/unknown = full message.
+    from visible mail-client text so the backend does not pretend to have
+    original headers. The Gmail extension sends original bytes with
+    "full_message", or labels its visible-text fallback "quick_content_check".
+    Omitting source also selects full-message analysis.
     """
     filename = file.filename or "uploaded_email.eml"
     if source is not None and source not in VALID_SOURCES:

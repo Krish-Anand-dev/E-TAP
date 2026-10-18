@@ -1,68 +1,56 @@
-// E-TAP Gmail prototype. Change this URL when deploying the backend.
-const ETAP_API_BASE_URL = 'https://etap-backend-od1c.onrender.com';
+importScripts('config.js', 'gmail-original.js', 'handoff-store.js');
 
-// Free hosting can take ~1 minute to wake from sleep.
-const ETAP_REQUEST_TIMEOUT_MS = 90000;
-
-// Header values must be a single line; never let page text inject extra headers.
-function oneLine(value, fallback) {
-    const cleaned = String(value || '').replace(/[\r\n]+/g, ' ').trim();
-    return cleaned || fallback;
+function gmailSender(sender) {
+    try { return new URL(sender.url).origin === 'https://mail.google.com' && Number.isInteger(sender.tab?.id); }
+    catch { return false; }
 }
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action !== 'analyzeEmail') return;
-
-    const emailData = request.data || {};
-
-    // Gmail only gives us what is visible on screen, so this is a
-    // RECONSTRUCTION, not the original message. We deliberately do not invent
-    // transport headers (no Received / Authentication-Results / Message-ID),
-    // nor a To: or Date: we never saw. The backend is told via `source`, so it
-    // reports headers as "not available" instead of analysing made-up ones.
-    const emlContent = [
-        `From: ${oneLine(emailData.sender, 'unknown@invalid')}`,
-        `Subject: ${oneLine(emailData.subject, 'No Subject')}`,
-        'MIME-Version: 1.0',
-        'Content-Type: text/plain; charset="utf-8"',
-        'Content-Transfer-Encoding: 8bit',
-        '',
-        String(emailData.body || ''),
-    ].join('\r\n');
-
-    const formData = new FormData();
-    formData.append('file', new Blob([emlContent], { type: 'message/rfc822' }), 'extension_scan.eml');
-    formData.append('source', 'quick_content_check');
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), ETAP_REQUEST_TIMEOUT_MS);
-
-    fetch(`${ETAP_API_BASE_URL}/analyze`, {
-        method: 'POST',
-        body: formData,
-        signal: controller.signal,
-    })
-        .then((response) => {
-            if (!response.ok) {
-                const err = new Error(`HTTP ${response.status}`);
-                err.status = response.status;
-                throw err;
+    if (!['startEmailAnalysis', 'prepareEmailAnalysis', 'focusEmailAnalysis'].includes(request.action)) return;
+    if (!gmailSender(sender)) {
+        sendResponse({ success: false, code: 'invalid_sender' });
+        return;
+    }
+    (async () => {
+        if (request.action === 'startEmailAnalysis') {
+            const id = crypto.randomUUID();
+            const job = {
+                id, createdAt: Date.now(), gmailTabId: sender.tab.id, state: 'retrieving',
+                data: {
+                    sender: String(request.data?.sender || ''),
+                    subject: String(request.data?.subject || ''),
+                    body: String(request.data?.body || ''),
+                },
+            };
+            if (new TextEncoder().encode(JSON.stringify(job.data)).length > EtapGmailOriginal.MAX_BYTES) throw new Error('too_large');
+            await EtapHandoffStore.create(job);
+            let tab;
+            try {
+                tab = await chrome.tabs.create({ url: chrome.runtime.getURL(`analysis.html?job=${id}`), active: true });
+            } catch (error) {
+                await EtapHandoffStore.remove(id);
+                throw error;
             }
-            return response.json();
-        })
-        .then((data) => sendResponse({ success: true, report: data }))
-        .catch((error) => {
-            let code = 'network';
-            if (error.name === 'AbortError') code = 'timeout';
-            else if (error.status === 429) code = 'rate_limited';
-            else if (error.status === 413) code = 'too_large';
-            else if (error.status >= 500) code = 'server_error';
-            else if (error.status) code = 'http_error';
-            console.error('E-TAP API Error:', code, error.message);
-            sendResponse({ success: false, code, status: error.status || null });
-        })
-        .finally(() => clearTimeout(timer));
-
-    // Return true to indicate asynchronous response
+            await EtapHandoffStore.update(id, (current) => ({ ...current, analysisTabId: tab.id }));
+            return { success: true, jobId: id };
+        }
+        const job = await EtapHandoffStore.get(request.jobId);
+        if (!job || job.gmailTabId !== sender.tab.id) throw new Error('handoff_expired');
+        if (request.action === 'focusEmailAnalysis') {
+            await chrome.tabs.update(job.analysisTabId, { active: true });
+            return { success: true };
+        }
+        if (request.rawEmailBase64) EtapGmailOriginal.decode(request.rawEmailBase64);
+        await EtapHandoffStore.update(job.id, (current) => current.state !== 'retrieving' ? current : {
+            ...current, state: 'ready', rawEmailBase64: request.rawEmailBase64 || null,
+            retrievalError: request.retrievalError || null,
+        });
+        return { success: true };
+    })().then(sendResponse).catch((error) => {
+        sendResponse({ success: false, code: error.code || error.message || 'handoff_failed' });
+    });
     return true;
 });
+
+// Always provide a way into the platform, even outside an open message.
+chrome.action.onClicked.addListener(() => chrome.tabs.create({ url: ETAP_CONFIG.appBaseUrl }));

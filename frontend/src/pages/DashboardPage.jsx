@@ -17,6 +17,7 @@ import ProviderStatusPanel from '../components/report/ProviderStatusPanel';
 import ResponseWorkflow from '../components/report/ResponseWorkflow';
 import TrustControls from '../components/report/TrustControls';
 import PrivacyDataPanel from '../components/report/PrivacyDataPanel';
+import { getGeoMapData } from '../utils/geo.js';
 
 export function DashboardPage() {
   const { data, activeFile, resetInvestigation } = useInvestigation();
@@ -61,6 +62,7 @@ export function DashboardPage() {
       ? finalAssessment.mitre_attack
       : data.mitre_attack || [];
   const recommendedActions = finalAssessment.recommended_actions || [];
+  const geoPointCount = getGeoMapData(headers.hops, threat_intel.geo).pointCount;
 
   // Track active scroll section for left rail highlighting
   useEffect(() => {
@@ -222,17 +224,17 @@ export function DashboardPage() {
                 <span className="rail-item-badge">2D</span>
               </a>
             </li>
-            <li className="rail-nav-item">
+            {geoPointCount > 0 && <li className="rail-nav-item">
               <a
                 href="#sec-geo"
                 className={activeSection === 'sec-geo' ? 'active' : ''}
               >
-                <span>Geo Footprint</span>
+                <span>Mail-server Locations</span>
                 <span className="rail-item-badge">
-                  {threat_intel.geo?.length || 0}
+                  {geoPointCount}
                 </span>
               </a>
-            </li>
+            </li>}
           </ul>
         </div>
 
@@ -366,14 +368,14 @@ export function DashboardPage() {
           />
         </section>
 
-        {/* Section: Geo Footprint */}
-        <section id="sec-geo" className="dossier-section">
+        {/* A map is useful only when an IP actually has coordinates. */}
+        {geoPointCount > 0 && <section id="sec-geo" className="dossier-section">
           <GeoMap
             hops={headers.hops || []}
             origin={headers.origin_analysis || null}
             geoPoints={threat_intel.geo || []}
           />
-        </section>
+        </section>}
       </main>
     </div>
   );

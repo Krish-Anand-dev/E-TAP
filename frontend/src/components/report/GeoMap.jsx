@@ -1,11 +1,12 @@
 import React, { useMemo, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
+import { getGeoMapData } from '../../utils/geo.js';
 
 // Hop kinds -> colour + label. Provider relays are deliberately NOT red:
 // they are infrastructure, not the sender.
 const KIND = {
-  origin:         { color: '#D9534F', label: 'Likely sender' },
+  origin:         { color: '#D9534F', label: 'Header origin candidate' },
   anonymizer:     { color: '#A78BFA', label: 'Tor / VPN / proxy exit' },
   provider_relay: { color: '#E0A800', label: 'Mail provider relay' },
   relay:          { color: '#5B9BD5', label: 'Relay' },
@@ -41,11 +42,11 @@ function OriginBanner({ origin }) {
   const anon = origin.origin_kind === 'anonymizer_exit';
   const color = masked ? '#E0A800' : anon ? '#A78BFA' : '#D9534F';
   const title = masked
-    ? `Sender IP hidden by ${origin.origin_provider || 'the mail provider'}`
+    ? `Only ${origin.origin_provider || 'mail provider'} infrastructure is visible`
     : anon
       ? 'Trail ends at an anonymizer'
       : origin.true_origin_ip
-        ? `Likely origin: ${origin.true_origin_ip}`
+        ? `Header origin candidate: ${origin.true_origin_ip}`
         : 'Origin unresolved';
   return (
     <div style={{
@@ -64,50 +65,38 @@ function OriginBanner({ origin }) {
 }
 
 export function GeoMap({ hops = [], origin = null, geoPoints = [] }) {
-  // Mark which hop (if any) is the likely sender.
+  // Highlight a header candidate without claiming it identifies the person.
   const decorated = useMemo(
     () =>
       hops.map((h) => ({
         ...h,
         displayKind:
-          origin?.true_origin_ip && h.ip === origin.true_origin_ip && h.kind !== 'anonymizer' ? 'origin' : h.kind,
+          origin?.origin_kind === 'sender_client' && h.ip === origin.true_origin_ip
+            && !['provider_relay', 'anonymizer', 'private'].includes(h.kind) ? 'origin' : h.kind,
       })),
     [hops, origin],
   );
 
-  const located = useMemo(
-    () => decorated.filter((h) => h.geo && Number.isFinite(h.geo.lat) && Number.isFinite(h.geo.lon)),
-    [decorated],
+  const { located, legacy, useLegacy, pointCount, mapPoints } = useMemo(
+    () => getGeoMapData(decorated, geoPoints), [decorated, geoPoints],
   );
-  const path = useMemo(() => located.map((h) => [h.geo.lat, h.geo.lon]), [located]);
+  const path = mapPoints;
 
-  // Fallback for old reports that predate hop data.
-  const legacy = useMemo(
-    () => geoPoints.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lon)),
-    [geoPoints],
-  );
-  const useLegacy = hops.length === 0;
-
-  const pointCount = useLegacy ? legacy.length : located.length;
-  const mapPoints = useLegacy ? legacy.map((p) => [p.lat, p.lon]) : path;
+  if (pointCount === 0) return null;
 
   return (
     <div className="forensic-panel">
       <div className="forensic-panel-header">
         <div className="panel-title-group">
-          <span className="panel-title">Mail Route &amp; Sender Origin</span>
-          <span className="panel-subtitle">Received-chain hops, oldest first · city-level GeoIP is approximate</span>
+          <span className="panel-title">Mail-server IP Locations</span>
+          <span className="panel-subtitle">Approximate network locations; these do not establish the sender's physical location.</span>
         </div>
         <span className="rail-item-badge">{pointCount} Geocoded</span>
       </div>
 
       {!useLegacy && <OriginBanner origin={origin} />}
 
-      {pointCount === 0 ? (
-        <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>
-          No hop could be placed on the map (private addresses only, or live lookups are off).
-        </div>
-      ) : (
+      {(
         <div
           id="geo-map-capture-container"
           style={{ width: '100%', height: 320, borderRadius: 'var(--radius-xs)', overflow: 'hidden',
@@ -129,8 +118,8 @@ export function GeoMap({ hops = [], origin = null, geoPoints = [] }) {
 
             {useLegacy
               ? legacy.map((p, i) => (
-                  <Marker key={i} position={[p.lat, p.lon]} icon={pinIcon(i + 1, '#D9534F', false)}>
-                    <Popup>{p.ip} · {p.country || 'Unknown'}</Popup>
+                  <Marker key={i} position={[p.lat, p.lon]} icon={pinIcon(i + 1, KIND.relay.color, false)}>
+                    <Popup>{p.ip} · {p.country || 'Unknown'} · Approximate IP network location</Popup>
                   </Marker>
                 ))
               : (
@@ -164,6 +153,11 @@ export function GeoMap({ hops = [], origin = null, geoPoints = [] }) {
           </MapContainer>
         </div>
       )}
+
+      <p style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)', marginTop: 10 }}>
+        Mail-provider pins identify infrastructure. Lines connect observed hops in header order;
+        they do not show a measured physical network path or a person's location.
+      </p>
 
       {!useLegacy && decorated.length > 0 && (
         <div style={{ marginTop: 12, overflowX: 'auto' }}>

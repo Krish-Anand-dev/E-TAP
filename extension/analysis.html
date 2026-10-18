@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>E-TAP — Email analysis</title>
+  <link rel="stylesheet" href="analysis.css">
+</head>
+<body>
+  <main>
+    <div class="brand">E-TAP <span>EMAIL THREAT ANALYSIS</span></div>
+    <h1 id="heading">Preparing your email</h1>
+    <p id="subject"></p>
+    <p id="status" role="status" aria-live="polite">Retrieving the original email from Gmail…</p>
+    <p id="coverage">We try the original message first so the report can include available authentication and routing headers.</p>
+    <div class="actions">
+      <a id="platform" class="button primary" href="https://e-tap-lac.vercel.app" target="_blank" rel="noopener noreferrer">Open E-TAP</a>
+      <button id="retry" hidden>Retry analysis</button>
+      <button id="limited" hidden>Continue with visible text</button>
+    </div>
+    <section>
+      <h2>Have the original email?</h2>
+      <p>If Gmail blocks automatic retrieval, use the message’s <strong>More → Show original → Download original</strong>, then select the <strong>.eml</strong> here. We will analyze it and open its full report automatically.</p>
+      <label for="original">Analyze an original .eml file</label>
+      <input id="original" type="file" accept=".eml,message/rfc822">
+    </section>
+  </main>
+  <script src="config.js"></script>
+  <script src="gmail-original.js"></script>
+  <script src="handoff-store.js"></script>
+  <script src="analysis-core.js"></script>
+  <script src="analysis.js"></script>
+</body>
+</html>

@@ -1,0 +1,1780 @@
+E-TAP: END-TO-END TECHNICAL STUDY
+Source snapshot: 18 October 2026
+Repository: C:\Users\Krish Anand\Desktop\E-TAP
+
+PURPOSE AND HOW TO READ THIS FILE
+===============================
+This is an explanation of the implementation in this folder: how an email enters
+E-TAP, what each analyzer actually does, what information leaves the backend, how
+the models participate, and how the report reaches the analyst. File references
+below are relative to the repository root. Function names are useful search terms.
+
+The application is a layered email investigation system. It combines MIME parsing,
+static forensics, indicator extraction, optional external reputation, historical
+correlation, graph propagation, a small XGBoost prefilter, and Gemini-assisted
+assessment. RAG supports subsequent analyst questions about stored investigations.
+It is not one model that directly receives an email file and magically checks it.
+
+I traced the first-party source, manifests, dependencies, tests, fixtures, existing
+evaluation outputs and supporting documentation across backend, frontend,
+extension, docs and samples. Installed dependencies, caches, generated build files,
+Git internals and secret environment values are not useful project source and are
+not reproduced here. A binary model artifact is present; its presence does not
+establish its training lineage. This document is a source study, not a fresh live
+Gmail/provider test or a new accuracy evaluation. Where comments or documentation
+overstate behavior, the implementation is the basis of the explanation.
+
+CONTENTS
+========
+ 1. Architecture and exact execution order
+ 2. Ingestion: website, Gmail extension, CLI and dataset utilities
+ 3. Stage A: MIME parsing, attachments and PII masking
+ 4. Stage B: authentication, routing and sender identity
+ 5. Stage B2: static attachment forensics and VBA macros
+ 6. QR phishing and OCR: the exact image-processing pipeline
+ 7. Stage D: IOC extraction and static link analysis
+ 8. Stage E: real threat intelligence, budgets and failure states
+ 9. Privacy boundaries and external data disclosure
+10. Stage F: MongoDB persistence and historical campaign correlation
+11. Stage F-prime: graph diffusion
+12. Evidence ledger and report provenance
+13. Stage C-prime: XGBoost features, inference and training limitations
+14. Stage G: Gemini prompts, structured output and offline fallback
+15. Verdict reconciliation and end-of-analysis persistence
+16. RAG indexing, retrieval and analyst chat
+17. React dashboard and report exports
+18. Workflow C: review, cases, retention and deletion
+19. API, deployment, authentication and operational boundaries
+20. Worked QR-phishing example
+21. Library and infrastructure map
+22. Folder and utility map
+23. Tests, evaluation evidence and what is not proven
+24. Main limitations, presentation summary and glossary
+
+
+1. ARCHITECTURE AND EXACT EXECUTION ORDER
+=======================================
+Main orchestrator: backend/pipeline.py, especially _run_parsed_pipeline.
+HTTP entry point: backend/app.py.
+
+Website upload ---------------------+
+                                    |
+Gmail extension -> original .eml ----+-> POST /analyze, multipart form
+                -> limited fallback |       |
+                                    |       v
+                                    |   Validate bytes, size, source mode
+CLI file -> analyze_email_file -----+       |
+                                            v
+  A   Parse EML/MSG -> normalized email + decoded attachment bytes
+  B   Header/authentication/routing/sender analysis
+  B2  Attachment signatures + hashes + macros + image QR/OCR
+  D   Extract/deduplicate IOCs, including decoded QR URLs
+      Analyze HTML links + build a QR evidence trace
+  E   Optional live reputation/WHOIS/geolocation + hop enrichment
+  F   Correlate against history + store/update base investigation
+  F'  Construct relationship graph + diffuse malicious seed evidence
+      Append OCR snippets to the text used by downstream models
+      Build a compact deterministic evidence ledger
+  C'  XGBoost metadata triage: eligible benign messages may skip Gemini
+  G   Combined Gemini content classification and final assessment
+      OR deterministic fallback when Gemini is unavailable
+  H   Reconcile verdict, add evidence/provider/privacy/provenance reports
+      Persist final investigation fields
+      Start background summary/embedding generation for RAG
+      Return JSON
+      API-only workflow completion: review/retention/baseline metadata
+                                            |
+                                            v
+                      React dashboard / persisted dossier / PDF / JSON
+                                            |
+                                            v
+                             Later /chat -> RAG + optional Gemini
+
+The historical stage names are not an alphabetical execution order. C-prime is
+after correlation in the current orchestrator. Link analysis sits alongside the
+IOC/QR processing. The decisive timing detail is that QR URLs enter IOC extraction
+before reputation, whereas OCR text is appended AFTER IOC extraction/reputation.
+
+The pipeline returns structured sections such as email metadata, header_analysis,
+attachment_analysis, iocs, threat_intel, correlation, graph_diffusion, triage,
+content_classification, final_assessment, link_analysis, qr_trace, evidence_report,
+provider_status, privacy_report and pipeline provenance. Inspect the orchestrator
+for the exact response shape; not all fields in the immediate response are rebuilt
+identically when loading an old dossier.
+
+
+2. INGESTION: WEBSITE, GMAIL EXTENSION, CLI AND DATASET UTILITIES
+==============================================================
+2.1 Website upload
+Sources: frontend/src/pages/UploadPage.jsx, frontend/src/api/analyze.js,
+frontend/src/api/client.js, frontend/src/context/InvestigationContext.jsx,
+backend/app.py, backend/email_parser/unified_parser.py.
+
+The browser sends the selected email as a multipart file field to /analyze.
+FastAPI UploadFile/python-multipart handle HTTP upload parsing. The server reads
+in 64 KiB chunks, enforces 25 * 1024 * 1024 bytes, rejects an empty upload, checks
+the accepted input format and calls the synchronous pipeline through
+asyncio.to_thread. This keeps the request event loop from directly running all
+the blocking Python/network/image work; it does not make every stage parallel.
+
+The optional source field distinguishes full_message from quick_content_check.
+An omitted source is treated as a full-message upload. Source provenance matters:
+creating a file ending in .eml from visible browser text does not restore the
+message's transport headers or MIME attachment contents.
+
+2.2 Why Gmail's visible email and a downloaded .eml differ
+Sources: extension/content.js, gmail-original.js, background.js,
+analysis-core.js, analysis.js, handoff-store.js, config.js, manifest.json.
+
+Yes, a delivered email has headers. Gmail's normal rendered message DOM exposes
+only a presentation of selected fields and body content. It does not expose the
+complete original Received chain, Authentication-Results, DKIM-Signature, MIME
+boundaries or attachment bytes as ordinary visible text. Scraping From/Subject/
+body therefore produces a reconstruction, while Download original supplies the
+underlying RFC message. That explains why an uploaded original can have SPF/DKIM/
+DMARC evidence that a DOM-only extension analysis lacks.
+
+The current extension source attempts to get the original using the signed-in
+Gmail session. It does not contain a separate OAuth Gmail API integration.
+
+Current flow:
+  a. The content script finds the opened message and extracts visible fallback
+     fields plus an individual message reference from Gmail data attributes.
+     It distinguishes legacy hexadecimal IDs from msg-a:/msg-f: style permanent
+     IDs. A conversation URL/hash is not blindly used as an individual message.
+  b. A service worker receives startEmailAnalysis from a validated Gmail tab,
+     creates a UUID job in extension-origin IndexedDB, and opens analysis.html
+     in a new tab immediately. The email body is not placed in the tab URL.
+  c. gmail-original.js preserves the active Gmail account/delegated path and
+     authuser. It tries Gmail's view=att, attid=0 download endpoint with th or
+     permmsgid as appropriate, using same-origin session credentials.
+  d. If necessary it fetches Show original (view=om), parses the HTML wrapper
+     with DOMParser, and accepts only a matching same-origin Download original
+     link for the same account and message. The HTML page is not uploaded as
+     if it were the email. Redirects are rejected.
+  e. Downloaded bytes are streamed under the 25 MB limit and a 30-second retrieval
+     timeout. A header-shape check requires From plus Date/Message-ID/Received
+     and plausible header lines. This is a practical validation heuristic, not
+     proof of authentic sender headers or a complete RFC validator.
+  f. The original bytes are base64-encoded only for transport/storage inside the
+     extension. Before HTTP upload they are restored to bytes and wrapped in a
+     message/rfc822 Blob called gmail_original.eml. Binary MIME parts do not get
+     passed through a lossy decode/re-encode cycle.
+  g. The analysis tab waits for retrieval, then submits multipart file +
+     source=full_message. If original retrieval fails/times out, it can submit
+     a small reconstructed text email with source=quick_content_check instead.
+     This is explicitly limited evidence, not a claim to have original headers.
+  h. A successful result must contain email_id. The tab navigates to the platform
+     with ?dossier=<email_id>. The frontend fetches that stored investigation and
+     opens the dashboard. There is also an Open E-TAP link, retry, and a manual
+     original .eml file input. The toolbar action opens the platform directly.
+
+The reconstruction contains sanitized single-line From and Subject, MIME headers
+for text/plain UTF-8, and the visible body. It cannot supply authentic Received,
+authentication results, hidden link targets or attachment bytes. The backend
+marks checks depending on those unavailable. The limited path can still create
+a dossier; a report is not proof that full forensics ran.
+
+Handoff jobs expire after one hour when accessed/cleaned, and are removed after
+successful submission. IndexedDB is browser-local storage, not an encrypted
+message vault. Retrieval remains dependent on Gmail's changing private web UI
+endpoints and session behavior. A source implementation cannot guarantee that
+every Gmail account will return an original.
+
+Manifest/source version and the script actually injected into an existing Gmail
+tab can differ. Reloading an unpacked extension alone does not replace content
+scripts already running in an open page; the Gmail page must also be refreshed.
+The current source displays its version to help identify that situation.
+
+2.3 CLI and dataset inputs
+Sources: backend/run_pipeline.py, email_parser/csv_parser.py, unified_parser.py.
+
+run_pipeline.py calls analyze_email_file for a local .eml/.msg and prints the
+pipeline result. It does not go through the API's separate workflow-completion
+hook. Dataset helpers can read CSV rows, map aliases to email fields and construct
+RFC-style messages with synthetic Date/Message-ID and X-Dataset fields. That
+utility is not the same as the website supporting bulk CSV upload, and synthetic
+headers cannot establish real routing/authentication provenance.
+
+
+3. STAGE A: MIME PARSING, ATTACHMENTS AND PII MASKING
+==================================================
+Sources: backend/email_parser/models.py, unified_parser.py, eml_parser.py,
+msg_parser.py, pii_masker.py, csv_parser.py.
+
+Main libraries:
+  Python standard library email, email.policy, email.utils, dataclasses,
+  base64, tempfile, csv, re; extract-msg for Outlook .msg.
+
+The unified parser inspects bytes and filename. It rejects obvious raw executable,
+archive or document signatures as email uploads (for example MZ/ELF/ZIP/PDF), routes
+OLE compound files to .msg parsing, and identifies RFC-style text for EML. A .msg
+extension without an appropriate OLE signature is rejected. EML acceptance is
+relatively permissive for recognized .eml/.txt suffixes; do not describe this as
+strict validation of every RFC requirement.
+
+EML parsing uses email.message_from_bytes with policy.default. The parser handles
+MIME structure and transfer encoding rather than searching the raw email with one
+large regular expression. It gathers both text/plain and text/html bodies and
+preserves repeated headers in all_headers as lists of values.
+
+The normalized ParsedEmail contains subject, raw/display/parsed From fields,
+recipients, Reply-To, Date, Message-ID, all_headers, text and HTML bodies,
+attachments, source_format and warnings. The same structure lets the downstream
+forensics operate without knowing whether the original container was EML or MSG.
+
+Each leaf MIME part is inspected. Parts marked attachment, inline parts with a
+filename, and other filename-bearing parts can become attachments. Transfer
+encoding is decoded using get_payload(decode=True). Attachment content is kept as
+base64 in the normalized object, along with filename, MIME type and byte size.
+Later forensic stages decode that base64 back to the original content bytes.
+
+Important image-coverage limitation: an inline image with no retained filename
+may be skipped by this attachment-selection logic. An image merely referenced by
+an HTML remote URL is not downloaded into an attachment. Therefore not every
+visually displayed Gmail image necessarily reaches QR/OCR analysis.
+
+Body extraction uses the email library's content decoding, with fallback decoding
+and replacement/warnings for unsupported charsets. A malformed/HTML-only/empty
+message can have limited text even though the parser returns an object.
+
+MSG parsing uses extract_msg.Message, extracts Outlook properties and attachments,
+closes the message object, and removes temporary upload files in a finally block.
+Errors can become warnings per message/attachment. Conversion of MSG headers via
+a regular dict can lose repeated-header detail that the EML parser preserves.
+
+PII masking is regex-based. It targets subject/body patterns including email
+addresses, phone formats, SSNs, payment-card-like numbers, Aadhaar and PAN formats.
+It is heuristic: false positives/negatives are possible. It is not full removal
+of personal information from every raw header, sender property or attachment.
+Separate external-AI sanitization is applied later.
+
+
+4. STAGE B: AUTHENTICATION, ROUTING AND SENDER IDENTITY
+=====================================================
+Sources: backend/forensics/header_forensics.py, auth_results.py,
+received_chain.py, domain_similarity.py, brand_domains.py.
+
+Libraries: standard-library re, email.utils, ipaddress, datetime, unicodedata,
+IDNA encoding/decoding, difflib.SequenceMatcher; optional dns.resolver from
+dnspython. This is largely custom Python logic, not a complete mail-server
+authentication suite.
+
+4.1 SPF, DKIM and DMARC: what is actually checked
+The preferred evidence is Authentication-Results already recorded in the email.
+The code searches those values for spf=, dkim= and dmarc= results. Received-SPF can
+supply an SPF result when needed. Results from headers are marked header_reported.
+
+This means E-TAP usually interprets what a receiving mail server reported; it does
+not independently recreate that receiving server's full original SMTP checks.
+The code does not establish a trusted authserv-id/header boundary. An arbitrary
+uploaded message can contain forged Authentication-Results. Header-reported pass
+is useful evidence with a trust limitation, not cryptographic proof by E-TAP.
+
+If header results are absent, DNS fallback logic may run:
+  SPF: fetch TXT for a selected sender domain and test a selected public Received
+       IP against a simplified policy parser. It handles ip4, ip6, a, include and
+       all with qualifiers, and bounds include recursion. It does not implement
+       all SPF mechanisms/limits or reliably reconstruct envelope sender/HELO.
+       The comments mention mx, but the actual parser lacks a full mx branch.
+  DKIM: parse d= signing domain and s= selector from DKIM-Signature, look for a
+        TXT key at selector._domainkey.domain and apply a simple alignment check.
+        A found key is key_found_unverified. The code does NOT verify b= signature
+        bytes, canonicalization or the bh= body hash. There is no dkimpy signature
+        verification stage in this implementation.
+  DMARC: query _dmarc.<domain>, find a DMARC record and policy. record_found is
+         evidence that a policy exists; it is not a complete per-message SPF/
+         DKIM alignment determination.
+
+DNS failures are handled as missing/unknown evidence, with bounded resolver
+timeouts. dnspython is optional at import time rather than a direct explicit
+requirements.txt entry. THREAT_INTEL_LIVE=0 disables Stage E provider calls, but
+does not by itself disable these separate header DNS fallbacks.
+
+4.2 Received-chain reconstruction
+Every relay can prepend a Received header. The analyzer reverses these into
+oldest-to-newest order, parses the relay host/IP, protocol and timestamp, and
+computes inter-hop delays. IP extraction distinguishes a source in the from
+clause from an address in the receiving by clause. Both IPv4 and IPv6 are handled.
+Large negative time deltas can flag an out-of-order chain; this is an anomaly,
+not proof of forgery because clocks and timestamps can be imperfect.
+
+The analyzer labels private/public addresses, known provider relays and possible
+anonymizing infrastructure. X-Originating-IP and related client-IP headers are
+additional leads. These headers can also be untrusted. A provider relay is not
+automatically the sender's device. origin_analysis can explicitly say only a
+provider relay is visible, rather than inventing a personal origin location.
+The technical originating_ip used by fallback SPF and the display-oriented
+true_origin_ip have different roles; neither should be treated as a verified
+physical attribution without stronger evidence.
+
+4.3 Sender and brand checks
+The code compares From and Reply-To domains, normalizes domains, inspects
+punycode/IDNA and mixed Latin/Cyrillic/Greek characters, computes similarity to
+a curated brand list using SequenceMatcher/custom edit-distance logic, and
+combines display-name/brand claims with lure or role-related words.
+
+Examples are a brand-looking domain that differs by a character, a brand label
+in a misleading subdomain, or a reply going to a different domain. These are
+heuristic identity signals. The brand list is finite and India-weighted; the
+domain-root logic uses selected suffix rules, not a comprehensive Public Suffix
+List implementation. Legitimate mailing providers and forwarding can also create
+mismatches, so the explanation needs the actual context.
+
+For quick_content_check, original-header-dependent authentication and routing
+are explicitly unavailable. Some visible sender/domain heuristics can still run.
+Unknown does not become a fabricated SPF/DKIM/DMARC pass.
+
+
+5. STAGE B2: STATIC ATTACHMENT FORENSICS AND VBA MACROS
+====================================================
+Sources: backend/forensics/attachment_forensics.py, file_signatures.py,
+macro_scan.py, image_forensics.py.
+
+5.1 Byte-level identity
+Attachment base64 is decoded to bytes. hashlib.sha256 computes the file's SHA-256
+fingerprint; this identifies the content for correlation and reputation without
+uploading the whole attachment to VirusTotal. A hash alone is not a malware verdict.
+
+The analyzer compares filename extension and declared MIME type with content
+signatures. Optional python-magic/libmagic can help; built-in signatures provide
+a fallback. Signatures include PE/MZ executables, ELF, PDF, ZIP, OLE Office files,
+JPEG, PNG, GIF, RTF, PostScript and archive/compression formats. MZ is checked
+authoritatively so a file named invoice.pdf containing a Windows executable is
+not trusted merely because of its extension or declared application/pdf type.
+
+The rules flag double extensions such as invoice.pdf.exe and suspicious type
+mismatches. Generic application/octet-stream and related Office-family MIME types
+are treated more leniently. OOXML identification looks for Office-related folder
+markers in an initial byte window; it is not a full recursive ZIP inspection.
+
+5.2 VBA macro analysis
+oletools.olevba.VBA_Parser opens supported Office containers, detects VBA and runs
+analyze_macros. It collects AutoExec triggers, suspicious APIs/keywords and IOC
+references: for example document-open macros and process/network-launching calls.
+The code inspects macro structure/text; it does not run Word/Excel or execute VBA.
+
+The result can include has_macros, autoexec/suspicious findings, referenced IOCs,
+flags and suspicious status. Static keywords are risk evidence, not proof that
+a particular payload successfully executed.
+
+There are current coverage/representation gaps. If oletools cannot be imported,
+macro findings can look absent without a strong unavailable signal. A parse-error
+path can set a suspicious flag that is later affected by recomputing the boolean.
+Macro referenced_iocs are not automatically fed into Stage D's top-level IOC lists
+the way QR URLs and attachment SHA-256 hashes are. Those facts matter when
+explaining what was and was not enriched externally.
+
+5.3 Scope of attachment analysis
+This is static forensics. There is no general-purpose malware sandbox, recursive
+archive detonation, browser execution, full antivirus/YARA integration or general
+PDF-to-image QR scanning in the live pipeline. Detection of a PDF signature is
+not the same thing as examining every embedded image or active PDF action.
+
+Image-like attachments branch into the QR/OCR stage described next. A named image
+inside the original MIME message has usable bytes. A visible-text reconstruction
+from Gmail does not restore those image bytes.
+
+
+6. QR PHISHING AND OCR: THE EXACT IMAGE-PROCESSING PIPELINE
+=========================================================
+Sources: backend/forensics/image_forensics.py, attachment_forensics.py,
+qr_trace.py, ioc_extraction.py; backend/pipeline.py.
+
+DIRECT ANSWER: YES, THERE IS A QR-PHISHING ANALYSIS PATH.
+It decodes QR payloads from supported image attachment bytes, extracts embedded
+URLs, connects them to static URL analysis/reputation/evidence, and exposes the
+findings in the report. OCR is a separate way of extracting visible text around
+or inside an image. Neither step automatically opens the decoded website.
+
+6.1 Image decoding
+The image scanner receives the actual attachment bytes. NumPy creates a uint8
+array using np.frombuffer; cv2.imdecode attempts to decode the image into OpenCV
+pixels. Pillow also attempts Image.open(BytesIO(...)). The libraries provide
+different image representations used by the QR decoder and OCR.
+
+These steps require a supported, readable image. A corrupt file, an unsupported
+format or missing native libraries is different from an image with no QR code.
+
+6.2 QR decoding: pyzbar first, OpenCV as fallback
+The primary path calls pyzbar.decode on the Pillow/OpenCV image, filters QR
+results, decodes their byte payload as text and deduplicates payloads. pyzbar is
+the Python wrapper; ZBar is the native barcode library it depends on.
+
+If this produces no QR payload, OpenCV's QRCodeDetector is tried. The code uses
+detectAndDecodeMulti when available and a single-code detectAndDecode fallback.
+This fallback means missing ZBar does not necessarily mean QR decoding is
+impossible. The installed OpenCV version/build must still support the detector.
+
+OpenCV here works on pixels to locate/decode a QR symbol. It does not determine
+whether the destination is phishing by looking at the link, and it does not
+automatically launch a browser to inspect a landing page.
+
+The implementation does not contain a sophisticated multi-pass preprocessing
+pipeline for every rotation, skew, low-contrast screenshot, damaged symbol or
+perspective distortion. A difficult image can be missed even if a human phone
+scanner succeeds. A no_qr_found result is not universal proof that no QR exists.
+
+6.3 QR output and status
+The scanner returns fields including:
+  qr_payloads: decoded text and kind (URL or other), with bounded text length.
+  qr_urls: direct HTTP(S) URLs and URLs extracted from embedded payload text.
+  qr_status: decoded, no_qr_found, decoder_unavailable or image_unreadable.
+  ocr_text: separately extracted visible text.
+
+Attachment wrapping can additionally report scan_failed on exceptions. The
+scanner exposes decoder information, but the attachment wrapper does not retain
+every decoder field in its final result.
+
+There is a naming subtlety: has_qr is computed from the presence of qr_urls.
+A genuine QR containing only an ordinary phrase, Wi-Fi payload or other non-URL
+text may have qr_status=decoded while has_qr is false. Therefore has_qr currently
+means approximately 'a URL-bearing QR was found', rather than 'any QR was found'.
+
+6.4 Where a decoded QR URL goes
+  Image MIME bytes
+      -> pyzbar/OpenCV QR decoder
+      -> qr_urls in attachment_analysis
+      -> Stage D iocs.urls + derived domains/public IPs
+      -> ioc_metadata with source qr_code and attachment filename
+      -> Stage E reputation lookup planning and URL privacy policy
+      -> qr_trace/static URL signals + evidence ledger
+      -> Gemini technical context and report UI
+
+build_qr_trace makes the provenance visible: which image, what decode status,
+which payload, whether the URL looks personalized and what static URL features
+were found. For direct URL payloads it calls the same static analyze_url logic
+used for other links. The trace states resolution was not performed. A URL
+embedded inside a non-URL payload can enter IOC extraction even if the trace
+still classifies the whole payload as other.
+
+If a decoder is unavailable or the image is unreadable, the trace marks that
+check unavailable instead of silently equating it with no QR.
+
+6.5 OCR is independent and uses Tesseract
+For OCR, the code prepares grayscale pixels with cv2.cvtColor(...BGR2GRAY), or
+Pillow convert('L'), then calls pytesseract.image_to_string.
+
+pytesseract is a Python wrapper around the Tesseract executable. Installing only
+the wrapper does not install the OCR engine. The code recognizes the usual
+Windows path C:\Program Files\Tesseract-OCR\tesseract.exe when it exists; the
+backend Dockerfile installs Tesseract and its English language data. OCR quality
+depends on image resolution, font, language, layout and contrast.
+
+Examples of OCR text are 'Scan to verify your account', 'Invoice overdue' or
+'Your mailbox will be suspended'. That text helps a downstream model identify
+urgency, impersonation or a request for credentials. OCR does not decode the
+geometric QR payload; the QR decoders do that. A QR can decode successfully while
+OCR extracts nothing, and OCR can extract useful text from an image with no QR.
+
+6.6 The important current OCR-to-IOC gap
+In _run_parsed_pipeline, image OCR runs during attachment forensics, but the
+extracted text is appended to the model's email body only AFTER extract_iocs and
+enrich_iocs have already run.
+
+Consequently:
+  - A URL decoded from a QR is eligible for IOC extraction and reputation.
+  - A URL visible only as printed text in the image and recovered only by OCR is
+    NOT automatically added to the top-level IOC/reputation lists in this pass.
+  - OCR content can still influence XGBoost's text/urgency feature, the force-AI
+    decision and Gemini/offline content analysis.
+
+Do not claim that every OCR-discovered link is checked by VirusTotal. That is
+not the current orchestration order.
+
+6.7 Does the system mark every QR as malicious?
+No reputation engine can establish maliciousness merely from a QR symbol. The
+evidence narrative treats a decoded QR with no suspicious destination signals
+as neutral and avoids double-counting a generic hidden-QR flag as extra proof.
+
+However, other layers are more conservative: a URL-bearing QR can set the
+attachment suspicious flag, force Gemini instead of the benign triage shortcut,
+and contribute to heuristic fallback risk. Thus the code does not have perfectly
+uniform treatment of an otherwise benign QR across all scoring/UI layers.
+A report should distinguish symbol presence, destination traits and actual
+external detections.
+
+6.8 What QR coverage does NOT include
+The current path does not fetch arbitrary remote <img> URLs from email HTML,
+rasterize every PDF page, recursively scan images in all archives, reliably
+recover skipped unnamed inline MIME images, follow QR redirects to completion,
+execute destination JavaScript, or inspect a live credential form. Gemini receives
+extracted text/structured findings, not image bytes in a multimodal vision call.
+
+The correct description is 'static QR payload extraction and downstream URL
+investigation on retained image attachments', with explicit coverage limits.
+
+
+7. STAGE D: IOC EXTRACTION AND STATIC LINK ANALYSIS
+=================================================
+Sources: backend/forensics/ioc_extraction.py, link_analysis.py, qr_trace.py.
+Libraries: re, html.parser.HTMLParser, urllib.parse, ipaddress, sets and sorting.
+
+7.1 Indicator extraction
+IOC means indicator of compromise, but an extracted candidate is not necessarily
+malicious. The extractor gathers URLs, domain names, public IP addresses and
+hashes from headers, plain text, HTML, selected normalized header findings,
+attachment SHA-256 fingerprints and QR URLs. It retains metadata identifying
+special sources such as qr_code.
+
+HTML parsing extracts URL-bearing attributes including href, src, action,
+poster, data and formaction. Text normalization recognizes defanged forms such
+as hxxp and [.] and uses bounded percent decoding. Domain/IP parsing tries to
+avoid treating arbitrary strings as network indicators.
+
+Noise reduction matters because emails contain authentication tags, message
+identifiers, CSS, tracking strings and hexadecimal values that are not hashes.
+The code filters known noise, limits domain recognition through a known-TLD
+snapshot, excludes inappropriate Message-ID fragments, skips non-public IPs for
+relevant indicator roles, and masks URLs before searching for hexadecimal
+MD5/SHA-1/SHA-256-like strings so a URL token does not automatically become a file
+hash. Very low-diversity hex strings are rejected. The final lists are deduplicated
+and sorted. This is heuristic parsing, not a complete network-identifier grammar.
+
+Extraction itself does not query DNS to prove every candidate exists or attach
+a malicious verdict. That is a separate enrichment task. Macro-referenced IOCs
+and OCR-only text URLs have the coverage gaps explained earlier.
+
+7.2 Static link analysis
+The HTML link analyzer compares what an anchor says to where href points. It can
+use visible anchor text and image alt text. URL parsing inspects scheme, userinfo,
+host, port, path and selected query parameters.
+
+Signals include:
+  - Displayed domain/brand differs from the actual destination.
+  - user@host construction disguises the true host.
+  - IP-literal hosts, unusual ports, plain HTTP, known shorteners.
+  - Punycode, mixed scripts and lookalike brand domains.
+  - Dangerous script/data/vbscript schemes.
+  - A redirect parameter contains a different inferred destination.
+
+Redirect inference decodes a parameter; it does not request the URL or establish
+the final landing page. Legitimate newsletter tracking frequently changes href
+domains, so a mismatch by itself is weaker evidence than several converging
+signals. The analyzer distinguishes strength, caps returned links (200), and the
+evidence summary retains a bounded selection of flagged examples.
+
+No component in this static stage clicks the email's links, resolves a redirect
+chain in a browser or submits a credential form. OpenCV has no role in this
+URL-string reasoning after the QR payload has been decoded.
+
+
+8. STAGE E: REAL THREAT INTELLIGENCE, BUDGETS AND FAILURE STATES
+=============================================================
+Sources: backend/threat_intel/threat_intel.py, vt_lookup.py, ip_lookup.py,
+domain_lookup.py, hop_geo.py, cache.py; backend/provider_status.py.
+
+The application contains actual provider clients. Whether they ran for a given
+report depends on THREAT_INTEL_LIVE, API keys, privacy decisions, lookup limits,
+cache state and network/provider availability. Offline placeholders are not real
+provider detections.
+
+THREAT_INTEL_LIVE defaults to off in code. With live disabled, results identify
+offline mode and maliciousness is unknown (None), not false. Header-stage DNS
+queries are a separate behavior and may still occur.
+
+8.1 VirusTotal: URL and file-hash reputation
+Library: requests. API base: https://www.virustotal.com/api/v3.
+Configuration: VIRUSTOTAL_API_KEY, sent using x-apikey.
+
+URL lookup: GET /urls/<URL-safe-base64-identifier-without-padding>.
+File lookup: GET /files/<hash>.
+
+The response's last_analysis_stats supplies malicious/suspicious/harmless/etc.
+counts. This implementation uses malicious plus suspicious detections as its
+malicious_count and treats a positive count as malicious evidence. It records
+the provider's reported data rather than conducting its own AV scan.
+
+It does not upload the whole attachment, submit a fresh URL scan or guarantee
+that a new/never-scanned indicator has coverage. A 404 means not found in this
+lookup, not clean. Cache entries can preserve that not-found state temporarily.
+
+There is a process-local recent-request limiter configured around four calls per
+minute. Treat that as this application's limiter, not a verified statement of
+current provider entitlement. Comments mentioning daily quotas are not a working
+daily quota counter, and separate server processes do not share this deque.
+
+8.2 AbuseIPDB: public-IP abuse reputation
+Library: requests.
+Endpoint: https://api.abuseipdb.com/api/v2/check.
+Configuration: ABUSEIPDB_API_KEY, sent in the Key header.
+
+The request includes ipAddress and maxAgeInDays=90. The code records abuse
+confidence, reports and relevant country/ISP/domain/Tor data. An abuse confidence
+score of at least 50 is its malicious threshold. Private/reserved IPs are skipped.
+Shared-hosting or mail-relay reputation is infrastructure evidence; it does not
+prove the author of this particular email performed the historical abuse.
+
+8.3 WHOIS: registration context and age
+Library: python-whois (import whois), not a commercial domain-reputation API.
+
+The code attempts a WHOIS lookup, normalizes a creation date (including list
+responses), calculates age in days, and returns registrar/country information.
+A domain younger than 30 days is a weak risk signal. No creation date means age
+unknown. Privacy-protected, rate-limited or inconsistent WHOIS responses can
+reduce coverage. The implementation uses a short best-effort socket timeout and
+restores the previous default; that is not a robust per-task hard deadline.
+
+8.4 IP geolocation
+Library: requests.
+Endpoint in source: http://ip-api.com/batch.
+
+The batch client obtains country, coordinates, ISP/organization, hosting and proxy
+information without an API key in this implementation. Note that the configured
+endpoint uses HTTP. Geolocation is approximate IP/infrastructure location, not a
+verified sender-device address or a person's physical location.
+
+Hop geolocation can supplement Received-chain analysis and reclassify provider/
+proxy context. It has a separate bounded lookup path for additional hop IPs;
+it is not entirely covered by the main per-provider indicator budget.
+Hop answers and failures are merged into geo_lookup so provider coverage includes
+those requests rather than describing them as not needed.
+
+8.5 Budgets, timeouts and caching
+The main per-provider budget defaults to two indicators and is clamped to a
+bounded range (1..20). VirusTotal URLs and hashes share that provider's budget,
+with URLs processed first. Indicators are sorted, not comprehensively ranked by
+risk before spending the budget. A file hash may therefore be skipped because
+earlier URLs exhausted it. Hop geolocation permits a separately bounded set of
+additional IPs (up to 12 in the relevant path).
+
+HTTP calls use connect/read timeouts of roughly (2, 4) seconds. These are requests
+connection/read settings, not a guaranteed total wall-clock duration for the
+entire pipeline. Provider calls are not a universally parallel, deadline-bound
+orchestration system.
+
+TTLCache is in-process memory. Typical TTLs are one hour for VirusTotal, IP abuse
+and geo, and one day for WHOIS. Successful responses and selected not-found
+responses can be cached; missing configuration/transient failures are not treated
+as lasting clean results. There is no Redis/shared cache in this code, and
+restarting a process loses the cache.
+
+8.6 Coverage semantics
+Provider results can say not configured, timeout, network error, invalid response,
+skipped by privacy policy, skipped by limit, skipped non-public address, offline,
+not found or successful. Unknown maliciousness must remain unknown.
+
+provider_status aggregates the configured providers (including Gemini), what ran,
+what was skipped and whether coverage was complete or partial. A green content
+summary with partial provider coverage does not mean all reputation checks ran.
+The UI's coverage labels and evidence limitations should be read with the verdict.
+
+
+9. PRIVACY BOUNDARIES AND EXTERNAL DATA DISCLOSURE
+================================================
+Sources: backend/privacy.py, threat_intel modules, pipeline.py, rag/chat.py.
+
+There are different data boundaries:
+  Browser/extension -> E-TAP backend: email content and, for original messages,
+    raw MIME bytes including attachments.
+  Backend -> MongoDB: derived investigation data, indicators, evidence and later
+    summaries/vectors; potentially sensitive sender/subject/URL/OCR metadata.
+  Backend -> reputation providers: selected permitted URLs, hashes or IPs/domains.
+  Backend -> Gemini: a sanitized structured context/text copy, not raw image
+    attachment bytes in a vision request.
+
+plan_url_lookup inspects a URL before reputation submission. It can allow the
+whole URL, remove query/fragment, or skip a URL when sensitive/personalized/internal
+information is likely. Heuristics inspect token-like parameter names, email
+addresses, UUID/hex/base64-like values, entropy and long path components. A QR
+login URL with a personal token may therefore be deliberately trimmed or skipped.
+That is a privacy/coverage tradeoff, not a provider outage.
+
+sanitize_for_external_ai recursively transforms values and dictionary keys in an
+outbound context, redacts sensitive URL portions and applies PII heuristics.
+It makes a sanitized copy rather than rewriting all original derived values
+already held locally. Key collisions after redaction are handled with suffixes.
+
+This is useful minimization, not complete anonymization. Sender/header metadata,
+contextual identities, unrecognized secrets and database fields can still be
+sensitive. The analyst's free-text chat question is not uniformly subjected to
+exactly the same sanitization path as every report-context field. Do not claim
+that no personal information ever leaves the application or that the whole raw
+message is erased at every stage.
+
+The pipeline does not persist a replayable original .eml as its normal MongoDB
+record, nor the raw attachment bytes as its standard investigation storage. It
+does persist substantial derived information. Privacy-report prose must also be
+read alongside the actual workflow retention code; older wording claiming there
+is no retention/deletion mechanism is stale relative to Workflow C.
+
+
+10. STAGE F: MONGODB PERSISTENCE AND HISTORICAL CAMPAIGN CORRELATION
+================================================================
+Sources: backend/db/connection.py, repository.py, schema.py, fake_mongo.py;
+backend/correlation/engine.py, queries.py, historical_stats.py.
+
+Library: PyMongo. Main collections include analyzed_emails, campaigns, counters
+and preferences, with a legacy emails collection supported by some paths.
+
+Connection configuration accepts MONGODB_URI/MONGO_URI, with a localhost default
+and a database name from the URI/configuration. Connection establishment uses a
+server-selection timeout, ping and index creation. USE_FAKE_DB=1 selects an
+in-memory fake database; AUTO_FALLBACK_DB can permit fallback after real DB failure.
+Fake mode is useful for development/tests but is not durable MongoDB storage.
+
+10.1 What correlation matches
+The engine compares the new email's normalized IOCs with stored investigations.
+Exact URL/IP/domain/hash overlap is meaningful shared evidence. Fuzzy domain-root
+similarity can also find related messages, with an approximately 0.82 threshold
+and minimum-length rules. These are deterministic database comparisons, not
+embedding/RAG retrieval and not a neural campaign detector.
+
+No match creates a new campaign ID using the counter collection. A single matched
+campaign joins that campaign. Matches across several campaigns can merge them,
+select a canonical ID and mark absorbed campaigns as merged_into while updating
+memberships. Such inferred campaigns are useful working groups, not proven
+attribution to a threat actor. Common provider/CDN/tracking infrastructure can
+produce false relationships.
+
+Message-ID is used to update an existing investigation rather than blindly insert
+duplicates in that case. Messages without usable IDs do not gain a universal
+content-level deduplication guarantee merely from this behavior.
+
+Historical statistics summarize related sightings, dates and recent windows
+(for example seven/thirty days and all-time). A source-order issue is worth
+knowing: the new record is inserted before some statistics are computed, while
+the exclusion variable can be None on a first insertion. Those statistics may
+count the current email as prior evidence. Pre-insert matching and historical
+summary counts should not be assumed identical.
+
+10.2 Why the DB write happens before the final verdict
+Correlation needs a stable email/campaign identity and history. The pipeline
+creates/updates a base record, computes the graph and models, then updates that
+record with the final verdict and enriched report fields. This is a multi-step
+workflow, not one fully atomic transaction covering every stage.
+
+The database is also the source of the dossier URL used by the extension. A
+successful immediate POST response and a later GET /investigations/<id> are
+related representations, but the persisted GET does not recover all transient
+original bodies and detailed live correlation fields. Some evidence for older
+records is reconstructed and labeled accordingly.
+
+
+11. STAGE F-PRIME: GRAPH DIFFUSION
+=================================
+Source: backend/ai_engine/graph_diffusion.py.
+Libraries: NumPy and scipy.sparse, plus custom graph traversal/caching.
+
+This is graph-based propagation of existing evidence, not a trained Graph Neural
+Network and not part of the XGBoost model. It constructs nodes representing
+emails, campaigns, indicators and infrastructure relationships from the
+correlation context. Shared domains/IPs/URLs/hashes can link investigations.
+
+Edges express relationships inferred from available records. A graph label does
+not prove that E-TAP independently measured a live DNS/network connection for
+every edge. The graph is a view of evidence relationships, not a packet capture.
+
+Known malicious evidence seeds the graph. In the pipeline adapter, seeds come
+from indicator reputation records: an explicit malicious=True, detection/abuse
+thresholds (defaults VT 3, AbuseIPDB 50), or an indicator reputation/verdict equal
+to the literal MALICIOUS. It does not automatically load every related email's
+final verdict and turn it into a seed. A malicious boolean can seed even when a
+separate count would not satisfy the stronger count threshold.
+
+The diffusion is approximately:
+  A_tilde = A + I                         add self loops
+  A_norm  = D^(-1/2) A_tilde D^(-1/2)    symmetric degree normalization
+  y(t+1)  = 0.85 * A_norm * y(t) + 0.15 * y(0)
+
+It performs a small fixed number of iterations (three), normalizes the resulting
+relative scores and reports influence/nearest seed information. A breadth-first
+search helps explain proximity. The implementation requires enough nodes
+(minimum five) and meaningful seeds; otherwise diffusion can be unavailable.
+Unavailable graph evidence is not a benign result.
+
+Fingerprints and locking support a process-local cache; history changes can
+invalidate it. This is a lightweight contextual signal. It is not a calibrated
+probability that an email is malicious, and it does not automatically become a
+seventh XGBoost feature. The graph context can be shown in the UI and supplied to
+the full technical assessment; there is no independent universal score-fusion
+formula that makes its propagated value the final verdict.
+
+
+12. EVIDENCE LEDGER AND REPORT PROVENANCE
+========================================
+Sources: backend/evidence.py, provider_status.py, privacy.py, pipeline.py;
+frontend/src/components/report/EvidenceNarrative.jsx and EvidenceBreakdown.jsx.
+
+The deterministic ledger translates raw findings into stable evidence items.
+Its schema distinguishes:
+  kind: observed, reputation or ai_inferred.
+  status: present, absent or unavailable.
+  direction: raises_risk, lowers_risk or neutral.
+  weight: qualitative strong/weak where relevant.
+  identity/provenance: stable evidence ID, source and observation.
+  explanation: what was found, why it matters, what it supports/contradicts.
+
+This lets the report distinguish 'SPF pass was reported in the header', 'a
+provider reported detections', and 'the model inferred likely impersonation'.
+These are different kinds of claims. Confidence/provenance labels are not all
+statistically calibrated model probabilities.
+
+A compact ledger is supplied to Gemini. The prompt asks AI findings to cite
+existing evidence IDs. Server-side processing discards invalid IDs; unsupported
+findings are not treated as properly grounded top reasons. However, existence of
+a cited ID does not prove that the evidence logically entails the model's claim.
+There is no full entailment verifier behind the citation check.
+
+The final narrative groups observations, AI interpretation, unavailable checks,
+counterevidence and next steps. It selects a bounded set of leading reasons,
+not every possible raw field. Missing headers/attachments, unavailable providers
+or incomplete origin information become limitations. 'No high-risk indicators
+found in available evidence' is deliberately weaker than 'this message is safe'.
+
+The ledger does not independently force Gemini's numeric verdict to match all
+observations. The final assessment and the deterministic evidence narrative can
+therefore expose different levels of concern. That should be inspected rather
+than interpreted as mathematical consensus between independent models.
+
+Pipeline provenance records source mode, headers-available intent, live/offline
+intel mode, provider/model/fallback reason, any triage skip, stage execution and
+duration. A stage status saying completed means the stage ran; it does not mean
+all inputs were present or the stage made a successful definitive detection.
+Similarly headers_available in provenance derives from the selected source mode,
+not a cryptographic proof that all received headers are genuine or comprehensive.
+
+
+13. STAGE C-PRIME: XGBOOST FEATURES, INFERENCE AND TRAINING LIMITATIONS
+====================================================================
+Sources: backend/ai_engine/triage_model.py, train_triage_model.py,
+convert_dataset.py, models/xgboost_phish_model.pkl; backend/pipeline.py.
+Libraries: NumPy, XGBoost, joblib, scikit-learn and pandas (training/conversion).
+
+13.1 Role in the live pipeline
+XGBoost is a fast metadata prefilter. It is not the image QR decoder, not the
+language model, not the graph engine and not the embedding model. The pipeline
+already performed header/attachment/IOC/intel/correlation work before calling it.
+Its main optimization is avoiding a Gemini request for an eligible high-confidence
+benign message. It does not bypass every expensive earlier forensic operation.
+
+The .pkl artifact is lazy-loaded once with joblib. A missing/unloadable model
+returns available=False and allows the normal Gemini/fallback path to continue.
+An unavailable model is not interpreted as a benign prediction. joblib artifacts
+are trusted executable serialization, not a safe format for arbitrary user files.
+
+13.2 The exact six input features, in order
+NumPy produces shape (1, 6), dtype float32:
+  1. has_attachment: 1 when the attachment-analysis list is nonempty, otherwise 0.
+  2. num_urls_in_body: length of the top-level IOC URL list. Despite the name,
+     this can include QR/header-derived URLs, not just literal body links.
+  3. sender_domain_age_days: age from threat_intel.domain_info, unknown = -1.
+     If the sender's domain record is missing, the implementation can fall back
+     to the first available domain record, which may be a different domain.
+  4. auth_spf_pass: 1 for a pass result, otherwise 0. Unknown and fail are both
+     zero in this feature; their semantic difference is lost here.
+  5. subject_length: number of characters in the stripped subject.
+  6. is_urgent_keyword_present: substring matches over subject plus body text,
+     including appended OCR text. Terms include urgent, verify, password, login,
+     invoice, payment, suspended, reset and related language.
+
+The model does not receive full attachment bytes, a QR image embedding, the
+entire Received graph or a semantic vector of the message. Feature order must
+match training exactly.
+
+13.3 Prediction and the benign shortcut
+predict_proba returns the two-class probabilities. Argmax selects label 0 (benign)
+or 1 (suspicious); confidence is the selected probability, rounded to four places.
+
+The orchestrator can skip Gemini only when the model is available, predicts benign
+with confidence >= TRIAGE_SAFE_THRESHOLD (default 0.90), and no force-AI condition
+applies. Current guard conditions include quick-content source, suspicious
+attachments, any IOC URL and selected risk words such as urgent, password, prize,
+gift card, login or shortener strings. Consult the force logic in pipeline.py
+for exact literal matching. These guards make a URL-bearing QR ineligible for
+the simplest benign shortcut even if its feature prediction looks benign.
+
+The shortcut returns a low-score assessment identified as xgboost_triage; its
+small score is derived from (1 - confidence), bounded by code. It is not a Gemini
+answer. A high class probability alone is not validated real-world certainty.
+
+13.4 Training script
+The training utility uses a stratified train/test split (20% test, seed 42), fits
+an XGBClassifier (100 estimators, depth 4, learning rate 0.1, logloss setting),
+reports accuracy/classification metrics/confusion matrix, then serializes with
+joblib. When its expected training CSV is absent, it can generate 1,200 synthetic
+examples with deliberately different benign/phishing feature distributions.
+
+The conversion script expects columns named Email Text and Email Type. It derives
+some text features from the message, but also synthesizes unavailable domain age
+and SPF features conditional on the known label. That creates a label-leakage/
+shortcut risk: test accuracy on similarly generated data does not show that
+these features can be known, or generalize, at inference time.
+
+The model artifact's presence does not prove whether it was trained from a real
+dataset, converted synthetic metadata or the script's generated fallback. The
+raw training CSV and a reproducible artifact-specific provenance/validation
+record are not established by the committed artifact. Do not present a training
+script's possible accuracy as a measured production phishing-detection rate.
+
+
+14. STAGE G: GEMINI PROMPTS, STRUCTURED OUTPUT AND OFFLINE FALLBACK
+================================================================
+Sources: backend/ai_engine/stage_g.py, main.py, prompts.py, schemas.py;
+backend/pipeline.py, privacy.py.
+Libraries: google-genai SDK (google.genai), Pydantic; custom heuristic fallback.
+
+14.1 What Gemini receives
+The main path builds a sanitized structured context with message text/HTML,
+appended OCR text, metadata, header findings, attachment summaries, links/QR,
+IOCs, threat intelligence, correlation, graph context and a compact evidence
+ledger. It does not send the original file as a multimodal email/image upload.
+This is text/JSON reasoning over extracted evidence.
+
+There is no initial RAG search over similar embeddings before this call. Earlier
+historical correlation supplies structured related-case information, but that
+is distinct from the later /chat retrieval pipeline.
+
+14.2 One combined successful request
+analyze_with_stage_g uses a CombinedAssessment schema containing:
+  content_classification: EmailAnalysis.
+  final_assessment: FinalAssessment.
+
+The request asks for application/json and supplies the response schema. The reply
+is validated with Pydantic model_validate_json. This consolidates two conceptual
+tasks into one successful provider request; failures/model fallback can still
+cause multiple attempted requests.
+
+EmailAnalysis contains content_verdict, confidence, attack_type, weighted
+categories, reasons and suspicious_indicators. This part is intended to describe
+the language/content evidence, independently of technical evidence.
+
+FinalAssessment contains verdict, risk_score (0..100), confidence (0..1),
+explanation, evidence_assessments, supporting_evidence, MITRE mappings,
+recommended_actions and optional ai_findings with cited evidence IDs. It is
+intended to integrate all available technical evidence.
+
+Prompts define 30 content categories with predetermined weights. Examples include
+credential phishing, business-email compromise, malware delivery, ransomware and
+spam/unwanted content. calculate_content_risk uses the highest returned category
+weight, capped at 100; it does not add all category weights together. The full
+technical risk_score is a separate final-assessment output, not a fixed average
+of the content score and XGBoost probability.
+
+Pydantic enforces numeric ranges and object structure. Category names/weights are
+not all enforced as a strict 30-value enum with exact matching constants by the
+schema itself. Structured JSON prevents some formatting errors; it does not
+prove correctness or eliminate hallucination.
+
+For study/reference, stage_g.py's category map is:
+  Credential Phishing 90; General Phishing 85;
+  Business Email Compromise (BEC) 90;
+  Account Takeover / Account Compromise 90; Financial Fraud 90;
+  Payment / Invoice Fraud 90; Impersonation 80; Malware Delivery 95;
+  Ransomware 100; Malicious Attachment 90; Malicious Link / URL 85;
+  Tech Support Scam 70; Investment / Cryptocurrency Scam 75;
+  Advance-Fee Scam 70; Prize / Lottery Scam 60; Job / Recruitment Scam 65;
+  Delivery / Shipping Scam 65; Refund / Payment Scam 75;
+  CEO / Executive Fraud 90; Payroll / HR Fraud 85; Extortion / Sextortion 85;
+  Blackmail / Threat Scam 80; Social Engineering 75;
+  Data Theft / Data Exfiltration Attempt 90; Business Information Request 65;
+  OAuth / Application Consent Phishing 90; MFA / Verification Code Phishing 90;
+  Spam / Unwanted Commercial Email 20; Suspicious / Uncategorized 50; Other 10.
+These are hand-assigned risk weights, not measured event probabilities.
+
+The prompt instructs the model to treat email content as untrusted evidence and
+resist embedded instructions, distinguish observation from interpretation, avoid
+turning missing checks into safety, and cite ledger IDs. That is a prompt defense,
+not a formal guarantee against every prompt-injection attempt.
+
+14.3 Configuration, timeouts and model fallback
+GEMINI_API_KEY configures the client. GEMINI_MODEL selects the primary model; the
+source default is gemini-3.5-flash-lite. The candidate chain includes configured
+primary and deduplicated literal fallback names such as gemini-flash-lite-latest,
+gemini-3.1-flash-lite and gemini-3.6-flash. These are strings the code attempts,
+not proof that every name is available for a particular account today.
+
+The SDK timeout defaults to about 15,000 ms with bounded configuration. A total
+budget defaults to 30 seconds and is checked between attempts. It is a soft
+attempt-scheduling budget, not hard cancellation of every in-flight operation.
+Older retry/sleep helpers in main.py should not be mistaken for the actual
+combined-request orchestration in stage_g.py.
+
+Comments mentioning particular current Gemini free-tier daily quotas are not
+runtime entitlement discovery. Model/provider status in each report is the
+relevant record of what actually answered.
+
+14.4 Offline fallback
+No key, provider errors, exhausted attempts or invalid output can lead to
+_offline_content_classification and _offline_final_assessment. These functions
+are deterministic Python heuristics, not an offline copy of Gemini.
+
+Content heuristics look for converging credential/action/link/pressure evidence,
+rather than relying only on a single alarming word. Blank/incomplete content is
+treated as limited evidence. The final fallback combines content risk/confidence
+with bounded header, attachment, URL/hash/IP/domain, reputation and correlation
+contributions, and clamps the score to 0..100.
+
+The structure includes a content term multiplied by at least 0.35 confidence,
+bounded header/attachment contributions (up to about 35 each), smaller URL/hash/
+IP-domain terms, a reputation cap and a correlation cap. Some evidence can be
+counted in more than one layer, and mere indicator presence can contribute.
+This is an engineering heuristic, not a calibrated probability or a scientifically
+validated ensemble. Read the provider as offline_fallback when it was used.
+
+14.5 MITRE ATT&CK mapping
+The output can map evidence to techniques, names, tactics, confidence and cited
+observations. Common fallback examples are T1566.002 (spearphishing link),
+T1566.001 (spearphishing attachment) and T1204.002 (malicious file/user execution).
+A suggested mapping is an analyst interpretation of an attempted technique,
+not proof that a victim opened a file or execution occurred.
+
+
+15. VERDICT RECONCILIATION AND END-OF-ANALYSIS PERSISTENCE
+========================================================
+Sources: backend/verdicts.py, pipeline.py, evidence.py, app.py;
+frontend/src/utils/verdict.js.
+
+finalize_verdict is the backend's canonical label/band function:
+  Score range  Label                  UI band
+    0..19      LIKELY LEGITIMATE       safe
+   20..39      LOW RISK                safe
+   40..64      SUSPICIOUS              caution
+   65..84      LIKELY PHISHING         danger
+   85..100     HIGH-RISK PHISHING      danger
+
+It clamps/rounds the numeric score, normalizes known label spellings and selects
+the more severe of the score-implied label and the supplied recognized label.
+Thus a benign label cannot remain beside a score of 90. The numeric score itself
+is not always raised to a severe supplied label's minimum, so a label and number
+can still reflect different severity inputs. Reconciliation metadata describes
+the normalization behavior. The UI uses verdict_band rather than inventing a
+different threshold, with a mirror utility for older stored records.
+
+The word safe is a display-band identifier, not a forensic certification.
+Available evidence, provider coverage and limitations remain essential.
+
+The pipeline builds the final evidence/provider/privacy/provenance outputs,
+serializes JSON-compatible values and updates the base MongoDB record. It then
+starts best-effort background summary/embedding generation. The worker updates
+an existing record without upsert, so it should not recreate a record deleted
+while the thread was working. There is no durable queue or automatic guaranteed
+job recovery for that background task.
+
+POST /analyze separately invokes workflow_c.finish_analysis for retention,
+review metadata and baseline matching. The CLI path does not automatically run
+that API hook. A report can be complete before its background RAG embedding is
+available; later retrieval/backfill paths can compensate for missing embeddings.
+
+
+16. RAG INDEXING, RETRIEVAL AND ANALYST CHAT
+==========================================
+Sources: backend/rag/embeddings.py, chat.py, backfill_embeddings.py;
+backend/app.py; frontend/src/components/chat/SocChatDrawer.jsx.
+
+RAG means Retrieval-Augmented Generation:
+  stored investigations -> summaries -> embeddings -> similarity retrieval
+      -> relevant case context + analyst question -> optional Gemini answer
+
+This is primarily the chat layer after analysis. It does not retrain Gemini and
+does not automatically improve the initial verdict through a preceding vector
+search. Historical IOC matching and RAG semantic similarity are separate features.
+
+16.1 What is indexed
+build_summary creates a concise investigation summary: email/campaign identity,
+verdict/score, sender, subject, date, selected first indicators, MITRE information
+and a bounded explanation. The pipeline stores rag_summary and rag_embedding.
+It does not split the entire original MIME file into a conventional document
+chunk database or embed each raw attachment.
+
+16.2 Two very different embedding modes
+Preferred optional path: sentence-transformers SentenceTransformer, default
+all-MiniLM-L6-v2, producing a 384-dimensional semantic vector. It is lazy-loaded
+and configurable via RAG_EMBEDDING_MODEL. sentence-transformers is not in the
+main explicit backend requirements, so its presence must not be assumed.
+
+Fallback path: when the model/import fails, USE_FALLBACK_EMBEDDINGS=1 is set, or
+the RENDER environment triggers low-memory behavior, the application uses a
+deterministic hashed-word vector:
+  - Lowercase and split words with a regex.
+  - MD5 each word, choose index modulo 384 and a sign from a hash bit.
+  - Accumulate signed token counts in a NumPy float32 vector.
+  - L2-normalize the vector.
+
+That fallback measures a hashed approximation of lexical overlap. It is not the
+MiniLM semantic model running cheaply and does not reliably understand synonyms.
+MD5 here selects vector buckets; it is unrelated to secure file hashing.
+
+16.3 Retrieval options
+Default retrieval loads stored candidate reports, obtains/builds summaries and
+embeddings as needed, and computes cosine similarity with NumPy. It sorts and
+returns the top cases, normally five. There is no strong relevance cutoff that
+guarantees every returned top-five result is useful. This local scan scales
+differently from a dedicated vector database index.
+
+Optional USE_ATLAS_VECTOR_SEARCH=1 attempts MongoDB's $vectorSearch on
+rag_embedding using ATLAS_VECTOR_INDEX (default vector_index), with a bounded
+candidate count and result limit. It requires an appropriately configured Atlas
+vector index. Merely hosting MongoDB on Atlas does not create that index.
+If the vector query fails, code can fall back to local similarity search.
+The current implementation does not use FAISS or LangChain as a required layer.
+
+Stored semantic and hashed vectors must not silently be mixed. Changing embedding
+model/dimensions requires consistent reindexing; even two 384-dimensional vector
+spaces are not interchangeable just because their lengths match.
+
+16.4 Active-file chat versus whole-history chat
+The API accepts a question (1..2000 characters) and optionally email_id. It rejects
+client-supplied email_context, loads context server-side and validates that the
+requested stored investigation exists. A supplied email_id scopes the answer to
+that active file instead of silently mixing unrelated similar cases. Whole-history
+questions can retrieve the top similar stored summaries.
+
+The selected context is sanitized and sent with the question to the chat Gemini
+path. That path is not identical to Stage G's CombinedAssessment schema/model
+fallback chain. If AI is unavailable, the code can provide a structured local
+summary rather than pretending a generative provider answered. Sources identify
+the investigations used; similarity scores show retrieval ranking, not factual
+truth probabilities.
+
+There are current active-profile schema mismatches: some chat-building code
+expects attachment_analysis as a list rather than its wrapper dictionary, and
+legacy OCR/QR/triage field names differ from current ocr_text/qr_urls and triage
+outputs. Thus not all current attachment detail is reliably exposed through that
+profile. Persisted reports also do not retain the full original body for perfect
+reconstruction. 'Chat over the current stored report' is more accurate than
+'chat has every byte of the original email'.
+
+
+17. REACT DASHBOARD AND REPORT EXPORTS
+======================================
+Sources: frontend/src/App.jsx, context/InvestigationContext.jsx, api/*,
+pages/*, components/report/*, components/chat/*, utils/*.
+
+The frontend is React/ReactDOM built with Vite. Axios wraps backend requests.
+InvestigationContext manages active investigation state, request progress,
+history and service status. Session storage preserves bounded browser-session
+history (up to 50 records); server history is obtained from the backend.
+
+The user uploads a file, the frontend calls /analyze, then renders the returned
+structured report. When opened with ?dossier=<id>, App fetches the stored report,
+sets it active and moves to the dashboard; successful handling clears the query
+parameter. This is the extension-to-dashboard handoff. Browser history/session
+state is not the authority for whether a dossier exists in MongoDB.
+
+The service-status polling checks health/readiness periodically (about 15 seconds)
+and uses repeated failures to avoid declaring an outage on one transient error.
+A liveness response and a database-ready response have different meanings.
+
+Main report components:
+  VerdictBanner/RiskGauge: canonical band, score, leading result and limitations.
+  EvidenceNarrative/EvidenceBreakdown: observed facts, interpretation, missing
+    checks, provenance and supporting/contradicting evidence.
+  HeaderAnalysis: sender authentication, relay chain and origin qualifications.
+  AttachmentTable: file/type/hash/macro/image/OCR/QR findings.
+  IocTable: extracted indicators and provider responses.
+  ProviderStatusPanel: actual provider coverage/errors/skips and model identity.
+  PrivacyDataPanel/TrustControls: data-use explanation and management controls.
+  ContentAnalysis: language classification and available body text/HTML.
+  HistoricalCorrelationCard: matching history/campaign context.
+  ThreatGraph: force-directed relationships using react-force-graph-2d.
+  GeoMap: Leaflet/react-leaflet locations for available hop/IP data.
+  MitreCards: suggested ATT&CK technique mappings.
+  ResponseWorkflow: review/case/response metadata.
+  SocChatDrawer: active-file or history chat.
+
+Recharts supplies charting; these visualizations display pipeline results rather
+than running an independent forensic engine in the browser. A map pin is the
+provider's approximate IP location, and graph proximity is a relationship signal.
+The map and its navigation link are hidden when no valid coordinates exist.
+Populated maps/PDFs are labeled mail-server IP locations rather than a verified
+sender location. The unused IP-geolocation provider card is hidden when its
+status is not_needed; failures/disabled checks still remain visible as coverage.
+
+The HTML preview uses an iframe with srcDoc and sandbox="allow-same-origin".
+Scripts and form submission are not enabled. Despite the UI's sanitized/sandbox
+language, the source does not show a complete HTML sanitizer plus network deny
+policy. Remote image/resources can still cause network requests. This is a
+constrained visual preview, not a network-isolated malware sandbox.
+
+PDF export uses jsPDF and jspdf-autotable for report content/tables, with
+html2canvas used in the export code for a captured map/visual section. JSON
+export serializes report data to a browser Blob. Neither export reruns forensics
+or embeds the original .eml as a full evidence archive. Packaging observation:
+html2canvas is imported by source but is not listed as a direct frontend
+package.json dependency; successful availability may depend on installation/
+transitive dependencies and should not be assumed from that manifest alone.
+
+The frontend includes a hardcoded SAMPLE_REPORT demonstration as well as
+synthetic sample EML text that can be sent through the backend. A displayed demo
+report is not evidence that live providers or the complete pipeline ran. Read the
+sample/live path rather than equating every populated panel with a real scan.
+
+
+18. WORKFLOW C: REVIEW, CASES, RETENTION AND DELETION
+===================================================
+Sources: backend/workflow_c.py, recovery.py, integrations.py,
+purge_retention.py, migrate_workflow_c.py; frontend workflow/trust components.
+
+This layer supports an analyst after a report is generated. It does not execute
+attachments or automatically remediate a user's mailbox/device.
+
+18.1 Review and case management
+Stored review states include needs_review, confirmed_malicious, benign_or_spam
+and unresolved. Updates use an expected previous state so concurrent/stale edits
+can return a conflict (409) rather than silently overwrite each other. Review
+history is bounded. Case label/assignee and bounded assignment history are also
+stored. These analyst dispositions are distinct from rewriting the original
+forensic verdict or retraining the XGBoost model.
+
+Related-case suggestions can compare IOCs and token similarity in recent stored
+records. User-declared baseline domains provide contextual matches. The code
+explicitly records that these baselines do not override threat evidence or change
+the risk score. Feedback is stored; there is no automatic feedback-to-training
+loop that immediately updates XGBoost, embeddings or Gemini.
+
+Analytics summarizes stored investigations/reviews within bounded queries. Those
+counts are operational workload metrics, not ground-truth detection accuracy.
+
+18.2 Sharing and recovery guidance
+share_pack constructs an allowlisted representation, including identifiers,
+verdict/hash/auth result categories and evidence IDs. It deliberately omits
+unrestricted free-text fields and other potentially identifying detail. The
+existence of a share pack does not mean reports have been externally published.
+
+recovery.py provides versioned static response guidance for relevant situations.
+It is advice chosen from templates, not a device diagnosis, confirmed compromise
+finding or live remediation action.
+
+integrations.py contains target validation, webhook payload/signature/verification
+and retry-delay contracts. These utility functions do not establish that a
+production outbound dispatcher is running. There is no live detonation sandbox
+or automatic external notification engine just because integration interfaces
+and tests exist.
+
+18.3 Retention and deletion
+finish_analysis applies retention preferences (default 30 days; configurable
+1..365), records timestamps/review initialization and performs an expiry purge.
+Preference changes govern newly applied retention; do not assume every historical
+record is instantly rewritten to a new expiry without a corresponding code path.
+
+purge_retention.py provides an operator purge path. The current scheme is not a
+MongoDB TTL-index guarantee or a built-in periodic scheduler, and expiry is not
+enforced on every read. A timestamp passing by itself does not prove immediate
+physical deletion at that moment. Deployment must run the appropriate purge
+path if scheduled expiry is required even when there are no new analyses.
+
+Delete-one/delete-all remove investigation data, associated summary/vector fields
+with the document, and relevant campaign membership/references; dependent cached
+correlation context is invalidated. The background embedding update avoids
+upserting a deleted investigation. This is the application's deletion behavior,
+not a guarantee about database backups or copies exported by a user.
+
+
+19. API, DEPLOYMENT, AUTHENTICATION AND OPERATIONAL BOUNDARIES
+===========================================================
+Sources: backend/app.py, requirements.txt, Dockerfile, db/connection.py,
+security.py, db/scoped.py; frontend/src/api/client.js; extension/config.js;
+root SETUP.md, DEPLOYMENT.md and .env.example.
+
+19.1 API surface and limits
+FastAPI defines /analyze, /chat, /investigations, /investigations/{email_id},
+/campaigns, service health/readiness and the included workflow routes.
+
+The current /analyze decorator is 10 requests/minute, despite a stale nearby
+comment describing a different number. /chat is 30/minute; the individual report
+route has its own 60/minute limit. SlowAPI also has a configured default limiter.
+Rate limits are not user authentication and are not a shared production quota
+service across all possible worker instances.
+
+Typical errors include bad/empty/unsupported upload (400), oversize (413),
+not-found dossier (404), workflow conflict (409), throttling (429), and unexpected
+server failures (500). Provider failures are often represented as partial
+coverage/fallback inside a successfully generated report rather than as complete
+HTTP failure. Distinguish 'analysis returned a report with missing checks' from
+'the HTTP request failed and no report was created'.
+
+/health is a liveness endpoint. /ready checks DB connectivity and can return 503.
+The server loads dotenv configuration without replacing already-set environment
+variables. Some startup code optionally imports torch/sets a duplicate-OpenMP
+workaround; that does not make Torch the graph-diffusion engine.
+
+CORS uses configured allowed origins (default development frontend localhost:5173).
+It controls ordinary browser cross-origin access, not authorization by itself.
+An extension has its own origin and host permissions; its API/platform URLs and
+the deployed backend's CORS/configuration must agree. The source folder and a
+running remote deployment can differ until the relevant application is deployed.
+
+19.2 Authentication: distinguish available files from active wiring
+security.py, db/scoped.py, provision_key.py, migration utilities and AuthGate.jsx
+contain authentication/scoping-related code. However, the current app does not
+mount the expected authentication middleware and the frontend App does not gate
+the active application with AuthGate. Current request paths are not made
+authenticated merely because those files exist. A helper called owned() in the
+workflow code is not evidence of a live per-user authorization boundary.
+
+Likewise owner-prefixed DB indexes or older security tests do not prove that
+current open endpoints enforce tenant isolation. If presenting the project,
+describe this as an implementation/deployment limitation rather than claiming
+complete multi-user isolation from filenames alone.
+
+19.3 Main configuration names (no secret values)
+  MONGODB_URI / MONGO_URI / MONGO_DB_NAME: database connection/name.
+  USE_FAKE_DB / AUTO_FALLBACK_DB: development/fallback DB behavior.
+  THREAT_INTEL_LIVE: enable Stage E external lookups.
+  VIRUSTOTAL_API_KEY / ABUSEIPDB_API_KEY: provider credentials.
+  GEMINI_API_KEY / GEMINI_MODEL: language-model client and primary model.
+  GEMINI_TOTAL_BUDGET_S: soft multi-attempt Stage G budget.
+  TRIAGE_SAFE_THRESHOLD: eligible benign shortcut confidence.
+  RAG_EMBEDDING_MODEL / USE_FALLBACK_EMBEDDINGS: embedding choice.
+  USE_ATLAS_VECTOR_SEARCH / ATLAS_VECTOR_INDEX: optional vector query/index.
+  ALLOWED_ORIGINS: browser CORS origins.
+  Frontend Vite API URL configuration and extension ETAP_CONFIG: which API and
+    platform the browser actually uses.
+
+Read the individual modules for additional timeout/budget settings. Configuration
+names explain behavior; real API keys and local .env contents do not belong in
+a study file or a shared report.
+
+19.4 Packaging/deployment
+The backend Dockerfile is based on python:3.11-slim, installs Tesseract English
+OCR/native support and libzbar0, installs backend requirements, and serves app:app
+using Uvicorn on ${PORT:-5000}. The build context matters: its COPY requirements
+and source instructions are written for the backend directory's layout.
+
+The frontend is a separate Vite build; its manifest requires Node >=22.12.0.
+The extension is an unpacked Manifest V3 browser extension using native Chrome
+extension APIs and JavaScript, with Gmail/API host permissions and a service
+worker. It does not need a separate Node runtime inside the user's browser.
+
+MongoDB, backend, frontend, extension scripts, provider credentials and native
+image/OCR libraries are separate moving parts. A successful frontend build alone
+does not establish that original-mail retrieval, ZBar, Tesseract, live reputation,
+Gemini or persistent MongoDB are functioning in the user's running environment.
+
+
+20. WORKED QR-PHISHING EXAMPLE
+==============================
+This is illustrative, not a claim about a file tested during this documentation
+task. All example hostnames use reserved .example names.
+
+Suppose payroll_notice.eml contains:
+  From: Payroll Support <notice@payrol1.example>
+  Subject: Urgent payroll verification
+  Body: Scan the attached code to verify your account today.
+  A named PNG attachment containing a QR for:
+    https://payrol1.example/login?token=PERSONAL_TOKEN
+  Visible text inside that image: 'Verify your password before payroll closes'.
+
+Step 1: Ingestion receives original MIME bytes, not just the displayed body.
+The parser preserves headers, text/HTML and the PNG bytes. Regex PII masking
+applies to configured text fields.
+
+Step 2: Header analysis reads any supplied Authentication-Results and Received
+chain. If the receiving server reported DMARC failure it can record that. If no
+trustworthy origin is visible, it records limited origin evidence. It does not
+invent a DKIM verification just because a public key exists.
+
+Step 3: Attachment forensics computes the PNG SHA-256 and checks its signature.
+A normal PNG signature means it is an image, not that the email is benign.
+VBA scanning is not the meaningful risk detector for an ordinary PNG.
+
+Step 4: pyzbar/OpenCV decodes the QR payload. The URL is retained with attachment
+provenance. Tesseract separately reads the visible password/payroll instruction.
+No browser is opened to the QR destination.
+
+Step 5: IOC extraction deduplicates the QR URL/domain and attachment hash. The
+static trace inspects the URL structure and any applicable lookalike features.
+The example domain is not guaranteed to match a curated real-brand rule.
+
+Step 6: If live reputation is enabled and budgets permit, the URL privacy planner
+may trim/remove the personal token before an allowed lookup or skip the lookup.
+VirusTotal may have an existing URL/hash record or may return not found. WHOIS
+and IP enrichment may be unknown for this reserved illustrative domain. No result
+should be fabricated. In a real message, provider results could raise risk;
+unavailable results reduce coverage, not necessarily the assessed danger.
+
+Step 7: The DB engine compares normalized indicators against historical cases.
+A reused domain/hash/URL can link to a campaign. A unique message may begin a new
+campaign without proving a new threat actor exists.
+
+Step 8: The graph can propagate known malicious seed context if sufficient graph
+evidence exists. Without seeds it remains unavailable rather than creating a
+malicious conclusion from proximity alone.
+
+Step 9: The OCR snippet is appended to model text. The XGBoost vector includes
+an attachment, at least one IOC URL, unknown/known domain age, SPF-pass indicator,
+subject length and urgency. URL/attachment/text guards force the deeper assessment
+instead of the simplest high-confidence-benign shortcut.
+
+Step 10: Gemini receives sanitized findings and the evidence ledger. It can
+interpret a credential request plus urgency plus decoded destination as a
+possible QR credential-phishing attempt, cite evidence IDs and recommend action.
+If Gemini fails, deterministic fallback supplies its own labeled assessment.
+
+Step 11: finalize_verdict reconciles score/label. The report records which facts
+were observed, which provider answered, which checks were missing and what was
+inferred. It does not claim credential theft actually occurred.
+
+Step 12: The report is persisted, rendered in React, and summarized/embedded in
+the background for subsequent chat. Asking 'Why is this QR suspicious?' can use
+that stored report context; RAG did not decode the original image itself.
+
+If Gmail original retrieval fails, this same scenario changes materially: the
+limited reconstruction may contain the visible body text but no PNG bytes, no
+original transport evidence and no actual QR payload. The dashboard must explain
+those gaps. Opening a full-sized report page does not create missing evidence.
+
+
+21. LIBRARY AND INFRASTRUCTURE MAP
+==================================
+These are the important roles of dependencies, not a claim that every optional
+dependency is installed in every deployment.
+
+Backend HTTP/runtime
+  fastapi                  API routing, request handling and response layer.
+  uvicorn[standard]        ASGI application server.
+  python-multipart        Multipart email upload parsing.
+  pydantic                Request/model schemas and structured AI validation.
+  python-dotenv           Load configuration from environment files.
+  slowapi                 Request rate limiting.
+  asyncio/threading       Offload blocking work; background embedding thread.
+
+Email/header processing
+  email (stdlib)          RFC/MIME parsing, headers, addresses and body decoding.
+  extract-msg             Outlook MSG container reading.
+  re / ipaddress          Heuristic text, auth/IP and indicator parsing.
+  datetime                Routing times and age/retention computations.
+  unicodedata / IDNA      Unicode/domain normalization and script checks.
+  difflib/custom distance Domain/brand similarity heuristics.
+  dnspython (optional)    dns.resolver TXT/A queries for header fallbacks.
+
+Static attachment/image processing
+  hashlib                 SHA-256 attachment fingerprints.
+  base64 / io             Transfer/storage representation and byte streams.
+  python-magic (optional) MIME/type assistance via native libmagic.
+  custom signature table  Built-in magic-byte/type fallback.
+  oletools                VBA detection, AutoExec/suspicious keyword inspection.
+  NumPy                   Image byte arrays and numerical vectors.
+  opencv-python-headless  cv2 image decode, grayscale and QRCodeDetector.
+  Pillow                  PIL image loading/conversion.
+  pyzbar + native ZBar    QR payload decoding.
+  pytesseract + Tesseract Visible-image text recognition (OCR).
+
+External enrichment/storage
+  requests                VirusTotal, AbuseIPDB and ip-api HTTP clients.
+  python-whois            WHOIS registration/age lookup.
+  pymongo                 MongoDB persistence and optional Atlas vector query.
+  custom TTLCache         Process-local provider-result caching, not Redis.
+
+Machine learning/generation/retrieval
+  xgboost                 Six-feature benign/suspicious triage classifier.
+  scikit-learn            Training split and classification evaluation utilities.
+  pandas                  Dataset loading/conversion/training preparation.
+  joblib                  Model artifact serialization/loading.
+  NumPy + scipy.sparse    Graph diffusion and local vector similarity.
+  google-genai            Gemini inference/chat API client.
+  sentence-transformers   Optional MiniLM semantic embedding, not required by
+                          the main backend requirements file.
+  hashlib + NumPy         Hashed lexical-vector embedding fallback.
+
+Frontend
+  react / react-dom       Components, state/context and browser rendering.
+  vite / plugin-react     Development server and production bundle tooling.
+  axios                   Backend HTTP client.
+  recharts                Charts.
+  react-force-graph-2d     Investigation relationship visualization.
+  leaflet/react-leaflet   Approximate IP/hop location map.
+  jspdf/autotable         Client-generated PDF text/tables.
+  html2canvas             Visual capture used by export code; direct dependency
+                          declaration caveat noted in section 17.
+
+Browser extension
+  Chrome extension APIs   Content script/service worker/tab messaging and opening.
+  fetch / FormData / Blob Original retrieval and multipart submission.
+  IndexedDB               Temporary extension-origin email handoff jobs.
+  DOMParser/TextEncoder   Wrapper/link parsing and byte-safe reconstruction.
+
+Tests/dev
+  unittest/pytest          Python test suites.
+  httpx                   ASGI/API testing support.
+  node:test               Frontend/extension pure JavaScript test runner.
+
+backend/requirements.txt explicitly lists the main backend packages above except
+for optional packages such as dnspython, python-magic and sentence-transformers.
+NumPy is imported directly but can currently arrive through dependent packages
+rather than its own explicit line. Optional torch startup code does not mean the
+pipeline uses a trained Torch GNN or transformer in every environment.
+
+Native dependencies matter: installing pyzbar without ZBar or pytesseract without
+Tesseract is not sufficient. The Dockerfile addresses the principal Linux QR/OCR
+native requirements. Windows installation and the actually deployed environment
+must be checked separately when diagnosing missing checks.
+
+
+22. FOLDER AND UTILITY MAP
+==========================
+Repository root
+  README.md                Project overview, usage and behavior documentation.
+  SETUP.md                 Local setup instructions.
+  DEPLOYMENT.md            Hosting/configuration guidance.
+  WORKFLOW-B-README.md      Earlier investigation/evidence workflow description.
+  WORKFLOW-C-README.md      Trust/review/response workflow description.
+  work.md                  Working notes; not an executable pipeline definition.
+  .env.example             Configuration template; no real credentials needed here.
+  requirements.txt         Root dependency entry point; backend has its own list.
+  study.txt                This source-oriented technical explanation.
+
+backend/
+  app.py                   FastAPI routes/startup and API workflow handoff.
+  pipeline.py              Actual end-to-end analysis orchestration.
+  verdicts.py              Canonical verdict names, thresholds and bands.
+  evidence.py              Evidence ledger and report narrative construction.
+  provider_status.py       Coverage/availability/fallback summaries.
+  privacy.py               URL lookup planning and outbound AI sanitization.
+  workflow_c.py            Review, cases, relatedness, feedback, sharing,
+                           baselines, retention, deletion and analytics.
+  recovery.py              Static response/recovery guidance.
+  integrations.py          Webhook/target/signature utility contracts.
+  security.py              Authentication-related utilities, not currently proof
+                           of active authentication middleware in app.py.
+  provision_key.py          Credential provisioning helper for that security work.
+  migrate_workflow_c.py     Workflow/security-related migration utility.
+  purge_retention.py        Operator-triggered expiry cleanup.
+  run_pipeline.py           Command-line analysis entry point.
+  verify_all_models.py      Provider/model diagnostic utility; not the normal
+                           email-analysis request path.
+  generate_*_eml.py         Produce example emails for PII/OCR/geo/startup checks.
+  Dockerfile               Backend container and native OCR/QR dependencies.
+  requirements*.txt         Runtime/development dependency declarations.
+
+  email_parser/            Unified EML/MSG parsing, normalized dataclasses,
+                           CSV helpers and regex PII masking.
+  forensics/               Header/auth/Received, domain/brand, attachment magic,
+                           macros, image QR/OCR, IOC, static link and QR trace.
+  threat_intel/            Provider clients, per-provider limits/cache and hop geo.
+  correlation/             Exact/fuzzy historical matching and campaign grouping.
+  db/                      Connections, repository operations, indexes, fake DB
+                           and scoping-related helper code.
+  ai_engine/               XGBoost inference/training/conversion, Gemini prompts/
+                           schema/orchestration, legacy AI helpers, graph diffusion.
+  ai_engine/models/        Serialized XGBoost classifier artifact.
+  rag/                     Summary/embedding, retrieval/chat and reindex backfill.
+  eval/                    Corpus loading/deduplication, metrics, evaluation runner
+                           and checked-in debugging outputs.
+  tests/                   Unit/API/pipeline/demo/generation test utilities.
+  reports/                 Report-output documentation/location conventions.
+
+frontend/
+  package.json             React/browser/build dependencies and scripts.
+  vite.config.js           Vite configuration.
+  src/main.jsx             Browser application entry point.
+  src/App.jsx              Navigation/active page and dossier deep-link handling.
+  src/api/                 Base HTTP client and analyze calls.
+  src/context/             Investigation/service/session state.
+  src/pages/               Upload, overview, history and dashboard pages.
+  src/components/report/   Forensic/evidence/provider/graph/map/export/workflow UI.
+  src/components/chat/     Analyst chat drawer.
+  src/components/common/   Shared UI, workspace tools and dormant AuthGate.
+  src/utils/               Verdict display, plain summaries and PDF generation.
+  src/styles/              Layout/visual styling, not backend detection logic.
+  tests/report.test.mjs     Browser-independent report behavior checks.
+
+extension/
+  manifest.json            Manifest V3 permissions/version/script registration.
+  config.js                Backend/platform URLs and request configuration.
+  content.js               Detect opened Gmail messages and provide entry control.
+  gmail-original.js        Message references, original retrieval and byte checks.
+  background.js            Validate Gmail messages, create handoff and open tab.
+  handoff-store.js          IndexedDB job lifecycle.
+  analysis.html/js/css      Extension analysis tab, progress/retry/manual file UI.
+  analysis-core.js          Build multipart payload and destination dossier URL.
+  styles.css               Gmail-injected UI styling.
+  options.html/js           Configuration/help surface source; manifest wiring
+                           determines whether a browser exposes an options page.
+  tests/                   Original-message, fallback and handoff tests.
+
+docs/
+  extracted/               Serialized historical email samples used by evaluation.
+  mock_dataset/            Example JSON records, not a live threat-intel feed.
+  parser_fixtures/          Targeted parser cases (HTML-only, empty body, deceptive
+                           attachment names) used for development checks.
+
+samples/
+  README.md and email_dataset/README.md explain sample organization.
+  email_dataset/set_01..set_05 contain dataset manifests. A manifest is metadata;
+  its existence is not proof that every referenced original email is present,
+  valid, licensed for redistribution or used to train the committed model.
+
+Module README files explain intended responsibilities. For disagreements about
+ordering/availability, pipeline.py, the relevant function and app.py wiring are
+more authoritative than a historical overview or a filename.
+
+
+23. TESTS, EVALUATION EVIDENCE AND WHAT IS NOT PROVEN
+===================================================
+23.1 What the source test suites cover
+The backend tests span parsing, header origin, attachments/macros/images, IOC and
+link/privacy behavior, evidence truthfulness, canonical verdicts, provider status,
+threat intel clients, correlation, diffusion, triage, offline pipeline, RAG/chat,
+extension-original source semantics and workflow routes/security/response logic.
+Some files are demonstration/batch/output-generation scripts rather than isolated
+unit tests. Test names are not a guarantee that a feature is wired into app.py.
+
+Relevant examples:
+  test_image_forensics.py / test_links_qr_privacy.py:
+    Decoder status and real QR image round-trip behavior, static QR evidence,
+    token/privacy decisions and avoiding duplicate QR risk evidence.
+    QR test generation can use OpenCV's QR encoder, enlarge/add a border, encode
+    PNG bytes and pass those bytes through the scanner. That exercises more than
+    a hand-written fake qr_urls response, but it is still controlled imagery.
+  test_macro_behavior.py / test_attachment_forensics.py:
+    Macro-related behavior, signatures and suspicious filename/type cases.
+  test_received_chain_origin.py:
+    Relay/origin distinctions and routing interpretation.
+  test_truthfulness.py / test_evidence.py / test_provider_status.py:
+    Unknown/unavailable evidence and narrative/provider provenance behavior.
+  test_triage.py:
+    Feature/prediction/shortcut behavior; not a real-world accuracy benchmark.
+  test_rag.py / test_api_chat.py:
+    Retrieval/chat context and server-side active-file boundaries.
+  test_workflow_c_*.py:
+    Review/retention/sharing/response and security-related contracts. Check actual
+    current route wiring before claiming live auth from a test's existence.
+  extension/tests/original-message.test.mjs:
+    Message reference/download byte validation and fallback/handoff behavior.
+  frontend/tests/report.test.mjs:
+    Report utility/output behavior without a complete real-browser workflow.
+
+Controlled unit fixtures, mocked provider responses and a successful local build
+cannot prove universal Gmail endpoint compatibility, all real QR image quality,
+malware-detection completeness or a current provider model's availability.
+
+23.2 The checked-in evaluation output
+Sources: backend/eval/corpus.py, metrics.py, run_eval.py,
+backend/eval/results/report.md and results.json.
+
+The report explicitly describes itself as an offline debugging fixture, not a
+benchmark. It uses 24 unique historical messages after dropping three exact
+duplicates: 15 ham and 9 spam, primarily old bulk-spam data. It ran with
+offline_fallback assessments and offline threat-intel placeholders; it did not
+measure the complete live-Gemini/live-intelligence deployment.
+
+At the danger threshold (score >=65), it records one false positive among 15 ham
+and nine false negatives among nine spam. At the review-or-danger threshold
+(>=40), it records six false positives and eight false negatives. Two samples
+had empty parsed bodies. Small samples have broad uncertainty, and 'spam' is not
+identical to modern QR credential phishing or malicious email.
+
+These results expose limitations of that fixture/configuration. They must not
+be quoted as E-TAP's general production detection rate, Gemini's performance,
+QR recall or the real-world accuracy of the committed XGBoost artifact.
+
+23.3 Commands for someone studying the project
+These are reference commands, not commands run to produce this study. Use a
+proper environment and understand that analysis/evaluation can write DB/output
+data and, when configured live, call external providers.
+
+From the repository root, start the API:
+  python -m uvicorn app:app --app-dir backend --host 127.0.0.1 --port 5000
+
+Run one local email through the CLI:
+  python backend/run_pipeline.py "C:\path\to\message.eml"
+
+Install backend development/test requirements in the intended virtual environment:
+  python -m pip install -r backend/requirements-dev.txt
+
+Example focused Python test discovery:
+  python -m unittest discover -s backend/tests -p test_extension_original.py
+
+Extension tests (with a compatible Node runtime):
+  node --test --test-isolation=none extension/tests/*.test.mjs
+
+From frontend/, the declared npm scripts include:
+  npm ci
+  npm run dev
+  npm test
+  npm run build
+
+From backend/, the evaluation runner can write a new result set:
+  python -m eval.run_eval ../docs/extracted --out eval/results
+This overwrites/updates that output location; use a different --out path if
+preserving the checked-in debugging result is important.
+
+Useful debugging questions follow the data:
+  - Was the source full_message or quick_content_check?
+  - Did parsed attachments actually contain the image bytes and a retained name?
+  - Was qr_status decoded, not found, unreadable or decoder unavailable?
+  - Did qr_urls appear in the top-level IOC list with QR provenance?
+  - Was URL lookup permitted, trimmed, skipped, budget-limited or offline?
+  - Which provider/model actually answered, and was it a fallback/triage skip?
+  - Does the stored dossier contain the same detail as the immediate response?
+
+
+24. MAIN LIMITATIONS, PRESENTATION SUMMARY AND GLOSSARY
+=====================================================
+24.1 Claims the implementation supports, with their practical limits
+  Original-email ingestion: yes; Gmail retrieval is best effort through session-
+    based web endpoints, with a labeled limited fallback.
+  Header forensics: yes; header-reported auth plus partial DNS checks, not complete
+    independent SPF/DKIM/DMARC verification or trusted uploaded-header validation.
+  Attachment forensics: yes; static signatures/hash/macros/image analysis, not
+    universal malware detection or dynamic execution.
+  QR phishing path: yes; decode retained image QR payloads, inspect URLs, optionally
+    enrich and reason over findings. Difficult/unretained/non-image cases can miss.
+  OCR: yes; Tesseract visible text enters model context. OCR-only URLs currently
+    miss the earlier top-level IOC/reputation pass.
+  Real threat intel: yes when enabled/configured/permitted/within budget; offline,
+    not-found, skipped and error states are not clean verdicts.
+  History/campaigns: yes; exact/fuzzy relationships are leads, not actor attribution.
+  Graph diffusion: yes; NumPy/SciPy propagation from seeds, not a trained GNN.
+  XGBoost: yes; six-feature benign shortcut with guardrails. Artifact training
+    provenance and broad real-world generalization are not established here.
+  Gemini: yes; sanitized evidence-to-JSON assessment with explicit offline fallback.
+    Schema/evidence-ID checks do not guarantee factual or causal correctness.
+  RAG: yes for stored-report chat; optional semantic vectors, lexical fallback,
+    local or configured Atlas retrieval. Not an initial-image scanning stage.
+  Workflow: yes; analyst review/retention/deletion/cases, not automatic mailbox or
+    endpoint remediation, and no automatic feedback model retraining.
+  Authentication: related source exists, but current application wiring does not
+    establish complete live per-user authentication/authorization.
+
+24.2 How to explain the project aloud
+
+"We ingest the original EML or Outlook MSG and normalize its MIME bodies,
+headers and attachments using Python's email library and extract-msg. We then
+run custom header/authentication and routing checks, and static attachment
+checks using file signatures, SHA-256 and oletools for macros. For retained image
+attachments, pyzbar/OpenCV decode QR payloads while Tesseract separately extracts
+visible text. QR URLs enter IOC extraction and static URL checks, then selected
+indicators can be enriched through VirusTotal, AbuseIPDB, WHOIS and IP geolocation.
+
+"We correlate normalized indicators against MongoDB history, build campaign
+relationships and optionally propagate known malicious evidence through a
+NumPy/SciPy graph. A six-feature XGBoost classifier can skip the Gemini call for
+eligible high-confidence benign messages; risk guards force deeper analysis.
+Otherwise Gemini receives sanitized structured evidence and returns validated
+content classification plus a full assessment in one combined response. A
+deterministic fallback is labeled when the provider is unavailable.
+
+"We reconcile verdict labels, preserve evidence provenance and missing-check
+information, store the report and render it in a React dashboard. We summarize
+and embed stored investigations for later RAG-based analyst chat. RAG retrieves
+case context; it does not decode QR images or retrain the initial classifier.
+Every report should distinguish observed facts, external reputation, AI
+interpretation and checks that were unavailable."
+
+24.3 Glossary
+  EML: RFC-style raw message file containing headers/body/MIME parts.
+  MSG: Outlook compound message format, handled with extract-msg.
+  MIME: Message structure/types/transfer encodings for bodies and attachments.
+  Header: Metadata field such as From, Received or Authentication-Results.
+  SPF: Policy authorizing sending infrastructure for an envelope identity.
+  DKIM: Domain signature over selected message headers/body.
+  DMARC: Domain policy and alignment evaluation built on SPF/DKIM identities.
+  IOC: Candidate URL/domain/IP/hash used for investigation and correlation.
+  SHA-256: Content fingerprint; identical bytes yield the same file hash.
+  Static analysis: Inspect content/structure without executing the payload.
+  QR decoding: Recover machine-encoded payload from a QR symbol's pixels.
+  OCR: Recover ordinary human-readable text from image pixels.
+  Reputation: External historical observations about an indicator.
+  Correlation: Relate current findings to stored cases/shared infrastructure.
+  Diffusion: Propagate seed influence along a graph's relationships.
+  XGBoost: Gradient-boosted decision-tree classifier used here for metadata triage.
+  Gemini: External generative model used here for evidence interpretation/chat.
+  Embedding: Numerical text representation for similarity retrieval.
+  RAG: Retrieve stored context, then answer with that context and optional generation.
+  Provenance: Where evidence came from and how it was obtained.
+  Unavailable: A check could not establish a result; it is not equivalent to pass.
+
+END OF STUDY

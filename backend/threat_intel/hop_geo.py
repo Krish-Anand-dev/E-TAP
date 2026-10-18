@@ -28,10 +28,18 @@ def attach_hop_geo(header_analysis: dict, threat_intel: dict | None, live: bool)
             ips.append(ip)
     ips = ips[:MAX_HOP_LOOKUPS]
 
-    geo = {ip: known[ip] for ip in ips if known.get(ip, {}).get("status") == "available"}
-    missing = [ip for ip in ips if ip not in geo]
+    missing = [ip for ip in ips if known.get(ip, {}).get("status") != "available"]
     if live and missing:
-        geo.update({ip: g for ip, g in get_ip_geolocation(missing).items() if g.get("status") == "available"})
+        known.update(get_ip_geolocation(missing))
+    elif not live:
+        for ip in missing:
+            known.setdefault(ip, {"status": "disabled", "reason": "Live geolocation is disabled."})
+
+    # Hop lookups are real provider activity too. Preserve failures as well as
+    # answers so coverage cannot say "not needed" after a hop lookup ran.
+    if threat_intel is not None:
+        threat_intel["geo_lookup"] = known
+    geo = {ip: known[ip] for ip in ips if known.get(ip, {}).get("status") == "available"}
 
     for h in hops:
         g = geo.get(h.get("ip"))

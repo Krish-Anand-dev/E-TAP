@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "E-TAP — Email Threat Analysis",
-  "version": "1.3.0",
-  "description": "Experimental Gmail overlay: on-demand Quick Content Check of the visible email text. Nothing is sent until you click Analyze.",
+  "version": "1.5.1",
+  "description": "Open a Gmail email in E-TAP for analysis. Tries original headers, with a labeled content-only fallback and a full report link.",
   "permissions": [
     "activeTab",
     "scripting"
@@ -25,12 +25,14 @@
         "styles.css"
       ],
       "js": [
+        "config.js",
+        "gmail-original.js",
         "content.js"
       ],
       "run_at": "document_idle"
     }
   ],
   "action": {
-    "default_title": "E-TAP Quick Content Check"
+    "default_title": "E-TAP Email Analysis"
   }
 }

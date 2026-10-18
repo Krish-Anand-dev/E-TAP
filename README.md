@@ -121,16 +121,22 @@ Live lookups may send IOCs or derived indicators to third-party services. Gemini
 
 ## Gmail extension (experimental)
 
-The extension is an early prototype, **not an official Gmail integration**. It adds an **Analyze this email** button above an opened message; nothing is read from the message or sent anywhere until you click it. On click it reconstructs a simplified plain-text `.eml` from the sender, subject and visible body and submits that to the configured API as a **Quick Content Check**. It does not access the original raw Gmail message: original headers (SPF/DKIM/DMARC, routing), link targets and attachments are reported as *not available*. For full forensics, upload the original `.eml`/`.msg` in the dashboard. The result banner shows whether threat intelligence was live or offline and whether Gemini or the offline fallback produced the assessment. Use only a dedicated test mailbox with non-sensitive messages.
+The extension adds **Analyze in E-TAP** above an opened Gmail message. Clicking it immediately opens an extension-owned analysis tab and snapshots that selected message. It tries to download the original RFC 822 bytes using the signed-in Gmail account, including available authentication/routing headers and MIME attachments. Modern Gmail message IDs use `permmsgid`; legacy IDs use `th`. The normal DOM view does not expose complete transport headers. These request formats also appear in [GmailJS's source retrieval implementation](https://github.com/KartikTalwar/gmail.js/blob/master/src/gmail.js).
 
-To load it locally in Chrome or Brave:
+When retrieval succeeds, the original bytes are submitted to the API as `full_message`. When it fails, the tab submits visible sender/subject/body as `quick_content_check`, with original headers and attachment contents clearly reported as unavailable. Either successful analysis opens the hosted website directly at its full investigation report (`?dossier=...`). This uses the existing website and API; no frontend deployment is required. A limited report does not claim that missing header checks passed.
 
-1. Keep the local backend running.
-2. Open `chrome://extensions` (or `brave://extensions`) and enable Developer mode.
-3. Choose **Load unpacked** and select the repository's `extension/` folder.
-4. Open the dedicated test mailbox and monitor the extension console and backend logs.
+The analysis tab always provides **Open E-TAP**, accepts a downloaded original `.eml`, and keeps retry controls when the backend is unavailable. While Gmail retrieval is pending, **Continue with visible text** can skip the wait. If the Gmail tab closes or its retrieval stops, the handoff automatically proceeds with its saved visible-text snapshot after 35 seconds. Selecting a valid `.eml` in the handoff tab automatically uploads it and opens its full report. No email contents are placed in URLs. Temporary handoffs live in extension-origin IndexedDB, are removed after successful analysis, and expire after an hour (expired records are purged on subsequent use). No additional extension permissions are needed.
 
-The committed extension targets the current hosted demo: `https://etap-backend-od1c.onrender.com` for the API and `https://e-tap-lac.vercel.app` for the dashboard. For local development, change `ETAP_API_BASE_URL` in `extension/background.js` to `http://127.0.0.1:5000` and `ETAP_APP_BASE_URL` in `extension/content.js` to `http://127.0.0.1:5173`, then reload the unpacked extension. Extension code changes are separate from website deployments.
+To load or update it in Chrome or Brave:
+
+1. Open `chrome://extensions` (or `brave://extensions`) and enable Developer mode.
+2. Choose **Load unpacked** and select the repository's `extension/` folder, or click **Reload** on an existing installation.
+3. Refresh Gmail after reloading the extension; confirm version **1.5.0**.
+4. Open a test email and click **Analyze in E-TAP**. The new tab opens the hosted report when analysis completes. Old reports are unchanged; re-analyze them to obtain new evidence.
+
+Configure both hosted/local destinations in `extension/config.js`. The committed defaults are the Render API (`https://etap-backend-od1c.onrender.com`) and Vercel dashboard (`https://e-tap-lac.vercel.app`). For local development, use `http://127.0.0.1:5000` and `http://127.0.0.1:5173`, confirm `manifest.json` host permissions, then reload the extension. It is a prototype using Gmail's internal web endpoints, not an official Gmail API/OAuth integration; those endpoints can change. Use a dedicated test mailbox with non-sensitive messages.
+
+Run extension regressions with `node --test --test-isolation=none extension/tests/*.test.mjs` (Node 22+). Backend parity checks: `python -m unittest discover -s backend/tests -p test_extension_original.py`. For a live smoke test, compare an extension original-message report with a manual upload, test two messages in a thread and a second Gmail account, then test unavailable originals and a backend error. Each state must retain a route into the platform.
 
 Do not distribute this prototype to general users until consent, permissions, security review, authentication/access control, data minimization, error handling and provider policy compliance have been addressed.
 
@@ -147,7 +153,7 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for the deployed Render/Vercel/Atlas configur
 ## Current limitations
 
 - There is no Gmail OAuth/mailbox synchronization, sending, inbox management, or full Gmail parity.
-- The extension reconstructs message content from the rendered Gmail DOM; it is not raw-message forensics.
+- The extension retrieves original messages through Gmail's web UI endpoints, which may change; it has no Gmail API/OAuth integration.
 - The browser History list is local to that browser's local storage, although analysis records are stored in MongoDB.
 - The deployed RAG path uses fallback hash embeddings unless configured otherwise; retrieved content and answer quality must be validated.
 - Live external services can fail, rate-limit requests, or receive IOCs/content-derived data.

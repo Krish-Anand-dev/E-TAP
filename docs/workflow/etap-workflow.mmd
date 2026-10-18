@@ -1,0 +1,22 @@
+flowchart TB
+    IN["1 · Email ingestion<br/>Website EML / MSG · Gmail extension · CLI"]
+    PARSE["2 · Parse and normalize<br/>Python email / extract-msg<br/>MIME bodies, headers, attachment bytes · PII masking"]
+    FORENSICS["3 · Forensic engines<br/>Header auth evidence and routing<br/>Static: signatures / SHA-256 / oletools VBA behavior<br/>Dynamic: isolated Windows 11 VM / Sysmon logs / approximately 64 rules<br/>QR: pyzbar + OpenCV · OCR: Tesseract"]
+    IOC["4 · IOCs and link inspection<br/>URLs · domains · public IPs · hashes<br/>QR URLs, href mismatch, lookalikes, static redirect hints"]
+    TI["5 · Optional live reputation<br/>VirusTotal URL/hash · AbuseIPDB IP · WHOIS domain age<br/>Privacy screening · budgets · cache · explicit missing results"]
+    HISTORY["6 · History and campaigns<br/>MongoDB exact/fuzzy IOC correlation<br/>NumPy/SciPy seeded graph diffusion"]
+    LEDGER["7 · Evidence context<br/>Stable IDs · static and VM findings · reputation · unavailable checks<br/>Append OCR text to model context"]
+    TRIAGE{"8 · XGBoost triage<br/>Six metadata features<br/>Benign confidence ≥ 0.90 AND no risk guards?"}
+    AI["9 · Gemini assessment<br/>Sanitized context + evidence IDs<br/>Content classification + final assessment in one JSON response<br/>Pydantic validation · deterministic fallback"]
+    FINAL["10 · Final verdict and persistence<br/>Reconcile score / label / band<br/>Evidence narrative · coverage · provenance · MongoDB update"]
+    UI["11 · Analyst dashboard<br/>Evidence · headers · attachments · IOCs · campaigns · graph<br/>MITRE mappings · actions · PDF / JSON · review and retention"]
+    RAG["12 · Post-analysis RAG chat<br/>Stored case summary → 384D embedding → retrieval → answer<br/>MiniLM or hashed lexical fallback · MongoDB / optional Atlas<br/>Active-file or historical scope · optional Gemini"]
+    IN --> PARSE --> FORENSICS --> IOC --> TI --> HISTORY --> LEDGER --> TRIAGE
+    TRIAGE -->|No / guard requires review| AI
+    TRIAGE -->|Eligible benign: skip Gemini| FINAL
+    AI --> FINAL --> UI
+    FINAL -.->|Background summary and embedding| RAG
+    UI -->|Analyst question| RAG
+
+    LIMIT["Gmail: original-message retrieval first; labeled visible-content fallback if unavailable.<br/>QR URLs enter IOC enrichment; OCR-only text currently joins model context later.<br/>Dynamic attachment behavior: Windows 11 VM + Sysmon + approximately 64 eligible rules."]
+    IN -.-> LIMIT

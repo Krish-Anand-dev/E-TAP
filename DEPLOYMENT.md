@@ -95,7 +95,7 @@ If Vercel assigns a different production domain, use that exact hostname instead
 
 ## 5. Extension deployment is separate
 
-The extension is distributed separately from the hosted web application. The committed source already targets the current hosted URLs: `extension/background.js` calls the Render API and `extension/content.js` links to the Vercel dashboard. If testing locally, change those constants to localhost and reload the unpacked extension. Confirm that `extension/manifest.json` host permissions allow the selected hosts. The extension is experimental and reconstructs a simplified message from visible Gmail DOM content; it is not raw-message forensics or Gmail OAuth integration.
+The extension is distributed separately from the hosted web application. Configure the API and dashboard URLs in `extension/config.js`; the committed defaults target Render and Vercel. For local tests, change those URLs and confirm `extension/manifest.json` host permissions. Reload the unpacked extension and refresh Gmail after upgrading. Version 1.5.0 opens an analysis tab before retrieval, uploads original-message bytes as `full_message` when available, otherwise submits visible text as `quick_content_check`, and redirects to the existing hosted dossier report. Backend failures retain retry, original-file import, and **Open E-TAP** controls. No website deployment is required. Gmail DOM/download endpoints remain experimental and can change.
 
 ## 6. Production safety checklist
 

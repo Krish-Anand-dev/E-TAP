@@ -1,4 +1,5 @@
 import React from 'react';
+import { visibleProviders } from '../../utils/geo.js';
 
 const LABELS = {
   available: 'Available',
@@ -71,7 +72,7 @@ export function ProviderStatusPanel({ status }) {
       </div>
       <p className="provider-status-summary">{status.summary || 'Analysis status available.'}</p>
       <div className="provider-status-grid">
-        {Object.entries(providers).map(([id, provider]) => <ProviderRow key={id} id={id} provider={provider} />)}
+        {visibleProviders(providers).map(([id, provider]) => <ProviderRow key={id} id={id} provider={provider} />)}
       </div>
       <p className="provider-status-footnote">Unavailable or skipped checks mean evidence is missing. They must not be interpreted as a clean result.</p>
     </section>
