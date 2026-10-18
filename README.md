@@ -155,6 +155,7 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for the deployed Render/Vercel/Atlas configur
 - Tauri desktop packaging and a managed local Python sidecar are future work, not part of the current hosted web deployment.
 
 ## Team Members:
+
 - Bhavit Anand
 - Krish Anand
 - Yashmit Kamal
