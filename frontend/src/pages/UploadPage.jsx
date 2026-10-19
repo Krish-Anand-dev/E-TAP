@@ -66,6 +66,69 @@ const DEFAULT_STAGES = [
 ].map(([key, label]) => ({ key, label, state: 'pending', detail: null }));
 const STATE_TEXT = { pending: 'Waiting', running: 'In progress', done: 'Done', skipped: 'Skipped', not_available: 'Not in this version', error: 'Failed' };
 
+// Minimum time each stage stays "in progress" on screen, in ms. Locally (no API
+// keys) the backend finishes in about a second, which reads as nothing
+// happening. The timeline still shows the real backend state and order; it just
+// reveals each finished stage no faster than this. A stage that is genuinely
+// slower (live reputation lookups, Gemini) is never held back beyond its real
+// time. Set VITE_TIMELINE_PACING=off to show raw backend timing.
+const MIN_STAGE_MS = {
+  parse: 700, headers: 1300, static_attachments: 1500, sandbox: 1100, indicators: 1000,
+  reputation: 1700, history: 1200, ai: 2300, verdict: 900,
+};
+const FINAL_STATES = new Set(['done', 'skipped', 'not_available', 'error']);
+const PACING_ON = import.meta.env.VITE_TIMELINE_PACING !== 'off';
+
+function jitteredDwell() {
+  // 70%-130% of each minimum, so stages do not tick at a fixed rhythm.
+  return Object.fromEntries(Object.entries(MIN_STAGE_MS).map(([k, ms]) => [k, Math.round(ms * (0.7 + Math.random() * 0.6))]));
+}
+
+/** Reveal real stage progress one stage at a time, each for at least its minimum time. */
+function usePacedStages(rawStages, runId) {
+  const [shown, setShown] = useState([]);
+  const rawRef = useRef(rawStages);
+  rawRef.current = rawStages;
+
+  useEffect(() => {
+    setShown([]);
+    if (!runId) return undefined;
+    const state = { index: 0, since: 0, dwell: jitteredDwell(), list: [] };
+    const tick = setInterval(() => {
+      const raw = rawRef.current;
+      if (!raw || !raw.length) return;
+      if (!PACING_ON) { setShown(raw); return; }
+      if (!state.list.length) state.list = raw.map((s) => ({ ...s, state: 'pending', detail: null }));
+      if (state.index >= state.list.length) return;
+
+      const current = state.list[state.index];
+      const real = raw[state.index] || current;
+      const now = Date.now();
+      if (real.state === 'error') {
+        state.list[state.index] = { ...real };
+        state.index = state.list.length; // stop: later stages never ran
+      } else if (current.state === 'pending' && real.state !== 'pending') {
+        state.list[state.index] = { ...current, state: 'running' };
+        state.since = now;
+      } else if (current.state === 'running' && FINAL_STATES.has(real.state)
+        && now - state.since >= (state.dwell[real.key] ?? 900)) {
+        state.list[state.index] = { ...real };
+        state.index += 1;
+      } else {
+        return;
+      }
+      setShown([...state.list]);
+    }, 110);
+    return () => clearInterval(tick);
+  }, [runId]);
+
+  return {
+    shown,
+    done: shown.length > 0 && shown.every((s) => FINAL_STATES.has(s.state)),
+    stopped: shown.some((s) => s.state === 'error'),
+  };
+}
+
 function useElapsed(active) {
   const [seconds, setSeconds] = useState(0);
   useEffect(() => {
@@ -110,10 +173,15 @@ export function UploadPage({ onOpenReport }) {
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [runFinished, setRunFinished] = useState(false);
+  const [runId, setRunId] = useState(0);
   const fileInputRef = useRef(null);
   const isBusy = status === 'uploading' || status === 'analyzing';
-  const elapsed = useElapsed(isBusy);
-  const showTimeline = isBusy || runFinished || (status === 'error' && jobStages.length > 0);
+  const paced = usePacedStages(jobStages, runId);
+  // Still "working" on screen until the paced timeline has shown every stage.
+  const isWorking = isBusy || (runFinished && !paced.done);
+  const elapsed = useElapsed(isWorking);
+  const showTimeline = isWorking || runFinished || (status === 'error' && jobStages.length > 0);
+  const showError = Boolean(error) && !isBusy && (!jobStages.length || paced.stopped || !PACING_ON);
 
   const stage = (file) => {
     if (!file) return;
@@ -128,6 +196,7 @@ export function UploadPage({ onOpenReport }) {
 
   const run = async (file) => {
     setRunFinished(false);
+    setRunId((n) => n + 1);
     const report = await startAnalysis(file);
     if (report) setRunFinished(true);
   };
@@ -144,7 +213,7 @@ export function UploadPage({ onOpenReport }) {
     run(file);
   };
 
-  const result = runFinished && data ? verdictOf(data) : null;
+  const result = runFinished && paced.done && data ? verdictOf(data) : null;
 
   return (
     <div className="upload-container v2-upload">
@@ -187,12 +256,12 @@ export function UploadPage({ onOpenReport }) {
         <section className="v2-card analysis-run">
           <div className="analysis-run-head">
             <div>
-              <span className="eyebrow">{isBusy ? 'ANALYSIS IN PROGRESS' : status === 'error' ? 'ANALYSIS STOPPED' : 'ANALYSIS COMPLETE'}</span>
+              <span className="eyebrow">{isWorking ? 'ANALYSIS IN PROGRESS' : status === 'error' ? 'ANALYSIS STOPPED' : 'ANALYSIS COMPLETE'}</span>
               <h2>{selectedFile?.name || 'Email analysis'}</h2>
             </div>
-            {isBusy && <span className="elapsed"><Icon name="clock" size={16} />{elapsed}s</span>}
+            {isWorking && <span className="elapsed"><Icon name="clock" size={16} />{elapsed}s</span>}
           </div>
-          <PipelineTimeline stages={jobStages} finished={runFinished} failed={status === 'error'} />
+          <PipelineTimeline stages={paced.shown.length ? paced.shown : (PACING_ON ? [] : jobStages)} finished={Boolean(result)} failed={paced.stopped} />
           {result && (
             <div className={`run-result band-${result.band}`}>
               <div className="run-score"><strong>{result.score}</strong><span>/100</span></div>
@@ -204,7 +273,7 @@ export function UploadPage({ onOpenReport }) {
         </section>
       )}
 
-      {error && !isBusy && (
+      {showError && (
         <div className="forensic-error-box">
           <div className="error-title-row"><Icon name="alert" size={18} /><span>The analysis could not finish</span></div>
           <div className="error-message">{error}</div>
@@ -215,7 +284,7 @@ export function UploadPage({ onOpenReport }) {
         </div>
       )}
 
-      {!isBusy && (
+      {!isWorking && (
         <div className="demo-strip v2-samples">
           <div className="demo-text"><strong>No email handy?</strong> Run one of our sample emails through the full analysis, or preview a finished report.</div>
           <div className="v2-sample-buttons">
