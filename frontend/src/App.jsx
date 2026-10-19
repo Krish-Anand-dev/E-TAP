@@ -10,7 +10,7 @@ import SocChatDrawer from './components/chat/SocChatDrawer';
 import { fetchInvestigation } from './api/analyze';
 
 function AppContent() {
-  const { setData, setStatus, setError, setActiveFile, persistInvestigation } = useInvestigation();
+  const { setData, setStatus, setError, setActiveFile, persistInvestigation, resetToken } = useInvestigation();
   const [currentView, setCurrentView] = useState('overview');
   const deepLinkHandled = useRef(false);
 
@@ -51,7 +51,7 @@ function AppContent() {
       <Header currentView={currentView} setCurrentView={setCurrentView} />
       <div className="workspace-main" id="main-content">
         {currentView === 'overview' && <OverviewPage navigate={setCurrentView} />}
-        {currentView === 'upload' && <UploadPage onOpenReport={() => setCurrentView('dashboard')} />}
+        {currentView === 'upload' && <UploadPage key={resetToken} onOpenReport={() => setCurrentView('dashboard')} />}
         {currentView === 'dashboard' && <DashboardPage navigate={setCurrentView} />}
         {currentView === 'history' && <HistoryPage onOpenReport={() => setCurrentView('dashboard')} navigate={setCurrentView} />}
         {currentView === 'settings' && <SettingsPage />}

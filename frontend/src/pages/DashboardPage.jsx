@@ -47,6 +47,7 @@ function Detail({ id, icon, title, count, children }) {
 }
 
 export function DashboardPage({ navigate }) {
+  const { getSourceFile, requestReanalysis } = useInvestigation();
   const { data } = useInvestigation();
   const [active, setActive] = useState('sec-summary');
 
@@ -94,7 +95,8 @@ export function DashboardPage({ navigate }) {
         ))}
       </nav>
 
-      <VerdictHero data={data} onJump={jump} />
+      <VerdictHero data={data} onJump={jump} canReanalyze={Boolean(getSourceFile(data.email_id))}
+        onReanalyze={() => { const file = getSourceFile(data.email_id); if (file) { requestReanalysis(file); navigate('upload'); } }} />
       <RiskBreakdown data={data} />
       <Remediation data={data} />
 

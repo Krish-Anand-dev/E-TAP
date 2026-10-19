@@ -431,3 +431,4 @@ button.risk-tag:hover { transform: translateY(-1px); }
 .vector-list .tone-safe b { color: var(--safe); }
 .vector-list p { font-size: 12px; color: var(--ink-3); margin-top: 4px; }
 .report-tabs button { transition: none; }
+.reanalyze-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; width: 100%; margin-top: 8px; }

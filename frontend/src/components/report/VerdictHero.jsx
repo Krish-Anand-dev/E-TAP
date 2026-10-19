@@ -25,7 +25,7 @@ function ScoreRing({ score, band }) {
   );
 }
 
-export default function VerdictHero({ data, onJump }) {
+export default function VerdictHero({ data, onJump, onReanalyze, canReanalyze }) {
   const v = verdictOf(data);
   const tags = riskTags(data);
   const s = keyStats(data);
@@ -63,6 +63,10 @@ export default function VerdictHero({ data, onJump }) {
             <div><dt>Received</dt><dd>{email.date || 'not stated'}</dd></div>
           </dl>
           <ExportButton data={data} />
+          <button type="button" className="btn-ghost reanalyze-button" onClick={onReanalyze} disabled={!canReanalyze}
+            title={canReanalyze ? 'Run this same email through the whole analysis again' : 'The original file is only kept for emails analysed since this page was opened. Upload it again to re-analyze.'}>
+            <Icon name="history" size={15} /> Re-analyze this email
+          </button>
         </div>
       </div>
       {trusted && trusted.status !== 'not_trusted' && (
