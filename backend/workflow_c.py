@@ -39,6 +39,56 @@ def purge_expired(db):
     for doc in list(db['analyzed_emails'].find({'expires_at': {'$lte': now()}})):
         delete_record(db, doc)
 
+TRUSTED_SENDER_REDUCTION = 25
+
+
+def _domain_on_list(domain, declared):
+    """Exact match or a subdomain of a declared domain (mail.vendor.com -> vendor.com)."""
+    return bool(domain) and any(domain == d or domain.endswith('.' + d) for d in declared)
+
+
+def trusted_sender_check(report, declared):
+    """Verified trust: a trusted domain lowers risk only when the sender is proven genuine.
+
+    Phishing often impersonates exactly the domains people trust, so the list alone
+    never changes anything. All of SPF, DKIM and DMARC must pass, there must be no
+    lookalike/homograph/display-name flags, and no attachment or reputation finding
+    may point the other way. Otherwise the report explains why trust was not applied.
+    """
+    headers = report.get('headers') or {}
+    sender = str(headers.get('sender_email') or '')
+    domain = sender.rsplit('@', 1)[-1].lower() if '@' in sender else ''
+    result = {'status': 'not_trusted', 'applied': False, 'domain': domain or None}
+    if not declared or not _domain_on_list(domain, declared):
+        return result
+    original = int(report.get('risk_score') or 0)
+    blockers = []
+    if headers.get('available') is False:
+        blockers.append('original headers were not available')
+    for check in ('spf', 'dkim', 'dmarc'):
+        if str(headers.get(check) or '').lower() != 'pass':
+            blockers.append(f'{check.upper()} did not pass')
+    if (headers.get('domain_analysis') or {}).get('flags') or headers.get('reply_to_mismatch'):
+        blockers.append('the sender identity shows spoofing signs')
+    if any(a.get('suspicious') for a in report.get('attachments') or []):
+        blockers.append('an attachment was flagged')
+    ti = report.get('threat_intel') or {}
+    if any(isinstance(i, dict) and i.get('malicious') is True
+           for sec in ('ip_reputation', 'domain_info', 'url_reputation', 'hash_reputation')
+           for i in (ti.get(sec) or {}).values()):
+        blockers.append('a reputation service flagged an indicator')
+    if blockers:
+        result.update(status='unverified', explanation=(
+            f'{domain} is on your trusted list, but trust was not applied because '
+            + '; '.join(blockers) + '. Treat this as a possible impersonation.'))
+        return result
+    new_score = max(0, original - TRUSTED_SENDER_REDUCTION)
+    result.update(status='verified', applied=new_score < original, original_score=original, new_score=new_score,
+                  explanation=(f'Verified trusted sender: {domain} is on your trusted list and passed SPF, DKIM and DMARC. '
+                               f'Risk lowered from {original} to {new_score}.'))
+    return result
+
+
 def finish_analysis(report):
     db = get_db()
     purge_expired(db)
@@ -52,7 +102,23 @@ def finish_analysis(report):
     declared = set((db['preferences'].find_one({'kind':'baselines'}) or {}).get('domains',[]))
     observed = set((report.get('iocs') or {}).get('domains',[]))
     report['baseline_context'] = {'matched_domains':sorted(declared & observed), 'source':'user-declared context', 'effect':'No change to verdict or risk score.'}
-    update_analysis_fields(db, report['email_id'], {'baseline_context':report['baseline_context']})
+    trust = trusted_sender_check(report, declared)
+    report['baseline_context']['trusted_sender'] = trust
+    stored = {'baseline_context': report['baseline_context']}
+    if trust['applied']:
+        from verdicts import finalize_verdict
+        decision = finalize_verdict(None, trust['new_score'])
+        report['baseline_context']['effect'] = trust['explanation']
+        report['risk_score'], report['verdict'], report['verdict_band'] = decision['risk_score'], decision['verdict'], decision['verdict_band']
+        conclusion = (report.get('evidence_report') or {}).get('conclusion')
+        if isinstance(conclusion, dict):
+            conclusion.update(label=decision['verdict'], band=decision['verdict_band'], risk_score=decision['risk_score'])
+            conclusion.setdefault('limitations', []).append(trust['explanation'])
+        stored.update(risk_score=decision['risk_score'], verdict=decision['verdict'], verdict_band=decision['verdict_band'],
+                      evidence_report=report.get('evidence_report'))
+    elif trust['status'] != 'not_trusted':
+        report['baseline_context']['effect'] = trust['explanation']
+    update_analysis_fields(db, report['email_id'], stored)
     report['retention'] = {'days': days, 'expires_at': fields['expires_at'].isoformat()}
     return report
 
@@ -182,7 +248,7 @@ class Baselines(BaseModel):
 
 @router.get('/baselines')
 def baselines():
-    return {'domains':(get_db()['preferences'].find_one({'kind':'baselines'}) or {}).get('domains',[]), 'purpose':'User-declared context only; never overrides threat evidence.'}
+    return {'domains':(get_db()['preferences'].find_one({'kind':'baselines'}) or {}).get('domains',[]), 'purpose':'Trusted sender domains. Risk is lowered only when an email from one of them passes SPF, DKIM and DMARC with no spoofing, attachment or reputation findings.'}
 
 @router.put('/baselines')
 def save_baselines(payload: Baselines):

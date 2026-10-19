@@ -1,175 +1,183 @@
-# E-TAP (Email-TAP)
+# E-TAP — Email Threat Analysis Platform
 
-**The one-tap email forensics and protection platform** — bridging the gap between cybersecurity professionals and everyday email users.
+**One tap from a suspicious email to an evidence-backed verdict.**
 
-E-TAP is a defensive email-artifact analysis application. The current product consists of a React/Vite dashboard and a Python/FastAPI forensic backend. It analyzes uploaded `.eml` and `.msg` artifacts. **It is not a Gmail replacement or a full email client.** The browser extension is an experimental Gmail overlay.
+E-TAP takes a raw email (`.eml` / `.msg`, or a message opened in Gmail through the browser extension) and runs it through a multi-stage forensic pipeline: header and authentication forensics, sender-origin tracing with IP geolocation, static attachment forensics (file signatures, macros, QR codes, OCR), IOC extraction, live threat-intelligence lookups, historical campaign correlation, graph-based risk propagation, an XGBoost pre-filter and a Gemini-backed final assessment with MITRE ATT&CK mapping.
 
-## Current deployment
+The result is one report that says **what was observed, why it matters and what to do**, written so a non-expert can act on it, with the full technical detail kept for security analysts.
 
-These are the team's current demo deployments. Update this section if the service URLs change.
+> E-TAP is a triage assistant, not an oracle. A missing or failed check is always reported as *unknown*, never as *safe*.
 
-- **Frontend:** <https://e-tap-lac.vercel.app/>
-- **Backend health endpoint:** <https://etap-backend-od1c.onrender.com/health>
-- **Interactive API documentation:** <https://etap-backend-od1c.onrender.com/docs>
+- **Live demo (frontend):** <https://e-tap-lac.vercel.app/>
+- **Backend API:** <https://etap-backend-od1c.onrender.com> · [health](https://etap-backend-od1c.onrender.com/health) · [docs](https://etap-backend-od1c.onrender.com/docs)
 
-The backend root `/` returns a small service index. `GET /health` is a liveness check only; `GET /ready` also checks database connectivity and returns HTTP 503 when the database is not ready. Use `/docs` for interactive API documentation.
+For the deep technical reference (every module, library, environment variable, data shape and design decision), read **[CONTEXT.md](CONTEXT.md)**.
 
-> **Access model:** the API, web app and Gmail extension are open: no API keys, sign-in or per-user isolation. Authentication is deferred as future scope (see [WORKFLOW-C-README.md](WORKFLOW-C-README.md)). Do not host sensitive real mail on a public instance.
+---
 
-## Capabilities
-
-- Parse supported `.eml` and `.msg` artifacts and normalize message content.
-- Inspect email headers and authentication-related results (SPF, DKIM, DMARC where evidence is available), received chains, and sender/domain indicators.
-- Inspect attachments using SHA-256 hashing, file-signature/type checks, macro-oriented static analysis, and image OCR/QR analysis where applicable dependencies are available.
-- Extract indicators of compromise (IOCs), including IPs, domains, URLs and hashes.
-- Optionally enrich indicators through AbuseIPDB, VirusTotal, IP geolocation and WHOIS lookups.
-- Run XGBoost metadata triage and optional Gemini-assisted assessment, including evidence-oriented explanations and MITRE ATT&CK mappings.
-- Correlate analyses with previously stored indicators and campaign records in MongoDB.
-- Display analysis reports, maps/graphs where relevant, and export reports from the frontend.
-- Provide a SOC Assistant that can answer about the active report or search stored investigations.
-
-Capabilities depend on the artifact, environment configuration, provider availability and API quotas. Results are triage assistance—not proof that an email is malicious or safe. Review the evidence before taking action.
-
-## Architecture
+## How an email is analysed
 
 ```text
-Browser (React/Vite dashboard)
-        │ HTTP requests
-        ▼
-FastAPI backend (backend/app.py)
-        ├── email parsing and forensic pipeline
-        ├── optional external threat-intelligence and Gemini APIs
-        ├── correlation and RAG/SOC Assistant
-        └── MongoDB local server or MongoDB Atlas
+ .eml / .msg upload  ─┐
+ Gmail extension     ─┼─►  A  Parse & normalise (MIME, headers, attachments, PII masking)
+ CLI (run_pipeline)  ─┘         │
+                                ├─► B   Header forensics: SPF / DKIM / DMARC, Received chain,
+                                │        true-origin resolution, lookalike & homograph domains
+                                ├─► B2  Attachment forensics: SHA-256, magic bytes, macros (oletools),
+                                │        QR decoding (pyzbar/OpenCV), OCR (Tesseract)
+                                ├─► B5  Link analysis: visible text vs real href destination
+                                ├─► B6  QR trace: where each decoded QR code points
+                                ▼
+                           D  IOC extraction: IPs, domains, URLs, hashes
+                                ▼
+                           E  Threat intel: VirusTotal, AbuseIPDB, WHOIS, ip-api geolocation
+                              + per-hop geolocation of the Received chain
+                                ▼
+                           F  Correlation: MongoDB history, campaigns, repeat-offender stats
+                           F′ Graph diffusion: Personalized-PageRank risk propagation
+                                ▼
+                           C′ XGBoost metadata triage ──(clearly benign)──┐
+                                ▼                                          │
+                           G  Gemini assessment + MITRE ATT&CK (offline    │
+                              fallback if Gemini is unavailable)           │
+                                ▼                                          │
+                           H  Verdict reconciliation, evidence report, ◄───┘
+                              privacy report, provider status, persistence
+                                ▼
+                      React dashboard · PDF export · SOC Assistant (RAG chat)
 ```
+
+### Stage A — Parsing and normalisation
+Every input becomes the same `ParsedEmail` object. The file type is decided from **magic bytes, not the extension**: executables, ZIPs, PDFs and archives renamed to `.eml` are rejected, `.msg` must carry the Outlook OLE signature. `.eml` is parsed with Python's `email` package (robust against bogus charsets), `.msg` with `extract-msg`, and bulk `.csv` datasets are converted row by row into RFC 822 messages and fed through the same parser. Before anything is stored, SSNs, card numbers, Indian/US phone numbers, Aadhaar, PAN and body email addresses are masked.
+
+### Stage B — Header forensics
+- **SPF / DKIM / DMARC** in two tiers: first the verdict the receiving mail server stamped in `Authentication-Results` / `Received-SPF`; if absent, a live DNS check (SPF record evaluation against the connecting IP with `ip4/ip6/a/include/all`, DKIM public-key presence and alignment, DMARC policy fetch). DKIM signatures are never claimed as cryptographically verified.
+- **Received chain** parsed into structured hops (oldest first): connecting IP from the `from` clause only, rDNS/HELO host, protocol, timestamp, inter-hop delay and out-of-order detection. Each hop is classified as private, relay, provider relay (Google, Microsoft, SES, SendGrid, …) or anonymizer.
+- **True-origin resolution:** honest about what can be known. Client-IP headers (`X-Originating-IP`, …) are used when present; if the first public hop is a Gmail/Outlook relay, the report says *the provider hides the sender's IP* instead of pinning a Google data centre as the attacker.
+- **Sender identity:** Reply-To domain mismatch, punycode and mixed-script (Cyrillic/Greek) homographs, typosquats and brand-plus-lure domains (`paypal-secure-login.com`) against an India-weighted brand list, and display-name impersonation ("PayPal Support" from an unrelated domain).
+
+### Stage B2 — Attachment forensics (static, nothing is executed)
+For each attachment: SHA-256, true type from magic bytes (libmagic when installed, built-in signature table otherwise), declared-vs-actual type mismatch, double extensions (`invoice.pdf.exe`), executables disguised under harmless names, and password-protected/corrupt Office files. Office documents get **static VBA analysis with oletools**: auto-run triggers (`AutoOpen`), suspicious APIs (`Shell`, `CreateObject`, PowerShell) and referenced IOCs. Images are decoded for **QR codes** (pyzbar, OpenCV fallback) and **OCR text** (Tesseract); OCR text is appended to the content the AI reviews, so image-only phishing is not invisible.
+
+### Stages B5 / B6 — Link and QR analysis
+Every `<a href>` is compared with the text a reader sees: "text shows a different site", "text names PayPal but the link goes elsewhere", credentials in URLs (`paypal.com@evil.com`), IP hosts, non-standard ports, shorteners, punycode, lookalikes and redirect parameters (`?url=https://other.site`, reported as *inferred*). QR destinations get the same checks. Links are never fetched or followed.
+
+### Stage D — IOC extraction
+Offline, regex-plus-parser extraction of public IPs, domains, URLs (including defanged `hxxp://evil[.]com`) and MD5/SHA-1/SHA-256 hashes from headers, text, HTML attributes, attachment hashes and QR codes. Heavy noise reduction: domains must end in a real IANA TLD, Message-ID local parts and auth-header tags are ignored, private/loopback IPs are dropped, URLs are masked before hash scanning, CSS/script blocks and XML namespace boilerplate are stripped.
+
+### Stage E — Threat intelligence and sender geolocation
+With `THREAT_INTEL_LIVE=1`:
+
+| Indicator | Provider | What we get |
+|---|---|---|
+| Public IPs | **AbuseIPDB** | abuse confidence score, report count, ISP, Tor flag |
+| Domains | **WHOIS** (`python-whois`) | registration age, registrar, country |
+| URLs, file hashes | **VirusTotal v3** | engines flagging the indicator |
+| IPs + every Received hop | **ip-api.com** batch | lat/lon, country, ISP/org, hosting & proxy flags |
+
+Each provider has a per-analysis budget (default 2 lookups), short timeouts, an in-memory TTL cache, and VirusTotal has an internal 4-requests/minute limiter. **Privacy first:** URLs carrying an email address, token, session ID or other secret are trimmed to `scheme://host/path` or not sent at all; private IPs never leave the server. Hop geolocation then re-judges the origin using the network owner (e.g. a proxy exit becomes an *anonymizer*), and the dashboard draws the route on a map.
+
+### Stage F / F′ — Correlation and graph diffusion
+The email's IOCs are matched against every stored analysis (exact for IPs/URLs/hashes, exact + fuzzy for domains). Matches join or create a **campaign**; campaigns that turn out to share infrastructure are merged. Historical stats report how often each indicator was seen this week, this month and all-time, and label the email a *new threat cluster* or *recurring adversary activity*. A threat graph (email, campaign, related emails, IOCs, shared infrastructure) is then scored with **Personalized PageRank label propagation**: reputation-confirmed malicious indicators are seeds, and risk diffuses up to 3 hops to the current email.
+
+### Stage C′ — XGBoost metadata triage
+Six metadata features (attachment present, URL count, sender-domain age, SPF pass, subject length, urgency keywords) go into a bundled XGBoost model. If it is ≥ 90% confident the email is benign, Gemini is skipped to save latency and quota. Safety guards force the full AI review whenever URLs, risky keywords, suspicious attachments or a visible-text-only (quick check) input are present.
+
+### Stage G — Gemini assessment and MITRE ATT&CK
+A **privacy-reduced copy** of all evidence (URLs redacted, PII masked) goes to Gemini in a single structured-JSON call that returns both a content-only classification against a fixed 30-category threat taxonomy and a full-evidence final verdict with MITRE ATT&CK techniques and recommended actions. The model is told that email content is untrusted data, and every AI finding must cite evidence IDs from the deterministic evidence ledger; uncited claims are kept but marked *ungrounded*. A chain of fallback Gemini models is tried within a time budget; if all fail, a deterministic offline scorer produces the result and the report says so.
+
+### Stage H — Verdict, evidence report and persistence
+One function reconciles the label and the 0–100 score (the more severe wins) into five canonical verdicts — `LIKELY LEGITIMATE` (0–19), `LOW RISK` (20–39), `SUSPICIOUS` (40–64), `LIKELY PHISHING` (65–84), `HIGH-RISK PHISHING` (85–100) — and three UI bands (safe / caution / danger). The evidence report separates **observed** facts, **reputation** results and **AI-inferred** statements, lists what could not be checked, and produces a headline plus concrete next steps. A privacy report shows exactly what left the server, and a provider-status panel shows which services succeeded, timed out, were rate-limited or skipped. Everything is saved to MongoDB, and a summary + 384-dim embedding is indexed in the background for the SOC Assistant.
+
+---
+
+## What you get in the dashboard
+
+- Verdict banner with risk gauge, confidence and provenance chips
+- "What we observed / Why it matters / What to do" narrative
+- Header panel (SPF/DKIM/DMARC lights, red flags, Received chain)
+- Sender-route **GeoMap** (Leaflet) with hop-by-hop classification
+- Attachment table, link/QR findings, IOC table with reputation and history
+- Interactive **threat graph** with a diffusion-score overlay
+- MITRE ATT&CK cards and historical-correlation card
+- Privacy data-flow and provider-status panels
+- Review workflow (needs review → confirmed malicious / benign / unresolved), case marking, feedback, recovery checklists, retention and delete controls, redacted share pack
+- **PDF export** and the **SOC Assistant** chat (ask about the open report or search all past investigations)
+
+## Gmail extension
+
+A Manifest V3 extension adds **Analyze in E-TAP** above an opened Gmail message. On click it downloads the original RFC 822 message through the signed-in Gmail session (full headers and attachments) and submits it as `full_message`. If Gmail does not provide the original, it submits the visible sender/subject/body as a clearly labelled `quick_content_check`, where header checks are reported as unavailable. The report then opens in the web dashboard.
+
+---
+
+## Tech stack
+
+| Layer | Technologies |
+|---|---|
+| Backend | Python 3.11, FastAPI, Uvicorn, slowapi, Pydantic |
+| Parsing / forensics | `email` stdlib, extract-msg, dnspython (optional, for live SPF/DKIM/DMARC DNS checks), oletools, python-magic (optional), OpenCV, pyzbar, Pillow, pytesseract |
+| Threat intel | VirusTotal v3, AbuseIPDB v2, python-whois, ip-api.com |
+| ML / AI | XGBoost, scikit-learn, NumPy, SciPy, Google Gemini (`google-genai`), sentence-transformers (optional) |
+| Database | MongoDB / MongoDB Atlas (pymongo), in-memory fake DB for tests |
+| Frontend | React 18, Vite, axios, Leaflet / react-leaflet, react-force-graph-2d, Recharts, jsPDF |
+| Extension | Chrome Manifest V3, IndexedDB handoff store |
+| Hosting | Render (Docker backend), Vercel (frontend), MongoDB Atlas |
+
+## Quick start (local)
+
+Prerequisites: Python 3.11, Node.js ≥ 22.12, optionally MongoDB. Tesseract and libzbar are needed only for OCR/QR (the Docker image installs both).
+
+```bash
+cp .env.example .env          # set USE_FAKE_DB=1 for a zero-setup run
+python -m venv .venv && source .venv/bin/activate      # Windows: .\.venv\Scripts\Activate.ps1
+pip install -r backend/requirements.txt
+cd backend && python -m uvicorn app:app --host 127.0.0.1 --port 5000
+```
+
+In a second terminal:
+
+```bash
+cd frontend && npm ci && npm run dev
+```
+
+Open <http://127.0.0.1:5173>. Vite proxies API calls to port 5000. Add `GEMINI_API_KEY`, `VIRUSTOTAL_API_KEY`, `ABUSEIPDB_API_KEY` and set `THREAT_INTEL_LIVE=1` in `.env` to enable the live stages; without them E-TAP runs fully offline with deterministic fallbacks.
+
+Analyse a file from the command line:
+
+```bash
+cd backend && python run_pipeline.py path/to/email.eml
+```
+
+Run the tests:
+
+```bash
+pip install -r backend/requirements-dev.txt
+cd backend && python -m pytest tests -q --ignore=tests/test_threat_intel_live.py
+cd ../frontend && npm test
+```
+
+Deployment (Render + Vercel + Atlas), every environment variable and the full API route list are documented in [CONTEXT.md](CONTEXT.md).
 
 ## Repository layout
 
-- `frontend/` — React/Vite dashboard and report views.
-- `backend/` — FastAPI API, pipeline, forensic modules, database, threat-intelligence integrations and RAG assistant.
-- `extension/` — experimental Manifest V3 Gmail overlay. Its committed source targets the current hosted demo URLs; see the extension section below for switching to local development.
-- `samples/` — dataset manifests and sample-corpus notes. The raw `.eml`/`.msg` files referenced in the manifests are not committed.
-- `DEPLOYMENT.md` — current Render/Vercel/Atlas deployment guide.
-- `SETUP.md` — local development setup.
-- `WORKFLOW-B-README.md` — the single consolidated record for Workflow B, including B0–B11 behavior, tests, limitations and the pre-Workflow-C gate.
-- `work.md` — current project status and next actions (not a per-stage changelog).
-
-## Run locally (Windows PowerShell)
-
-Recommended prerequisites: Python 3.11, Node.js 20+, npm, and either a local MongoDB Community Server or a MongoDB Atlas database. MongoDB Compass is a GUI client; it does not run the MongoDB server itself.
-
-From the repository root, create `.env` **only if it does not already exist**:
-
-```powershell
-if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+```text
+backend/     FastAPI app, pipeline and all analysis stages
+frontend/    React/Vite dashboard
+extension/   Gmail browser extension (Manifest V3)
+docs/        Workflow diagram, parser fixtures, small evaluation corpus
+samples/     Dataset manifests (raw emails are not committed)
 ```
 
-Edit `.env`. For a no-key local smoke test, set `USE_FAKE_DB=1`, `THREAT_INTEL_LIVE=0`, and leave provider keys empty. The fake database is in-memory and loses its data when the backend process exits. For persistent data, set `USE_FAKE_DB=0` and configure a real MongoDB URI.
+## Limitations
 
-Install dependencies and start the backend in the first terminal:
+- The API is open (no sign-in or per-user isolation); do not upload sensitive real mail to a public instance.
+- Live lookups and Gemini receive indicators and privacy-reduced email content.
+- The bundled XGBoost model is an initial triage aid, not a calibrated production detector, and no benchmark accuracy is claimed yet.
+- Attachments are analysed statically only; dynamic sandbox detonation is planned work.
+- The Gmail extension uses Gmail's web endpoints, not the official Gmail API.
 
-```powershell
-py -3.11 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r backend\requirements.txt
-cd backend
-python -m uvicorn app:app --host 127.0.0.1 --port 5000
-```
-
-In a second terminal, from the repository root:
-
-```powershell
-cd frontend
-npm ci
-npm run dev
-```
-
-Open <http://127.0.0.1:5173/>. In development, Vite proxies API routes to `http://127.0.0.1:5000`, so `VITE_API_BASE_URL` can remain unset locally. Check <http://127.0.0.1:5000/health> for the API health response.
-
-If PowerShell blocks virtual-environment activation, run the venv's executables directly, for example `.venv\Scripts\python.exe -m pip install -r backend\requirements.txt`.
-
-## MongoDB: local server, Compass and Atlas
-
-- **Local database:** install and start MongoDB Community Server. Connect Compass to `mongodb://localhost:27017`, and set `MONGODB_URI=mongodb://localhost:27017/etap` plus `MONGO_DB_NAME=etap` in `.env`.
-- **Cloud database:** create a MongoDB Atlas cluster and a least-privilege database user. Put the Atlas URI in the backend environment. Add the backend host's outbound addresses to Atlas Network Access as appropriate. Compass can connect to the same Atlas URI to inspect collections.
-- Use `USE_FAKE_DB=0` and `AUTO_FALLBACK_DB=0` when you want to confirm the real database is being used; do not allow a silent in-memory fallback to hide a broken connection.
-- Never commit `.env`, database URIs, passwords, API keys, or sensitive message artifacts. URL-encode reserved characters in passwords embedded in a MongoDB URI.
-
-The application stores analysis and campaign data in the `etap` database (including `analyzed_emails`, `campaigns`, and `counters`). The History tab in the browser currently stores its display list in that browser's local storage; it is not a shared server-side list endpoint. Individual stored reports can be fetched by ID through `GET /investigations/{email_id}`.
-
-## Provider API keys and privacy
-
-Create fresh keys under your own provider accounts and store them only in the backend's local `.env` or the hosting provider's backend environment settings. Never put secrets in Vercel frontend environment variables or source code.
-
-- `GEMINI_API_KEY` — enables Gemini-assisted assessment and chatbot generation where the code path calls the model.
-- `GEMINI_MODEL` — model identifier accepted by the configured Gemini API key; the code default is `gemini-3.5-flash-lite`.
-- `VIRUSTOTAL_API_KEY` — optional URL/file-hash reputation lookups.
-- `ABUSEIPDB_API_KEY` — optional public-IP reputation lookups.
-- `THREAT_INTEL_LIVE=1` — enables live lookups where implemented; `0` disables live threat-intelligence requests.
-
-Live lookups may send IOCs or derived indicators to third-party services. Gemini prompts may include email-related content and forensic evidence. Review provider terms and the data sent before analyzing sensitive messages. A locally running dashboard does not mean all processing remains local.
-
-## Main API endpoints
-
-- `GET /` — small service index with links to health, readiness and docs.
-- `GET /health` — liveness only; confirms the HTTP process can respond, not that MongoDB is reachable.
-- `GET /ready` — readiness check with a database ping; returns HTTP 503 when the configured database is unavailable.
-- `POST /analyze` — multipart upload with a `file` field containing an `.eml` or `.msg`; the backend enforces a 25 MB limit and rate-limits this endpoint.
-- `POST /chat` — SOC Assistant request containing `question`, with optional `email_id` and `email_context` for active-report context.
-- `GET /investigations/{email_id}` — fetch one stored investigation by its database ID/email ID.
-- `/docs` — FastAPI-generated interactive API docs when enabled by the deployment.
-
-## Gmail extension (experimental)
-
-The extension adds **Analyze in E-TAP** above an opened Gmail message. Clicking it immediately opens an extension-owned analysis tab and snapshots that selected message. It tries to download the original RFC 822 bytes using the signed-in Gmail account, including available authentication/routing headers and MIME attachments. Modern Gmail message IDs use `permmsgid`; legacy IDs use `th`. The normal DOM view does not expose complete transport headers. These request formats also appear in [GmailJS's source retrieval implementation](https://github.com/KartikTalwar/gmail.js/blob/master/src/gmail.js).
-
-When retrieval succeeds, the original bytes are submitted to the API as `full_message`. When it fails, the tab submits visible sender/subject/body as `quick_content_check`, with original headers and attachment contents clearly reported as unavailable. Either successful analysis opens the hosted website directly at its full investigation report (`?dossier=...`). This uses the existing website and API; no frontend deployment is required. A limited report does not claim that missing header checks passed.
-
-The analysis tab always provides **Open E-TAP**, accepts a downloaded original `.eml`, and keeps retry controls when the backend is unavailable. While Gmail retrieval is pending, **Continue with visible text** can skip the wait. If the Gmail tab closes or its retrieval stops, the handoff automatically proceeds with its saved visible-text snapshot after 35 seconds. Selecting a valid `.eml` in the handoff tab automatically uploads it and opens its full report. No email contents are placed in URLs. Temporary handoffs live in extension-origin IndexedDB, are removed after successful analysis, and expire after an hour (expired records are purged on subsequent use). No additional extension permissions are needed.
-
-To load or update it in Chrome or Brave:
-
-1. Open `chrome://extensions` (or `brave://extensions`) and enable Developer mode.
-2. Choose **Load unpacked** and select the repository's `extension/` folder, or click **Reload** on an existing installation.
-3. Refresh Gmail after reloading the extension; confirm version **1.5.0**.
-4. Open a test email and click **Analyze in E-TAP**. The new tab opens the hosted report when analysis completes. Old reports are unchanged; re-analyze them to obtain new evidence.
-
-Configure both hosted/local destinations in `extension/config.js`. The committed defaults are the Render API (`https://etap-backend-od1c.onrender.com`) and Vercel dashboard (`https://e-tap-lac.vercel.app`). For local development, use `http://127.0.0.1:5000` and `http://127.0.0.1:5173`, confirm `manifest.json` host permissions, then reload the extension. It is a prototype using Gmail's internal web endpoints, not an official Gmail API/OAuth integration; those endpoints can change. Use a dedicated test mailbox with non-sensitive messages.
-
-Run extension regressions with `node --test --test-isolation=none extension/tests/*.test.mjs` (Node 22+). Backend parity checks: `python -m unittest discover -s backend/tests -p test_extension_original.py`. For a live smoke test, compare an extension original-message report with a manual upload, test two messages in a thread and a second Gmail account, then test unavailable originals and a backend error. Each state must retain a route into the platform.
-
-Do not distribute this prototype to general users until consent, permissions, security review, authentication/access control, data minimization, error handling and provider policy compliance have been addressed.
-
-## RAG/SOC Assistant notes
-
-The assistant can use the active report as context, or retrieve up to five relevant historical investigation summaries from MongoDB and ask Gemini to formulate an answer. The default historical search is an in-memory cosine-similarity pass over stored records. On Render, `backend/rag/embeddings.py` deliberately uses a deterministic hash-based fallback embedder to avoid loading a large PyTorch model in the constrained instance; it is not equivalent to a trained semantic embedding model. `sentence-transformers` is optional and is not listed in `backend/requirements.txt`.
-
-`USE_ATLAS_VECTOR_SEARCH=1` is an optional path only if the Atlas Vector Search index is configured as expected by `backend/rag/chat.py` (default index name `vector_index`, field `rag_embedding`, 384-dimensional vectors). It is not required for the default cosine-similarity search. Do not enable this setting without first creating and validating the matching Atlas index and stored embeddings.
-
-## Deployment
-
-See [DEPLOYMENT.md](DEPLOYMENT.md) for the deployed Render/Vercel/Atlas configuration and production safety notes. See [SETUP.md](SETUP.md) for expanded local instructions.
-
-## Current limitations
-
-- There is no Gmail OAuth/mailbox synchronization, sending, inbox management, or full Gmail parity.
-- The extension retrieves original messages through Gmail's web UI endpoints, which may change; it has no Gmail API/OAuth integration.
-- The browser History list is local to that browser's local storage, although analysis records are stored in MongoDB.
-- The deployed RAG path uses fallback hash embeddings unless configured otherwise; retrieved content and answer quality must be validated.
-- Live external services can fail, rate-limit requests, or receive IOCs/content-derived data.
-- Automated verdicts can produce false positives and false negatives. Treat risk scores as triage, not certainty.
-- Tauri desktop packaging and a managed local Python sidecar are future work, not part of the current hosted web deployment.
-
-## Team Members:
+## Team
 
 - Bhavit Anand
 - Krish Anand
 - Yashmit Kamal
-
-## Project statement
-
-E-TAP translates technical email-forensics findings into clear, evidence-backed explanations and practical next steps for ordinary users, while retaining deeper investigative detail for security practitioners.
-
-## Workflow C setup changes
-
-See [WORKFLOW-C-README.md](WORKFLOW-C-README.md) for the authoritative feature status, API routes, access model and limitations. The API is open (no keys or sign-in; authentication is documented as future scope). Schedule the retention purge for idle periods. Browser history lasts for the tab session; server deletion is a separate control. Node >=22.12 is required for the patched build tools. Live hosted behavior is not verified.

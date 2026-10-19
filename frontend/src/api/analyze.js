@@ -42,3 +42,22 @@ export async function fetchInvestigation(id) {
   const response = await apiClient.get(`/investigations/${id}`);
   return response.data;
 }
+
+/**
+ * Start a background analysis and return { job_id, stages } immediately.
+ * Poll getAnalysisJob(job_id) to follow live stage progress.
+ */
+export async function startAnalysisJob(file, source) {
+  const formData = new FormData();
+  formData.append('file', file, file.name);
+  if (source) formData.append('source', source);
+  const response = await apiClient.post('/analyze/jobs', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+}
+
+export async function getAnalysisJob(jobId) {
+  const response = await apiClient.get(`/analyze/jobs/${jobId}`, { timeout: 15000 });
+  return response.data;
+}

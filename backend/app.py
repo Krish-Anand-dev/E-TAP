@@ -175,6 +175,48 @@ async def analyze(
         ) from None
 
 
+async def _read_upload(file: UploadFile) -> bytes:
+    raw_bytes = bytearray()
+    while True:
+        chunk = await file.read(64 * 1024)
+        if not chunk:
+            break
+        raw_bytes.extend(chunk)
+        if len(raw_bytes) > MAX_UPLOAD_SIZE:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Uploaded artifact exceeds maximum size limit of {MAX_UPLOAD_SIZE // (1024 * 1024)}MB."
+            )
+    if not raw_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+    return bytes(raw_bytes)
+
+
+@app.post("/analyze/jobs", response_model=None)
+@limiter.limit("10/minute")
+async def start_analysis_job(
+    request: Request,
+    file: UploadFile = File(...),
+    source: str | None = Form(None),
+) -> dict:
+    """Start an analysis in the background; poll GET /analyze/jobs/{job_id} for live stage progress."""
+    if source is not None and source not in VALID_SOURCES:
+        raise HTTPException(status_code=400, detail="Unsupported analysis source.")
+    from analysis_jobs import start_job
+    raw_bytes = await _read_upload(file)
+    return start_job(file.filename or "uploaded_email.eml", raw_bytes, source)
+
+
+@app.get("/analyze/jobs/{job_id}", response_model=None)
+@limiter.exempt
+async def get_analysis_job(request: Request, job_id: str) -> dict:
+    from analysis_jobs import get_job
+    job = get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Analysis job not found or expired.")
+    return job
+
+
 from pydantic import BaseModel, Field
 
 
@@ -189,8 +231,22 @@ async def investigations(request: Request, offset: int = 0, limit: int = 50):
     from db.connection import get_db
     if offset < 0 or offset > 5000 or not 1 <= limit <= 100:
         raise HTTPException(400, 'Invalid page')
-    docs = list(get_db()['analyzed_emails'].find({}, {'subject': 1, 'verdict': 1, 'analyzed_at': 1, 'workflow.state':1}).sort('analyzed_at', -1))
-    return [{'email_id': str(d['_id']), 'subject': d.get('subject'), 'verdict': d.get('verdict'), 'review_state': (d.get('workflow') or {}).get('state', d.get('workflow.state', 'unrecorded'))} for d in docs[offset:offset+limit]]
+    fields = {'subject': 1, 'verdict': 1, 'risk_score': 1, 'verdict_band': 1, 'analyzed_at': 1, 'from_email': 1,
+              'campaign_id': 1, 'workflow.state': 1, 'content_analysis.attack_type': 1}
+    docs = list(get_db()['analyzed_emails'].find({}, fields).sort('analyzed_at', -1))
+    out = []
+    for d in docs[offset:offset+limit]:
+        decision = finalize_verdict(d.get('verdict'), d.get('risk_score') or 0)
+        analyzed = d.get('analyzed_at')
+        out.append({
+            'email_id': str(d['_id']), 'subject': d.get('subject'), 'from_email': d.get('from_email'),
+            'verdict': decision['verdict'], 'risk_score': decision['risk_score'], 'verdict_band': decision['verdict_band'],
+            'analyzed_at': analyzed.isoformat() if hasattr(analyzed, 'isoformat') else analyzed,
+            'campaign_id': d.get('campaign_id'),
+            'attack_type': (d.get('content_analysis') or {}).get('attack_type') or d.get('content_analysis.attack_type'),
+            'review_state': (d.get('workflow') or {}).get('state', d.get('workflow.state', 'unrecorded')),
+        })
+    return out
 
 
 @app.get('/campaigns')

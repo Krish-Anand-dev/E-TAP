@@ -185,8 +185,9 @@ def _build_single_file_context(doc: dict) -> str:
 
     # ML Triage
     triage = doc.get("triage") or {}
-    if triage:
-        lines.append(f"ML Triage: Phishing={triage.get('is_phishing')} (Confidence: {triage.get('confidence', 0):.2f}, Risk Level: {triage.get('risk_level')})")
+    if triage.get("available"):
+        label = {0: "benign", 1: "suspicious"}.get(triage.get("triage_label"), "unknown")
+        lines.append(f"ML Triage: {label} (confidence {float(triage.get('triage_confidence') or 0):.2f}; AI review skipped: {bool(triage.get('gemini_skipped'))})")
 
     # Header analysis
     headers = doc.get("header_analysis") or doc.get("headers") or {}
@@ -198,6 +199,8 @@ def _build_single_file_context(doc: dict) -> str:
 
     # Attachments
     attachments = doc.get("attachment_analysis") or doc.get("attachments") or []
+    if isinstance(attachments, dict):  # stored records keep {"attachments": [...]}
+        attachments = attachments.get("attachments") or []
     if attachments:
         lines.append("Attachments:")
         for att in attachments:
@@ -206,8 +209,9 @@ def _build_single_file_context(doc: dict) -> str:
                 details = []
                 if att.get("suspicious"): details.append("Flagged Suspicious")
                 if att.get("type_mismatch"): details.append(f"MIME Mismatch ({att.get('declared_type')} vs {att.get('actual_type')})")
-                if att.get("ocr_extracted_text"): details.append(f"OCR Extracted: '{att.get('ocr_extracted_text')[:120]}'")
-                if att.get("qr_codes_detected"): details.append(f"QR Codes Decoded: {att.get('qr_codes_detected')}")
+                if att.get("has_macro"): details.append("Contains macros")
+                if att.get("ocr_text"): details.append(f"OCR Extracted: '{att.get('ocr_text')[:120]}'")
+                if att.get("qr_urls"): details.append(f"QR Codes Decoded: {', '.join(att.get('qr_urls')[:3])}")
                 lines.append(f"  - {fname}: {', '.join(details) if details else 'Clean'}")
 
     # Extracted IOCs
@@ -306,6 +310,26 @@ def _build_single_file_context(doc: dict) -> str:
     return "\n".join(lines)
 
 
+def _offline_single_file_answer(doc: dict, subject: str, verdict: str, risk_score) -> str:
+    """Readable summary used when Gemini is not available (not a raw telemetry dump)."""
+    report = doc.get("evidence_report") or {}
+    by_id = {str(i.get("id")): i for i in report.get("evidence") or [] if isinstance(i, dict)}
+    reasons = [by_id[r] for r in report.get("top_reasons") or [] if r in by_id]
+    headers = doc.get("header_analysis") or doc.get("headers") or {}
+    parts = [f"**{verdict}**, risk score **{risk_score}/100** for “{subject}”."]
+    if report.get("headline") and not reasons:
+        parts.append(report["headline"])
+    if reasons:
+        parts.append("Main reasons:\n" + "\n".join(f"- {r.get('title')}" for r in reasons[:4]))
+    if headers:
+        parts.append(f"Sender checks: SPF {headers.get('spf', 'n/a')}, DKIM {headers.get('dkim', 'n/a')}, DMARC {headers.get('dmarc', 'n/a')}.")
+    steps = ((report.get("what_to_do") or {}).get("steps") or [])[:3]
+    if steps:
+        parts.append("Remediation:\n" + "\n".join(f"- {s.get('text')}" for s in steps))
+    parts.append("_The AI assistant is offline (no Gemini key), so this is a summary of the stored report rather than a free-form answer._")
+    return "\n\n".join(parts)
+
+
 def answer_query(
     question: str,
     db,
@@ -385,12 +409,7 @@ Provide a concise, professional SOC analyst response focusing strictly on this o
             answer_text = response.text.strip() if response and response.text else ""
         except Exception as exc:
             logger.warning("Gemini query failed (%s). Generating structured local summary.", type(exc).__name__)
-            answer_text = (
-                f"**Forensic Analysis for Opened Incident '{resolved_id}'**:\n\n"
-                f"- **Verdict**: `{verdict}` (Risk Score: {risk_score}/100)\n"
-                f"- **Subject**: {subject}\n\n"
-                f"{telemetry}"
-            )
+            answer_text = _offline_single_file_answer(target_doc, subject, verdict, risk_score)
 
         return {
             "answer": answer_text,

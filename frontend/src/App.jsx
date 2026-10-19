@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { InvestigationProvider, useInvestigation } from './context/InvestigationContext';
 import OverviewPage from './pages/OverviewPage';
-import WorkspaceTools from './components/common/WorkspaceTools';
+import SettingsPage from './pages/SettingsPage';
 import Header from './components/common/Header';
 import UploadPage from './pages/UploadPage';
 import DashboardPage from './pages/DashboardPage';
@@ -10,18 +10,14 @@ import SocChatDrawer from './components/chat/SocChatDrawer';
 import { fetchInvestigation } from './api/analyze';
 
 function AppContent() {
-  const { status, data, setData, setStatus, setError, setActiveFile, persistInvestigation } = useInvestigation();
+  const { setData, setStatus, setError, setActiveFile, persistInvestigation } = useInvestigation();
   const [currentView, setCurrentView] = useState('overview');
   const deepLinkHandled = useRef(false);
 
-  // If status transitions to success, jump to dashboard
-  useEffect(() => {
-    if (status === 'success' && data) {
-      setCurrentView('dashboard');
-    }
-  }, [status, data]);
+  // Scroll to the top whenever the user switches page.
+  useEffect(() => { window.scrollTo({ top: 0 }); }, [currentView]);
 
-  // Check for deep link on initial mount ONLY ONCE
+  // ?dossier=<email_id> deep link (used by the Gmail extension), handled once.
   useEffect(() => {
     if (deepLinkHandled.current) return;
     const params = new URLSearchParams(window.location.search);
@@ -29,23 +25,18 @@ function AppContent() {
     if (!dossierId) return;
 
     deepLinkHandled.current = true;
-    // Clean URL immediately
     window.history.replaceState({}, document.title, window.location.pathname);
 
-    // Fetch the report directly
     (async () => {
       try {
         const report = await fetchInvestigation(dossierId);
-        if (report && (report.risk_score || report.verdict)) {
+        if (report && (report.risk_score != null || report.verdict)) {
           setData(report);
-          setActiveFile({
-            name: report.email?.subject || 'Network Ingest',
-            size: 0,
-            lastModified: Date.now(),
-          });
+          setActiveFile({ name: report.email?.subject || 'Gmail message', size: 0, lastModified: Date.now() });
           setStatus('success');
           setError(null);
-          persistInvestigation(report, 'Network Ingest');
+          persistInvestigation(report, 'Gmail message');
+          setCurrentView('dashboard');
         }
       } catch (err) {
         console.error('Deep link fetch failed:', err);
@@ -59,19 +50,11 @@ function AppContent() {
     <div className="app-shell">
       <Header currentView={currentView} setCurrentView={setCurrentView} />
       <div className="workspace-main" id="main-content">
-      {currentView === 'overview' && <OverviewPage navigate={setCurrentView} />}
-      <div className="workspace-settings-page" hidden={currentView !== 'workspace'}><div className="page-heading"><div><div className="eyebrow">YOUR WORKSPACE</div><h1>Insights & preferences</h1><p>Measured activity, provider coverage and trusted vendor context.</p></div></div><WorkspaceTools /></div>
-
-      {currentView === 'upload' && (
-        <UploadPage onAnalysisComplete={() => setCurrentView('dashboard')} />
-      )}
-
-      {currentView === 'dashboard' && <DashboardPage />}
-
-      {currentView === 'history' && (
-        <HistoryPage onSelectDossier={() => setCurrentView('dashboard')} />
-      )}
-
+        {currentView === 'overview' && <OverviewPage navigate={setCurrentView} />}
+        {currentView === 'upload' && <UploadPage onOpenReport={() => setCurrentView('dashboard')} />}
+        {currentView === 'dashboard' && <DashboardPage navigate={setCurrentView} />}
+        {currentView === 'history' && <HistoryPage onOpenReport={() => setCurrentView('dashboard')} navigate={setCurrentView} />}
+        {currentView === 'settings' && <SettingsPage />}
       </div>
       <SocChatDrawer />
     </div>
@@ -87,4 +70,3 @@ export function App() {
 }
 
 export default App;
-
