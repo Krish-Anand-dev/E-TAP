@@ -176,7 +176,7 @@ samples/     Dataset manifests (raw emails are not committed)
 - Attachments are analysed statically only; dynamic sandbox detonation is planned work.
 - The Gmail extension uses Gmail's web endpoints, not the official Gmail API.
 
-## Team
+## Team Members
 
 - Bhavit Anand
 - Krish Anand
