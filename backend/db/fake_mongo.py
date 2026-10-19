@@ -253,15 +253,39 @@ class FakeCollection:
 
         return None
 
+    def delete_many(self, filt):
+        from types import SimpleNamespace
+        keys = [key for key, doc in self._docs.items() if _matches(doc, filt)]
+        for key in keys:
+            del self._docs[key]
+        return SimpleNamespace(deleted_count=len(keys))
+
     # -- reads --------------------------------------------------------
-    def find_one(self, filt: Optional[dict] = None) -> Optional[dict]:
+    @staticmethod
+    def _project(doc: dict, projection: Optional[dict]) -> dict:
+        """Apply the common PyMongo inclusion/exclusion projection forms."""
+        if not projection:
+            return dict(doc)
+        included = [k for k, enabled in projection.items() if enabled and k != "_id"]
+        excluded = [k for k, enabled in projection.items() if not enabled]
+        if included:
+            result = {k: _get_path(doc, k) for k in included if _get_path(doc, k) is not None}
+            if projection.get("_id", 1) and "_id" in doc:
+                result["_id"] = doc["_id"]
+            return result
+        result = dict(doc)
+        for key in excluded:
+            result.pop(key, None)
+        return result
+
+    def find_one(self, filt: Optional[dict] = None, projection: Optional[dict] = None) -> Optional[dict]:
         for doc in self._docs.values():
             if _matches(doc, filt or {}):
-                return dict(doc)
+                return self._project(doc, projection)
         return None
 
-    def find(self, filt: Optional[dict] = None) -> FakeCursor:
-        matches = [dict(doc) for doc in self._docs.values() if _matches(doc, filt or {})]
+    def find(self, filt: Optional[dict] = None, projection: Optional[dict] = None) -> FakeCursor:
+        matches = [self._project(doc, projection) for doc in self._docs.values() if _matches(doc, filt or {})]
         return FakeCursor(matches)
 
     def count_documents(self, filt: Optional[dict] = None) -> int:

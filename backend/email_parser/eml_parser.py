@@ -18,6 +18,45 @@ from .models import ParsedEmail, Attachment
 from .pii_masker import redact_sensitive_data
 
 
+def _get_text_content(part, warnings: list, description: str) -> str | None:
+    """Decode a MIME text part even when its declared charset is invalid.
+
+    Email datasets and malformed phish samples sometimes declare a bogus
+    charset such as ``DEFAULT``. The email package's get_content() correctly
+    refuses an unknown codec; for analysis we fall back to UTF-8 with
+    replacement characters and record a warning instead of silently losing
+    the message body (or treating an empty body as clean).
+    """
+    try:
+        content = part.get_content()
+        if isinstance(content, str):
+            return content
+    except (LookupError, UnicodeError, ValueError):
+        pass
+    except Exception:
+        # Malformed MIME bodies are handled with a bounded raw-payload fallback.
+        pass
+
+    payload = part.get_payload(decode=True)
+    if payload is None:
+        raw_payload = part.get_payload()
+        if isinstance(raw_payload, str):
+            warnings.append(f"{description} used raw text fallback because its declared encoding could not be decoded.")
+            return raw_payload
+        warnings.append(f"{description} could not be decoded; no text payload was available.")
+        return None
+
+    charset = part.get_content_charset() or "utf-8"
+    try:
+        decoded = payload.decode(charset, errors="replace")
+    except (LookupError, UnicodeError, ValueError):
+        decoded = payload.decode("utf-8", errors="replace")
+        warnings.append(f"{description} declared an unsupported charset; UTF-8 replacement decoding was used.")
+    else:
+        warnings.append(f"{description} required a raw-payload decoding fallback.")
+    return decoded
+
+
 def parse_eml(file_path: str) -> ParsedEmail:
     with open(file_path, "rb") as f:
         raw_bytes = f.read()
@@ -91,28 +130,24 @@ def parse_eml_bytes(raw_bytes: bytes) -> ParsedEmail:
                     warnings.append(f"Failed to decode attachment: {e}")
 
             elif content_type == "text/plain":
-                try:
-                    body_text_parts.append(part.get_content())
-                except Exception as e:
-                    warnings.append(f"Failed to decode text/plain part: {e}")
+                content = _get_text_content(part, warnings, "text/plain part")
+                if content is not None:
+                    body_text_parts.append(content)
 
             elif content_type == "text/html":
-                try:
-                    body_html_parts.append(part.get_content())
-                except Exception as e:
-                    warnings.append(f"Failed to decode text/html part: {e}")
+                content = _get_text_content(part, warnings, "text/html part")
+                if content is not None:
+                    body_html_parts.append(content)
 
     else:
         # not multipart — the whole message body IS the content, no attachments
         content_type = msg.get_content_type()
-        try:
-            content = msg.get_content()
+        content = _get_text_content(msg, warnings, "single-part body")
+        if content is not None:
             if content_type == "text/html":
                 body_html_parts.append(content)
             else:
                 body_text_parts.append(content)
-        except Exception as e:
-            warnings.append(f"Failed to decode single-part body: {e}")
 
     # ---- Apply PII Masking before returning ----
     result.subject = redact_sensitive_data(result.subject)

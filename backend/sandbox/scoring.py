@@ -94,23 +94,11 @@ def apply_sandbox(doc_fields: dict, sandbox: dict) -> dict:
             + (f" — MITRE {', '.join(tech_ids)}" if tech_ids else "")
         )
 
-    # Update verdict
-    if has_prevention:
-        new_verdict = VERDICT_LIKELY_MALICIOUS
-    else:
-        new_verdict = VERDICT_SUSPICIOUS
-
-    # Only raise verdict, never lower
-    verdict_priority = {
-        VERDICT_LIKELY_LEGITIMATE: 0,
-        "UNKNOWN": 1,
-        VERDICT_SUSPICIOUS: 2,
-        VERDICT_LIKELY_MALICIOUS: 3,
-    }
-    current_priority = verdict_priority.get(current_verdict, 1)
-    new_priority = verdict_priority.get(new_verdict, 1)
-    if new_priority < current_priority:
-        new_verdict = current_verdict  # Keep the higher verdict
+    # Canonical label: the more severe of the existing label and the raised
+    # score (verdicts.finalize_verdict), so the label can only go up too.
+    from verdicts import finalize_verdict
+    decision = finalize_verdict(current_verdict or None, new_score)
+    new_verdict = decision["verdict"]
 
     # Build updated final_assessment
     existing_evidence = list(current_assessment.get("supporting_evidence") or [])
@@ -139,6 +127,7 @@ def apply_sandbox(doc_fields: dict, sandbox: dict) -> dict:
     result = {
         "risk_score": new_score,
         "verdict": new_verdict,
+        "verdict_band": decision["verdict_band"],
         "final_assessment": updated_assessment,
         "mitre_attack": new_mitre,
         "sandbox_analysis": {**sandbox, "verdict": "behavior_observed"},

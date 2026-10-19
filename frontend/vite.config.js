@@ -1,9 +1,14 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// The local launcher passes its selected backend port here. No provider keys
+// start-local.py passes its selected backend port here. No provider keys
 // belong in VITE_* variables: those are bundled into the browser application.
 const backendUrl = process.env.ETAP_BACKEND_URL || 'http://127.0.0.1:5000';
+
+const API_ROUTES = [
+  '/analyze', '/health', '/ready', '/chat', '/investigations', '/sandbox', '/campaigns',
+  '/preferences', '/recovery', '/analytics', '/baselines', '/openapi.json',
+];
 
 export default defineConfig({
   plugins: [react()],
@@ -13,25 +18,6 @@ export default defineConfig({
     // For external demos on other devices, serve the static production build (npm run build).
     host: '127.0.0.1',
     port: 5173,
-    proxy: {
-      '/openapi.json': { target: backendUrl, changeOrigin: true },
-      '/sandbox': { target: backendUrl, changeOrigin: true },
-      '/analyze': {
-        target: backendUrl,
-        changeOrigin: true,
-      },
-      '/health': {
-        target: backendUrl,
-        changeOrigin: true,
-      },
-      '/chat': {
-        target: backendUrl,
-        changeOrigin: true,
-      },
-      '/investigations': {
-        target: backendUrl,
-        changeOrigin: true,
-      },
-    },
+    proxy: Object.fromEntries(API_ROUTES.map((path) => [path, { target: backendUrl, changeOrigin: true }])),
   },
 });

@@ -7,8 +7,10 @@ the HTTP API. It keeps one canonical A -> B/B2 -> D -> E -> F -> G flow.
 
 from __future__ import annotations
 
-import os
 import logging
+import os
+import re
+import time
 from datetime import date, datetime
 from typing import Any
 
@@ -16,14 +18,61 @@ from email_parser import parse_email, parse_email_from_upload
 from forensics.header_forensics import analyze_headers
 from forensics.attachment_forensics import analyze_attachments
 from forensics.ioc_extraction import extract_iocs
-from threat_intel import enrich_iocs
+from forensics.link_analysis import analyze_links
+from forensics.qr_trace import build_qr_trace
+from privacy import build_privacy_report, sanitize_for_external_ai
+from threat_intel import enrich_iocs, attach_hop_geo
 from correlation import correlate_and_store
 from db import connection, repository
 from ai_engine.stage_g import analyze_with_stage_g
+from verdicts import finalize_verdict, LIKELY_LEGITIMATE
+from evidence import build_evidence_ledger, build_evidence_report, compact_ledger
+from provider_status import build_provider_status
+
+logger = logging.getLogger("E-TAP.pipeline")
+
+# How the message reached us. "quick_content_check" = rebuilt from the text
+# visible in a mail client (no original headers/attachments/HTML links).
+SOURCE_FULL_MESSAGE = "full_message"
+SOURCE_QUICK_CHECK = "quick_content_check"
+VALID_SOURCES = frozenset({SOURCE_FULL_MESSAGE, SOURCE_QUICK_CHECK})
 
 
 def _env_truthy(name: str, default: str = "0") -> bool:
     return os.getenv(name, default).strip().lower() in {"1", "true", "yes", "on"}
+
+
+_SECRET_PATTERNS = (
+    re.compile(r"AIza[0-9A-Za-z_\-]{20,}"),
+    re.compile(r"(?i)(api[_-]?key|key|token|secret)=[^&\s]+"),
+)
+
+
+def _short_reason(exc_text: Any, limit: int = 160) -> str | None:
+    """Single-line, secret-scrubbed, length-limited version of an error message."""
+    if not exc_text:
+        return None
+    text = " ".join(str(exc_text).split())
+    for pattern in _SECRET_PATTERNS:
+        text = pattern.sub("[redacted]", text)
+    return text if len(text) <= limit else text[: limit - 1] + "…"
+
+
+def _count_unavailable_lookups(threat_intel: dict) -> tuple[int, int]:
+    """Count attempted IOC lookups and true failures, excluding intentional skips."""
+    total = failed = 0
+    ignored = {"skipped_privacy", "skipped_limit", "skipped_non_public", "private_or_reserved", "not_checked", "skipped_by_policy", "disabled"}
+    for section in ("ip_reputation", "domain_info", "url_reputation", "hash_reputation", "geo_lookup"):
+        for info in (threat_intel.get(section) or {}).values():
+            if not isinstance(info, dict):
+                continue
+            status = str(info.get("status") or "").lower()
+            if status in ignored:
+                continue
+            total += 1
+            if info.get("error") or status in {"timeout", "network_error", "provider_error", "invalid_response", "not_configured", "rate_limited", "rate_limited_internal", "unavailable"}:
+                failed += 1
+    return total, failed
 
 
 def _json_safe(value: Any) -> Any:
@@ -62,12 +111,84 @@ def _build_email_summary(data: dict) -> dict:
     }
 
 
-def _run_parsed_pipeline(parsed_email) -> dict:
+def _noop_progress(stage: str, state: str, detail: str | None = None) -> None:
+    return None
+
+
+def _plural(n: int, word: str) -> str:
+    return f"{n} {word}{'' if n == 1 else 's'}"
+
+
+def _sandbox_plan(attachments: list) -> tuple[str, list]:
+    """(backend, candidates) for the local sandbox; never raises."""
+    try:
+        from sandbox import get_backend
+        from sandbox.policy import get_detonation_candidates
+        backend = get_backend()
+        return backend, (get_detonation_candidates(attachments) if backend != "none" else [])
+    except Exception:
+        return "none", []
+
+
+def _submit_to_sandbox(email_id: str, raw_attachments: list, attachment_analysis: dict) -> tuple[dict, str]:
+    """Queue eligible attachments for detonation. Returns (sandbox status, stage S label)."""
+    status = {"status": "not_applicable", "email_id": email_id, "mode": "none"}
+    try:
+        from sandbox import submit, get_backend
+        if get_backend() == "none":
+            return {**status, "status": "unavailable",
+                    "message": "Sandbox is not configured (SANDBOX_BACKEND=none)."}, "unavailable"
+        status = submit(email_id, raw_attachments, attachment_analysis)
+        return status, status.get("status", "submitted")
+    except Exception as exc:
+        # The sandbox must never break the static report.
+        logger.warning("Sandbox submit failed (non-fatal): %s", type(exc).__name__)
+        return {**status, "status": "error", "message": str(exc)[:200]}, "error"
+
+
+def _run_parsed_pipeline(parsed_email, source: str | None = None, progress=None) -> dict:
+    # `progress(stage, state, detail)` reports live stage changes to a caller
+    # (see analysis_jobs.py). It never affects the analysis itself.
+    progress = progress or _noop_progress
+    started_at = time.perf_counter()
     db = connection.get_db()
     data = parsed_email.to_dict()
+    source = source if source in VALID_SOURCES else SOURCE_FULL_MESSAGE
+    quick_check = source == SOURCE_QUICK_CHECK
 
-    header_analysis = analyze_headers(parsed_email)
+    progress("headers", "running")
+    header_analysis = analyze_headers(parsed_email, headers_available=not quick_check)
+    if quick_check:
+        progress("headers", "skipped", "Original headers were not available")
+    else:
+        flags = len(header_analysis.get("red_flags") or [])
+        progress("headers", "done", _plural(flags, "red flag") if flags else "No header red flags")
+
+    progress("static_attachments", "running")
     attachment_analysis = analyze_attachments(data.get("attachments") or [])
+    _atts = attachment_analysis.get("attachments") or []
+    _sus = sum(1 for a in _atts if a.get("suspicious"))
+    if not _atts:
+        progress("static_attachments", "done", "No attachments")
+    else:
+        progress("static_attachments", "done",
+                 f"{_plural(len(_atts), 'file')} checked" + (f", {_sus} suspicious" if _sus else ", none suspicious"))
+
+    # Stage S planning: which attachments the VirtualBox sandbox will open.
+    # Detonation itself runs in the background after the report is saved
+    # (it needs the stored email id); see the submit step near the end.
+    _sandbox_backend, _sandbox_candidates = _sandbox_plan(_atts)
+    if _sandbox_backend == "none":
+        progress("sandbox", "not_available", "Sandbox not configured (set SANDBOX_BACKEND=virtualbox)")
+    elif not _atts:
+        progress("sandbox", "skipped", "No attachments to open in the sandbox")
+    elif not _sandbox_candidates:
+        progress("sandbox", "skipped", "No attachment type that needs dynamic analysis")
+    else:
+        progress("sandbox", "done",
+                 f"{_plural(len(_sandbox_candidates), 'attachment')} queued for the Windows 11 VM; results follow in the report")
+
+    progress("indicators", "running")
     ioc_analysis = extract_iocs(
         all_headers=data.get("all_headers"),
         body_text=data.get("body_text"),
@@ -76,8 +197,29 @@ def _run_parsed_pipeline(parsed_email) -> dict:
         header_analysis=header_analysis,
     )
 
+    # B5/B6: what each link's visible text claims vs where it points, and where
+    # QR codes lead. Static only: nothing is fetched or followed.
+    link_analysis = analyze_links(data.get("body_html"))
+    qr_trace = build_qr_trace(attachment_analysis.get("attachments"))
+    _n_ind = sum(len(ioc_analysis.get(k) or []) for k in ("ips", "domains", "urls", "hashes"))
+    _n_links = (link_analysis.get("summary") or {}).get("total", 0)
+    progress("indicators", "done", f"{_plural(_n_ind, 'indicator')}, {_plural(_n_links, 'link')}")
+
     threat_intel_live = _env_truthy("THREAT_INTEL_LIVE", default="0")
+    progress("reputation", "running")
     threat_intel_analysis = enrich_iocs(ioc_analysis, live_lookup=threat_intel_live)
+    attach_hop_geo(header_analysis, threat_intel_analysis, live=threat_intel_live)
+    if threat_intel_live:
+        _flagged = sum(
+            1 for sec in ("ip_reputation", "domain_info", "url_reputation", "hash_reputation")
+            for info in (threat_intel_analysis.get(sec) or {}).values()
+            if isinstance(info, dict) and info.get("malicious") is True
+        )
+        progress("reputation", "done", f"{_flagged} flagged by reputation services" if _flagged else "Nothing flagged")
+    else:
+        progress("reputation", "skipped", "Live reputation lookups are turned off")
+
+    progress("history", "running")
 
     correlation_result = correlate_and_store(
         ioc_analysis,
@@ -92,6 +234,9 @@ def _run_parsed_pipeline(parsed_email) -> dict:
         attachment_analysis=attachment_analysis,
         threat_intel_analysis=threat_intel_analysis,
     )
+    _related = len(correlation_result.get("related_emails") or [])
+    progress("history", "done",
+             f"Linked to {_plural(_related, 'earlier email')}" if _related else "No match with earlier emails")
 
     # Stage F' -- Graph Diffusion Score Engine (Personalized PageRank Label Propagation)
     try:
@@ -132,6 +277,19 @@ def _run_parsed_pipeline(parsed_email) -> dict:
         existing_body = email_summary.get("body_text") or ""
         email_summary["body_text"] = existing_body + "".join(ocr_snippets)
 
+    # Deterministic observed + reputation evidence, with stable ids. The model
+    # sees these ids and must cite them; see evidence.py and ai_findings.
+    evidence_ledger = build_evidence_ledger(
+        headers=header_analysis,
+        attachments=attachment_analysis.get("attachments") or [],
+        iocs=ioc_analysis,
+        threat_intel=threat_intel_analysis,
+        correlation=correlation_result,
+        input_mode=source,
+        link_analysis=link_analysis,
+        qr_trace=qr_trace,
+    )
+
     context = {
         "email": email_summary,
         "header_forensics": header_analysis,
@@ -140,8 +298,10 @@ def _run_parsed_pipeline(parsed_email) -> dict:
         "threat_intelligence": threat_intel_analysis,
         "correlation": correlation_result,
         "graph_diffusion": graph_diffusion_result,
+        "evidence_ledger": compact_ledger(evidence_ledger),
     }
 
+    progress("ai", "running")
     # Stage C' -- Fast Metadata Triage Pre-Filter (XGBoost)
     try:
         from ai_engine.triage_model import extract_features, predict_triage
@@ -165,17 +325,23 @@ def _run_parsed_pipeline(parsed_email) -> dict:
     # We add a heuristic override to FORCE Gemini if risky keywords or links exist.
     force_gemini = False
     body_text = email_summary.get("body_text", "")
-    print(f"\n[DEBUG Heuristic] Extracted Body Length: {len(body_text) if body_text else 0}")
+    # Never log message content, URLs or matched keywords: stdout goes to the
+    # hosting platform's log store. Counts only.
     if body_text:
         body_lower = body_text.lower()
         risky_keywords = ["urgent", "won", "$", "prize", "password", "gift card", "tinyurl.com", "bit.ly", "login"]
-        matched_words = [k for k in risky_keywords if k in body_lower]
-        print(f"[DEBUG Heuristic] Matched risky words: {matched_words}")
-        if matched_words:
+        matched_count = sum(1 for k in risky_keywords if k in body_lower)
+        logger.debug("heuristic: body_len=%d risky_keyword_hits=%d", len(body_text), matched_count)
+        if matched_count:
             force_gemini = True
-            
+
     if ioc_analysis.get("urls"):
-        print(f"[DEBUG Heuristic] URLs found: {ioc_analysis.get('urls')}")
+        logger.debug("heuristic: %d url(s) found, forcing Gemini review", len(ioc_analysis["urls"]))
+        force_gemini = True
+
+    # A quick content check has no real headers, so the metadata-only XGBoost
+    # pre-filter has nothing trustworthy to judge. Always do the content review.
+    if quick_check:
         force_gemini = True
 
     # If any attachment is flagged suspicious (macros, type mismatch,
@@ -184,7 +350,7 @@ def _run_parsed_pipeline(parsed_email) -> dict:
     # attachment content risk.
     for att in (attachment_analysis.get("attachments") or []):
         if att.get("suspicious"):
-            print(f"[DEBUG Heuristic] Suspicious attachment detected: {att.get('filename')}")
+            logger.debug("heuristic: suspicious attachment present, forcing Gemini review")
             force_gemini = True
             break
 
@@ -196,18 +362,23 @@ def _run_parsed_pipeline(parsed_email) -> dict:
     ):
         gemini_skipped = True
         triage_risk = max(0, min(10, round((1.0 - triage_result["confidence"]) * 20)))
+        triage_evidence = [
+            "Passed Stage C' metadata triage with high confidence",
+            "Authentication & infrastructure indicators consistent with benign traffic",
+        ]
+        if not threat_intel_live:
+            triage_evidence.append(
+                "External reputation lookups (VirusTotal, AbuseIPDB, WHOIS) were NOT performed: threat intelligence is offline"
+            )
         final_assessment = {
-            "verdict": "Likely Legitimate",
+            "verdict": LIKELY_LEGITIMATE,
             "risk_score": triage_risk,
             "confidence": triage_result["confidence"],
             "explanation": (
                 f"Passed fast metadata triage pre-filter (XGBoost) with {round(triage_result['confidence'] * 100)}% "
                 f"benign confidence. Deep generative AI interpretation bypassed to conserve latency and quota."
             ),
-            "supporting_evidence": [
-                "Passed Stage C' metadata triage with high confidence",
-                "Authentication & infrastructure indicators consistent with benign traffic",
-            ],
+            "supporting_evidence": triage_evidence,
             "evidence_assessments": [],
             "mitre_attack": [],
             "recommended_actions": ["No action required. Deliver normally."],
@@ -215,7 +386,7 @@ def _run_parsed_pipeline(parsed_email) -> dict:
         }
         ai_analysis = {
             "content_classification": {
-                "verdict": "Likely Legitimate",
+                "verdict": LIKELY_LEGITIMATE,
                 "categories": [],
                 "provider": "xgboost_triage",
                 "content_risk_score": triage_risk,
@@ -225,13 +396,126 @@ def _run_parsed_pipeline(parsed_email) -> dict:
             "mitre_attack": [],
         }
     else:
-        ai_analysis = analyze_with_stage_g(context)
+        # B10: external Gemini receives a privacy-reduced copy. The original
+        # context remains intact for the E-TAP report and IOC correlation.
+        ai_analysis = analyze_with_stage_g(sanitize_for_external_ai(context))
         final_assessment = ai_analysis.get("final_assessment") or {}
+
+    # One place decides the label, the score band and what clients should show.
+    if gemini_skipped:
+        progress("ai", "done", "Clearly benign metadata; AI review not needed")
+    elif (final_assessment.get("provider") or "") == "offline_fallback":
+        progress("ai", "done", "AI unavailable; offline assessment used")
+    else:
+        progress("ai", "done", "AI assessment complete")
+
+    progress("verdict", "running")
+    decision = finalize_verdict(final_assessment.get("verdict"), final_assessment.get("risk_score"))
+    final_assessment["verdict"] = decision["verdict"]
+    final_assessment["risk_score"] = decision["risk_score"]
+    final_assessment["verdict_band"] = decision["verdict_band"]
+
+    ti_total, ti_failed = _count_unavailable_lookups(threat_intel_analysis) if threat_intel_live else (0, 0)
+    provider = final_assessment.get("provider") or "unknown"
+    # Never send raw Google SDK exceptions to the browser; they may include
+    # request details. ProviderStatus below carries the stable user-facing state.
+    raw_fallback_reason = str(final_assessment.get("fallback_reason") or "").lower()
+    if provider == "offline_fallback":
+        if not os.getenv("GEMINI_API_KEY"):
+            fallback_reason = "Gemini is not configured; the deterministic fallback was used."
+        elif "404" in raw_fallback_reason or "not_found" in raw_fallback_reason or "not found" in raw_fallback_reason:
+            fallback_reason = "Gemini model name not available for this key; the deterministic fallback was used."
+        elif "timeout" in raw_fallback_reason or "deadline" in raw_fallback_reason:
+            fallback_reason = "Gemini timed out; the deterministic fallback was used."
+        elif "429" in raw_fallback_reason or "quota" in raw_fallback_reason or "rate limit" in raw_fallback_reason:
+            fallback_reason = "Gemini rate or quota limits prevented analysis; the deterministic fallback was used."
+        else:
+            fallback_reason = "Gemini model attempts failed; the deterministic fallback was used."
+    else:
+        fallback_reason = None
+    analysis_provenance = {
+        "input_mode": source,
+        "headers_available": not quick_check,
+        "threat_intel_mode": "live" if threat_intel_live else "offline_placeholder",
+        "threat_intel_lookups": ti_total,
+        "threat_intel_unavailable": ti_failed,
+        "assessment_provider": provider,
+        "assessment_model": final_assessment.get("model"),
+        "fallback_used": provider == "offline_fallback" or bool(fallback_reason),
+        "fallback_reason": fallback_reason,
+        "gemini_skipped_by_triage": gemini_skipped,
+        "verdict_reconciled": decision["reconciled"],
+        "verdict_original": decision["original_label"],
+    }
+    provider_status = build_provider_status(
+        threat_intel=threat_intel_analysis,
+        iocs=ioc_analysis,
+        threat_intel_live=threat_intel_live,
+        final_assessment=final_assessment,
+        gemini_skipped=gemini_skipped,
+    )
+    analysis_provenance["provider_status_summary"] = provider_status["summary"]
+    analysis_provenance["provider_coverage_status"] = provider_status["coverage_status"]
+    # Never ship the raw exception text to clients; only stable provider states.
+    final_assessment.pop("fallback_reason", None)
+    (ai_analysis.get("content_classification") or {}).pop("fallback_reason", None)
+
+    triage_summary = {
+        "triage_label": triage_result.get("label"),
+        "triage_confidence": triage_result.get("confidence"),
+        "gemini_skipped": gemini_skipped,
+        "available": triage_result.get("available", False),
+    }
+    evidence_report = build_evidence_report(
+        decision=decision,
+        final_assessment=final_assessment,
+        content_classification=ai_analysis.get("content_classification"),
+        headers=header_analysis,
+        attachments=attachment_analysis.get("attachments") or [],
+        iocs=ioc_analysis,
+        threat_intel=threat_intel_analysis,
+        correlation=correlation_result,
+        triage=triage_summary,
+        provenance=analysis_provenance,
+        input_mode=source,
+        link_analysis=link_analysis,
+        qr_trace=qr_trace,
+    )
+    privacy_report = build_privacy_report(
+        email=email_summary,
+        iocs=ioc_analysis,
+        threat_intel=threat_intel_analysis,
+        provenance=analysis_provenance,
+    )
+    analysis_duration_ms = round((time.perf_counter() - started_at) * 1000)
+    analysis_provenance["analysis_duration_ms"] = analysis_duration_ms
+    provider_status["analysis_duration_ms"] = analysis_duration_ms
+
+    stage_status = {
+        "A": "complete",
+        "B": "complete" if not quick_check else "headers_unavailable",
+        "B2": "complete",
+        "D": "complete",
+        "E": "live" if threat_intel_live else "offline_placeholder",
+        "F": "complete",
+        "F_prime": "complete" if graph_diffusion_result.get("available") else "insufficient_data",
+        "C_prime": "bypassed_gemini" if gemini_skipped else ("evaluated" if triage_result.get("available") else "offline"),
+        "G": "skipped_by_triage" if gemini_skipped else provider,
+        "H": "complete",
+    }
 
     repository.update_analysis_fields(
         db,
         correlation_result["email_id"],
         {
+            "analysis_provenance": analysis_provenance,
+            "stage_status": stage_status,
+            "verdict_band": decision["verdict_band"],
+            "evidence_report": evidence_report,
+            "link_analysis": link_analysis,
+            "qr_trace": qr_trace,
+            "privacy_report": privacy_report,
+            "provider_status": provider_status,
             "content_analysis": ai_analysis.get("content_classification"),
             "final_assessment": final_assessment,
             "mitre_attack": ai_analysis.get("mitre_attack", []),
@@ -251,6 +535,13 @@ def _run_parsed_pipeline(parsed_email) -> dict:
         "email_id": correlation_result["email_id"],
         "risk_score": final_assessment.get("risk_score"),
         "verdict": final_assessment.get("verdict"),
+        "verdict_band": decision["verdict_band"],
+        "analysis_provenance": analysis_provenance,
+        "evidence_report": evidence_report,
+        "link_analysis": link_analysis,
+        "qr_trace": qr_trace,
+        "privacy_report": privacy_report,
+        "provider_status": provider_status,
         "email": context["email"],
         "headers": header_analysis,
         "attachments": attachment_analysis.get("attachments", []),
@@ -268,42 +559,15 @@ def _run_parsed_pipeline(parsed_email) -> dict:
             "gemini_skipped": gemini_skipped,
             "available": triage_result.get("available", False),
         },
-        "stage_status": {
-            "A": "complete",
-            "B": "complete",
-            "B2": "complete",
-            "D": "complete",
-            "E": "live" if threat_intel_live else "offline_placeholder",
-            "F": "complete",
-            "F_prime": "complete" if graph_diffusion_result.get("available") else "insufficient_data",
-            "C_prime": "bypassed_gemini" if gemini_skipped else ("evaluated" if triage_result.get("available") else "offline"),
-            "G": "skipped_by_triage" if gemini_skipped else final_assessment.get("provider", "unknown"),
-            "H": "complete",
-        },
+        "stage_status": stage_status,
     }
 
-    # --- Sandbox: submit eligible attachments for behavioral analysis ---
-    sandbox_status = {"status": "not_applicable", "email_id": correlation_result["email_id"], "mode": "none"}
-    try:
-        from sandbox import submit as sandbox_submit, get_backend as sandbox_get_backend
-        sb_backend = sandbox_get_backend()
-        if sb_backend != "none":
-            sandbox_status = sandbox_submit(
-                correlation_result["email_id"],
-                data.get("attachments") or [],
-                attachment_analysis,
-            )
-            result["stage_status"]["S"] = sandbox_status.get("status", "submitted")
-        else:
-            result["stage_status"]["S"] = "unavailable"
-    except Exception as sb_exc:
-        # Sandbox must never crash the pipeline
-        logging.getLogger("E-TAP.pipeline").warning("Sandbox submit failed (non-fatal): %s", sb_exc)
-        result["stage_status"]["S"] = "error"
-        sandbox_status = {"status": "error", "email_id": correlation_result["email_id"],
-                          "mode": "none", "message": str(sb_exc)[:200]}
-
+    # Stage S -- dynamic attachment analysis in the local VirtualBox sandbox.
+    # Runs in the background; the dashboard polls GET /investigations/{id}.
+    sandbox_status, stage_status["S"] = _submit_to_sandbox(
+        correlation_result["email_id"], data.get("attachments") or [], attachment_analysis)
     result["sandbox"] = sandbox_status
+    repository.update_analysis_fields(db, correlation_result["email_id"], {"stage_status": stage_status})
 
     # Fire-and-forget background persistence of RAG summary and vector embedding
     def _bg_persist_rag(email_id: str, doc_snapshot: dict):
@@ -312,15 +576,11 @@ def _run_parsed_pipeline(parsed_email) -> dict:
             from db.schema import ANALYSES_COLLECTION
             rag_sum = build_summary(doc_snapshot)
             rag_vec = embed_text(rag_sum)
-            active_db = connection.get_db()
-            for coll_name in (ANALYSES_COLLECTION, "emails"):
-                try:
-                    active_db[coll_name].update_one(
-                        {"$or": [{"email_id": email_id}, {"_id": email_id}]},
-                        {"$set": {"rag_summary": rag_sum, "rag_embedding": rag_vec}},
-                    )
-                except Exception:
-                    pass
+            # `db` is captured from the enclosing scope so the worker thread reuses the same handle.
+            # No upsert: a deleted record must never be resurrected by this worker.
+            repository.update_analysis_fields(db, email_id, {
+                'rag_summary': rag_sum, 'rag_embedding': rag_vec,
+            })
         except Exception:
             # Non-blocking defensive catch
             pass
@@ -332,16 +592,21 @@ def _run_parsed_pipeline(parsed_email) -> dict:
         daemon=True,
     ).start()
 
+    progress("verdict", "done", f"{decision['verdict']} ({decision['risk_score']}/100)")
     return _json_safe(result)
 
 
-def analyze_email_file(path: str) -> dict:
+def analyze_email_file(path: str, source: str | None = None) -> dict:
     """Analyze one .eml/.msg file from disk."""
     parsed = parse_email(path)
-    return _run_parsed_pipeline(parsed)
+    return _run_parsed_pipeline(parsed, source=source)
 
 
-def analyze_email_upload(filename: str, raw_bytes: bytes) -> dict:
+def analyze_email_upload(filename: str, raw_bytes: bytes, source: str | None = None, progress=None) -> dict:
     """Analyze one uploaded .eml/.msg file from raw bytes."""
+    progress = progress or _noop_progress
+    progress("parse", "running")
     parsed = parse_email_from_upload(filename, raw_bytes)
-    return _run_parsed_pipeline(parsed)
+    n_att = len(parsed.attachments or [])
+    progress("parse", "done", f"Email read, {_plural(n_att, 'attachment')}")
+    return _run_parsed_pipeline(parsed, source=source, progress=progress)

@@ -327,12 +327,13 @@ The database field is `sandbox_analysis`; the API report exposes it as `sandbox`
 
 [scoring.py](backend/sandbox/scoring.py) uses `max(existing_score, floor)`:
 
-- A match with `prevention_grade` metadata: score floor **85**, verdict `Likely Malicious` subject to the code's known-label priority mapping.
-- Other matches: score floor **65**, verdict `Suspicious`, again using that label mapping.
+- A match with `prevention_grade` metadata: score floor **85**.
+- Other matches: score floor **65**.
+- The label is recomputed with `verdicts.finalize_verdict` (the more severe of the existing label and the new score), so with the canonical thresholds a floor of 85 reads `HIGH-RISK PHISHING` and 65 reads `LIKELY PHISHING`. The stored `verdict_band` is updated too.
 - No matches: keep risk unchanged; sandbox assessment is inconclusive/incomplete as appropriate.
 - Matching rules append evidence, recommended actions and previously unseen MITRE technique IDs. These are report recommendations; no sender blocking or message deletion is performed automatically.
 
-Numeric risk is never lowered. Verdict ordering is explicitly defined only for `Likely Legitimate`, `UNKNOWN`, `Suspicious` and `Likely Malicious`; other existing labels receive a default priority. Defender events alone are not separately given a risk floor; scoring currently consumes rule matches.
+Numeric risk and the verdict label are never lowered. Defender events alone are not separately given a risk floor; scoring currently consumes rule matches.
 
 Raw Sysmon XML is retained under `backend/sandbox/work/<job_id>/sysmon.xml` by default. Host sample files are deleted after processing. There is no implemented retention policy for XML/work directories, no durable queue and no automatic screenshot capture. `take_screenshot()` exists but is not called by the worker. Process/Defender evidence is stored in the result document, not automatically packaged into a separate evidence bundle.
 

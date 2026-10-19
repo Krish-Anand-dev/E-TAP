@@ -104,7 +104,9 @@ def _get_or_build_adjacency(
     """Retrieves cached normalized adjacency or computes it if cache is stale."""
     global _cached_fingerprint, _cached_normalized_adj, _cached_node_to_idx, _cached_nodes_list
 
-    fingerprint = f"n={len(nodes)}|e={len(edges)}|first={nodes[0] if nodes else ''}|last={nodes[-1] if nodes else ''}"
+    import hashlib
+    import json
+    fingerprint = hashlib.sha256(json.dumps([nodes, edges], sort_keys=True).encode()).hexdigest()
 
     with _cache_lock:
         if (

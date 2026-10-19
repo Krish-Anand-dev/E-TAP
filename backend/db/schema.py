@@ -75,7 +75,10 @@ def ensure_indexes(db: Any) -> None:
     indexes and doesn't implement create_index beyond a no-op stub.
     """
     analyses = db[ANALYSES_COLLECTION]
-    analyses.create_index("message_id", unique=True, sparse=True)
+    # NOTE: the compound (owner_id, ...) indexes below are legacy. owner_id is no longer written,
+    # so they behave like plain unique message_id / campaign_id indexes. Kept as-is so existing
+    # Atlas deployments do not need an index migration.
+    analyses.create_index([("owner_id", 1), ("message_id", 1)], unique=True, partialFilterExpression={"message_id": {"$type": "string"}}, name="owner_message")
     analyses.create_index("analyzed_at")
     analyses.create_index("campaign_id")
     analyses.create_index("ioc_analysis.ips")
@@ -84,5 +87,5 @@ def ensure_indexes(db: Any) -> None:
     analyses.create_index("ioc_analysis.hashes")
 
     campaigns = db[CAMPAIGNS_COLLECTION]
-    campaigns.create_index("campaign_id", unique=True)
+    campaigns.create_index([("owner_id", 1), ("campaign_id", 1)], unique=True, name="owner_campaign")
     campaigns.create_index("merged_into")

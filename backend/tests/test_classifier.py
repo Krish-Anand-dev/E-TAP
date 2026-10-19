@@ -6,19 +6,18 @@ Manual integration test for Stage C (AI Content Classification, the team).
 Runs the REAL analyze_email() -- Stage A parses a real sample file, and
 Stage C's own Gemini-backed classification logic runs unmodified against
 it. This does not mock or stub any Stage C logic; it needs a working
-GEMINI_API_KEY configured locally (see backend/ai_engine/README.md) since
+GEMINI_API_KEY configured locally (see CONTEXT.md, section 14) since
 ai_engine.main raises a clear error on import if one isn't set.
 
-Samples:
-    - Known-phishing sample: pulled from the EPVME corpus
-      (samples/EPVME_1/1/), which is available in this repo.
-    - Known-legitimate sample: EPVME_1 in this repo only contains the
-      "1" (malicious/spam) class -- there is no "0"/benign subset
-      present -- so the legitimate sample instead comes from the
-      manifest-labeled "email_dataset" corpus
-      (set_01/eml/set01_001.eml, manifest label "benign", category
-      "internal-normal"), which IS available. If EPVME ever ships a
-      benign subset in this repo, swap BENIGN_SAMPLE_PATH below.
+Samples (not committed):
+    - Known-phishing sample: locally supplied EPVME corpus
+      (samples/EPVME_1/1/*.eml).
+    - Known-legitimate sample: locally supplied manifest-labeled email
+      corpus (samples/email_dataset/set_01/eml/set01_001.eml).
+
+Raw .eml/.msg artifacts and external corpora are excluded from Git by
+.gitignore. Supply authorized fixtures locally before running this optional
+manual model integration check; a fresh clone does not contain these files.
 
 This mirrors the existing pipeline test pattern (see test_single_email.py,
 test_b2_against_krish_fixture.py): sys.path is extended so backend/'s
@@ -30,7 +29,7 @@ and not perfectly deterministic, so this test checks response SHAPE
 WARNING (not a hard failure) if the semantic verdict looks inverted.
 
 Usage (run from backend/, with GEMINI_API_KEY configured in your local
-.env -- see backend/ai_engine/README.md):
+.env -- see CONTEXT.md, section 14):
     python tests/test_classifier.py
 """
 
@@ -46,12 +45,11 @@ from ai_engine.main import analyze_email, calculate_content_risk
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
-# Known-phishing sample: real EPVME_1 corpus, available in this repo.
+# Known-phishing sample: expected as a locally supplied, ignored corpus.
 EPVME_PHISHING_DIR = os.path.join(PROJECT_ROOT, "samples", "EPVME_1", "1")
 
-# Known-legitimate sample: EPVME_1 has no benign subset in this repo (see
-# module docstring), so this falls back to a manifest-labeled benign
-# fixture from another corpus already present in the repo.
+# Known-legitimate sample: locally supplied manifest-labeled benign fixture.
+# Raw sample files are deliberately not committed (see root .gitignore).
 BENIGN_SAMPLE_PATH = os.path.join(
     PROJECT_ROOT, "samples", "email_dataset", "set_01", "eml", "set01_001.eml"
 )
@@ -63,7 +61,11 @@ def _pick_phishing_sample() -> str:
         f for f in os.listdir(EPVME_PHISHING_DIR) if f.lower().endswith(".eml")
     )
     if not filenames:
-        raise FileNotFoundError(f"No .eml samples found under {EPVME_PHISHING_DIR}")
+        raise FileNotFoundError(
+            f"No local EPVME .eml samples found under {EPVME_PHISHING_DIR}. "
+            "The raw corpus is excluded from Git; supply authorized local fixtures "
+            "before running this optional Gemini integration check."
+        )
     return os.path.join(EPVME_PHISHING_DIR, filenames[0])
 
 

@@ -60,19 +60,19 @@ def check_ip_reputation(ip: str) -> dict:
     # SSRF Guard: reject private, loopback, or cloud metadata IPs before outbound calls
     if not is_public_routable_ip(ip):
         return {
-            "status": "private_or_reserved",
-            "error": "Private/internal RFC 1918, loopback, or cloud metadata IP — external lookup blocked (SSRF guard)",
-            "malicious": False,
+            "status": "skipped_non_public",
+            "reason": "External reputation lookup was skipped for a private, reserved or non-public IP.",
+            "malicious": None,
         }
 
     cache_key = f"abuseipdb:{ip}"
     cached = _ip_cache.get(cache_key)
     if cached is not None:
-        return cached
+        return dict(cached, lookup_source="cache")
 
     api_key = _get_abuseipdb_key()
     if not api_key:
-        result = {"error": "ABUSEIPDB_API_KEY not set"}
+        result = {"status": "not_configured", "error": "ABUSEIPDB_API_KEY not set", "malicious": None}
         return result  # not cached -- a key might get added later in the same run
 
     try:
@@ -80,12 +80,14 @@ def check_ip_reputation(ip: str) -> dict:
             ABUSEIPDB_CHECK_URL,
             params={"ipAddress": ip, "maxAgeInDays": 90},
             headers={"Key": api_key, "Accept": "application/json"},
-            timeout=10,
+            timeout=(2, 4)
         )
         response.raise_for_status()
         data = response.json().get("data", {})
 
         result = {
+            "status": "available",
+            "lookup_source": "remote",
             "malicious": data.get("abuseConfidenceScore", 0) >= 50,
             "abuse_confidence_score": data.get("abuseConfidenceScore"),
             "reports": data.get("totalReports"),
@@ -94,8 +96,13 @@ def check_ip_reputation(ip: str) -> dict:
             "domain": data.get("domain"),
             "is_tor": data.get("isTor"),
         }
+    except requests.Timeout:
+        return {"malicious": None, "status": "timeout", "lookup_source": "remote", "error": "AbuseIPDB request timed out"}
     except requests.RequestException as e:
-        result = {"error": f"AbuseIPDB request failed: {e}"}
+        # Do not include request URLs, headers or credential-bearing details.
+        return {"malicious": None, "status": "network_error", "lookup_source": "remote", "error": f"AbuseIPDB request failed ({type(e).__name__})"}
+    except (ValueError, TypeError, KeyError):
+        return {"malicious": None, "status": "invalid_response", "lookup_source": "remote", "error": "AbuseIPDB returned an invalid response"}
 
     _ip_cache.set(cache_key, result)
     return result
@@ -119,13 +126,14 @@ def get_ip_geolocation(ips: list[str]) -> dict[str, dict]:
         # SSRF Guard: skip private/reserved IPs from public geolocation
         if not is_public_routable_ip(ip):
             results[ip] = {
-                "error": "Private/internal RFC 1918 or link-local IP (skipped geolocation)"
+                "status": "skipped_non_public",
+                "reason": "Geolocation is skipped for private or non-public IPs.",
             }
             continue
 
         cached = _ip_cache.get(f"geo:{ip}")
         if cached is not None:
-            results[ip] = cached
+            results[ip] = dict(cached, lookup_source="cache")
         else:
             uncached_ips.append(ip)
 
@@ -136,21 +144,31 @@ def get_ip_geolocation(ips: list[str]) -> dict[str, dict]:
                 IPAPI_BATCH_URL,
                 json=chunk,
                 params={"fields": "status,message,query,country,countryCode,lat,lon,isp,org,as,hosting,proxy"},
-                timeout=10,
+                timeout=(2, 4)
             )
             response.raise_for_status()
             batch_result = response.json()
+        except requests.Timeout:
+            for ip in chunk:
+                results[ip] = {"status": "timeout", "lookup_source": "remote", "error": "IP geolocation request timed out"}
+            continue
         except requests.RequestException as e:
             for ip in chunk:
-                results[ip] = {"error": f"ip-api request failed: {e}"}
+                results[ip] = {"status": "network_error", "lookup_source": "remote", "error": f"IP geolocation request failed ({type(e).__name__})"}
+            continue
+        except (ValueError, TypeError):
+            for ip in chunk:
+                results[ip] = {"status": "invalid_response", "lookup_source": "remote", "error": "IP geolocation returned an invalid response"}
             continue
 
         for entry in batch_result:
             ip = entry.get("query")
             if entry.get("status") != "success":
-                geo = {"error": entry.get("message", "lookup failed")}
+                geo = {"status": "provider_error", "lookup_source": "remote", "error": "IP geolocation provider did not return a result"}
             else:
                 geo = {
+                    "status": "available",
+                    "lookup_source": "remote",
                     "lat": entry.get("lat"),
                     "lon": entry.get("lon"),
                     "country": entry.get("countryCode"),
@@ -160,6 +178,7 @@ def get_ip_geolocation(ips: list[str]) -> dict[str, dict]:
                     "proxy": entry.get("proxy"),
                 }
             results[ip] = geo
-            _ip_cache.set(f"geo:{ip}", geo)
+            if "error" not in geo:  # only cache successes
+                _ip_cache.set(f"geo:{ip}", geo)
 
     return results

@@ -1,121 +1,120 @@
-// E-TAP Gmail prototype. Change this URL when deploying the frontend.
-const ETAP_APP_BASE_URL = 'https://e-tap-lac.vercel.app';
+// Page watching only reads local DOM text to place banners. Analysis and
+// retrieval start after a click. The full report opens in its own tab.
+const ETAP_APP_BASE_URL = ETAP_CONFIG.appBaseUrl;
+const ETAP_BODY_SELECTOR = '.ii.gt';
 
-// Keep track of emails we've already scanned to prevent infinite loops
-const scannedEmails = new Set();
-
-function extractEmailData(emailContainer) {
-    // Gmail uses specific obfuscated classes, but generally elements can be found by standard selectors within the email pane
-    const subjectEl = document.querySelector('h2[data-thread-perm-id]');
-    const senderEl = emailContainer.querySelector('span[email]');
-    const bodyEl = emailContainer.querySelector('.ii.gt');
-    
-    if (!bodyEl) return null;
-
+function extractEmailData(container) {
+    const body = container.querySelector(ETAP_BODY_SELECTOR);
+    if (!body) return null;
+    const scope = body.closest('.gs') || container;
+    const sender = scope.querySelector('span[email]');
+    const subject = document.querySelector('h2[data-thread-perm-id]');
     return {
-        subject: subjectEl ? subjectEl.innerText : 'No Subject',
-        sender: senderEl ? senderEl.getAttribute('email') : 'Unknown Sender',
-        body: bodyEl.innerText,
+        messageId: EtapGmailOriginal.messageIdFor(body),
+        sender: sender?.getAttribute('email') || 'unknown@invalid',
+        subject: subject?.innerText || 'No Subject',
+        body: body.innerText || '',
     };
 }
-
-function injectBanner(emailContainer, reportData) {
-    if (emailContainer.querySelector('.etap-banner')) {
-        return; // Banner already exists
-    }
-
-    const banner = document.createElement('div');
-    banner.className = 'etap-banner';
-
-    // Parse the report from the backend (API returns risk_score at top level, and final_assessment inside ai_analysis)
-    const riskScore = reportData.risk_score || 0;
-    const verdict = reportData.verdict || 'Unknown';
-    
-    // Explanation is nested deeply inside ai_analysis
-    let explanation = 'No explanation provided.';
-    if (reportData.ai_analysis && reportData.ai_analysis.final_assessment && reportData.ai_analysis.final_assessment.supporting_evidence) {
-        explanation = reportData.ai_analysis.final_assessment.supporting_evidence[0] || explanation;
-    }
-
-    // Traffic light styling
-    const reportLink = reportData.email_id 
-        ? `${ETAP_APP_BASE_URL}/?dossier=${encodeURIComponent(reportData.email_id)}` 
-        : ETAP_APP_BASE_URL;
-
-    const heading = document.createElement('strong');
-    if (riskScore >= 65) {
-        banner.classList.add('banner-red');
-        heading.textContent = `🚨 High-Risk: ${verdict}`;
-    } else if (riskScore >= 40) {
-        banner.classList.add('banner-yellow');
-        heading.textContent = '⚠️ Suspicious';
-    } else {
-        banner.classList.add('banner-green');
-        heading.textContent = '✅ No high-risk signals detected';
-    }
-    const detail = document.createElement('span');
-    detail.textContent = ` — ${explanation || 'No explanation provided.'} `;
-    const link = document.createElement('a');
-    link.href = reportLink;
+function emailKey(data) {
+    return `${data.messageId || ''}|${data.subject}|${data.body.slice(0, 200)}`;
+}
+function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+}
+function bannerFor(container) {
+    const previous = container.querySelector(ETAP_BODY_SELECTOR)?.previousElementSibling;
+    return previous?.classList.contains('etap-banner') ? previous : null;
+}
+function replaceBanner(container, oldBanner, banner) {
+    oldBanner?.remove();
+    const body = container.querySelector(ETAP_BODY_SELECTOR);
+    if (body) body.parentNode.insertBefore(banner, body);
+}
+function platformLink() {
+    const link = el('a', 'etap-btn', 'Open E-TAP');
+    link.href = ETAP_APP_BASE_URL;
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
-    link.className = 'etap-btn';
-    link.textContent = 'View Full Report';
-    banner.append(heading, detail, link);
-
-    // Insert banner at the top of the email body
-    const bodyContainer = emailContainer.querySelector('.ii.gt');
-    if (bodyContainer) {
-        bodyContainer.parentNode.insertBefore(banner, bodyContainer);
+    return link;
+}
+function banner(container, existing, key, state, title, description) {
+    const node = el('div', `etap-banner etap-banner-rich ${state}`);
+    node.dataset.etapKey = key;
+    node.dataset.etapVersion = ETAP_CONFIG.version;
+    const row = el('div', 'etap-row');
+    row.append(el('strong', null, `E-TAP ${ETAP_CONFIG.version} · ${title}`), platformLink());
+    node.append(row, el('span', 'etap-sub', description));
+    replaceBanner(container, existing, node);
+    return node;
+}
+function renderIdle(container, existing, key) {
+    const node = banner(container, existing, key, 'banner-idle', 'E-TAP Email Analysis',
+        'Opens a report in a new tab. Tries the original email first; if unavailable, runs a clearly labeled content-only check. Email contents are sent to E-TAP only after you click.');
+    const button = el('button', 'etap-btn etap-btn-primary', 'Analyze in E-TAP');
+    button.type = 'button';
+    button.addEventListener('click', () => runAnalysis(container, node, key));
+    node.append(button);
+}
+function send(request) {
+    return new Promise((resolve, reject) => chrome.runtime.sendMessage(request, (response) => {
+        const error = chrome.runtime.lastError;
+        if (error || !response?.success) reject(new Error(response?.code || error?.message || 'handoff_failed'));
+        else resolve(response);
+    }));
+}
+async function runAnalysis(container, existing, key) {
+    const data = extractEmailData(container);
+    if (!data) return;
+    let current = banner(container, existing, key, 'banner-loading', 'Opening your analysis tab…',
+        'E-TAP will retrieve as much evidence as Gmail makes available.');
+    // Capture this specific message before opening another tab or navigating.
+    let reference;
+    try { reference = EtapGmailOriginal.referenceFor(container.querySelector(ETAP_BODY_SELECTOR), location.href); } catch { /* Content fallback remains available. */ }
+    let jobId;
+    try {
+        ({ jobId } = await send({ action: 'startEmailAnalysis', data }));
+        const now = extractEmailData(container);
+        if (current.isConnected && now && emailKey(now) === key) {
+            current = banner(container, current, key, 'banner-neutral', 'Continue in your analysis tab',
+                'Your report will open there automatically. If original headers cannot be retrieved, the report will explain what was unavailable.');
+            const reopen = el('button', 'etap-btn', 'Open analysis tab');
+            reopen.type = 'button';
+            reopen.addEventListener('click', () => send({ action: 'focusEmailAnalysis', jobId }).catch(() => window.open(ETAP_APP_BASE_URL, '_blank', 'noopener,noreferrer')));
+            current.append(reopen);
+        }
+    } catch (error) {
+        banner(container, current, key, 'banner-error', 'Open E-TAP to continue',
+            error.message === 'too_large' ? 'This email exceeds the upload limit. Use Open E-TAP to choose a different file.' : 'The extension could not create an analysis tab. Use Open E-TAP above; refresh Gmail to retry the handoff.');
+        return;
+    }
+    try {
+        if (!reference) throw new Error('original_unavailable');
+        const rawEmailBase64 = await EtapGmailOriginal.fetchOriginal(reference);
+        await send({ action: 'prepareEmailAnalysis', jobId, rawEmailBase64 });
+    } catch (error) {
+        // The new tab already has a message snapshot. Failure to obtain raw
+        // headers must not remove access to a report or the platform.
+        await send({ action: 'prepareEmailAnalysis', jobId, retrievalError: error.code || 'original_unavailable' }).catch(() => {});
     }
 }
-
-function scanVisibleEmails() {
-    // Gmail reading panes
-    const emailContainers = document.querySelectorAll('.adO, .gs, .nH.hx');
-    
-    emailContainers.forEach(container => {
-        // Check if we have already injected a banner (loading or final) into this specific email view
-        if (!container.querySelector('.etap-banner')) {
-            const data = extractEmailData(container);
-            
-            if (data && data.body.length > 10) {
-                console.log(`[E-TAP] Extracted Email:`, data.subject);
-                
-                // 1. Immediately inject the loading banner so we don't scan it again on the next tick
-                const loadingBanner = document.createElement('div');
-                loadingBanner.className = 'etap-banner banner-loading';
-                loadingBanner.innerText = '🛡️ E-TAP is analyzing this email...';
-                
-                const bodyContainer = container.querySelector('.ii.gt');
-                if (bodyContainer) {
-                    bodyContainer.parentNode.insertBefore(loadingBanner, bodyContainer);
-                }
-
-                // 2. Send to background script for analysis
-                chrome.runtime.sendMessage({ action: 'analyzeEmail', data: data }, response => {
-                    // Remove the loading banner
-                    if (loadingBanner.parentNode) {
-                        loadingBanner.parentNode.removeChild(loadingBanner);
-                    }
-                    // Inject the final banner or error banner
-                    if (response && response.success) {
-                        injectBanner(container, response.report);
-                    } else {
-                        console.error('E-TAP Analysis Failed:', response?.error);
-                        
-                        // Inject an error banner so we don't infinitely retry
-                        const errorBanner = document.createElement('div');
-                        errorBanner.className = 'etap-banner banner-red';
-                        errorBanner.innerHTML = `<strong>❌ API Error</strong> - Failed to analyze email. Check terminal for backend crashes.`;
-                        const bodyContainer = container.querySelector('.ii.gt');
-                        if (bodyContainer) bodyContainer.parentNode.insertBefore(errorBanner, bodyContainer);
-                    }
-                });
-            }
-        }
+function syncBanners() {
+    document.querySelectorAll('.adO, .gs, .nH.hx').forEach((container) => {
+        const data = extractEmailData(container);
+        if (!data) return;
+        const key = emailKey(data);
+        const existing = bannerFor(container);
+        if (existing?.dataset.etapKey === key && existing.dataset.etapVersion === ETAP_CONFIG.version) return;
+        renderIdle(container, existing, key);
     });
 }
-
-// Run scanner periodically to catch newly opened emails in Gmail's SPA
-setInterval(scanVisibleEmails, 2000);
+let etapSyncTimer = null;
+const etapObserver = new MutationObserver(() => {
+    clearTimeout(etapSyncTimer);
+    etapSyncTimer = setTimeout(syncBanners, 400);
+});
+etapObserver.observe(document.body, { childList: true, subtree: true });
+syncBanners();

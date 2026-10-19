@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { bandFor, displayLabel } from './verdict.js';
+import { getGeoMapData } from './geo.js';
 
 /**
  * pdfGenerator.js
@@ -328,7 +329,7 @@ export function generatePdfDocument(data, options = {}) {
       ['SPF', safe(headers.spf, 'unavailable').toUpperCase()],
       ['DKIM', safe(headers.dkim, 'unavailable').toUpperCase()],
       ['DMARC', safe(headers.dmarc, 'unavailable').toUpperCase()],
-      ['Originating IP', safe(headers.originating_ip)],
+      ['First public mail-hop IP', safe(headers.originating_ip)],
     ],
     columnStyles: { 0: { cellWidth: 120 } },
   });
@@ -477,12 +478,13 @@ export function generatePdfDocument(data, options = {}) {
     });
   }
 
-  // ---------- 6. Geographic Threat Origin & Relay Footprint ----------
-  if (threat_intel.geo && threat_intel.geo.length > 0) {
+  // Match the map's real coordinates and avoid claiming sender attribution.
+  const geoData = getGeoMapData(headers.hops, threat_intel.geo);
+  if (geoData.pointCount > 0) {
     y = sectionTitle(
       doc,
-      '6. Geographic Threat Origin & Relay Footprint',
-      'Stage B2 GeoIP Triangulation and visual relay infrastructure footprint',
+      '6. Mail-server IP Locations',
+      'Approximate IP network locations; not proof of the sender\'s physical location.',
       y
     );
 
@@ -517,8 +519,8 @@ export function generatePdfDocument(data, options = {}) {
     }
 
     y = tableBlock(doc, y, {
-      head: [['Observed IP', 'Triangulated Country', 'Latitude', 'Longitude']],
-      body: threat_intel.geo.map((g) => [
+      head: [['Observed IP', 'Estimated Country', 'Latitude', 'Longitude']],
+      body: geoData.points.map((g) => [
         safe(g.ip),
         safe(g.country),
         safe(g.lat),

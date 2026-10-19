@@ -111,13 +111,36 @@ def find_lookalike_brand(domain: str, threshold: float = 0.80) -> Optional[Dict]
     candidate_root = get_brand_root(domain)
     best_match = None
     best_score = 0.0
+    candidate_tokens = {token for token in re.split(r"[-_.]+", candidate_root) if token}
+    lure_terms = {
+        "secure", "security", "verify", "verification", "login", "logon",
+        "signin", "sign-in", "account", "accounts", "support", "billing",
+        "update", "confirm", "validate", "auth", "authentication", "service",
+    }
+    candidate_lures = sorted(candidate_tokens & lure_terms)
 
     for brand_domain in COMMONLY_IMPERSONATED_DOMAINS:
         brand_root = get_brand_root(brand_domain)
 
         if candidate_root == brand_root:
-            # exact match on the brand root — this domain probably IS
-            # the real brand (or at least isn't a typosquat of it)
+            # Exact brand root: do not call it a lookalike.
+            continue
+
+        # Brand-plus-lure domains often keep the brand token intact, so
+        # edit-distance similarity alone misses e.g. paypal-secure.com and
+        # secure-paypal-login.com. Require both an exact brand token and a
+        # context token to avoid broad substring matches against ordinary firms.
+        if len(brand_root) >= 4 and brand_root in candidate_tokens and candidate_lures:
+            score = 1.0
+            match = {
+                "brand": brand_domain,
+                "similarity": score,
+                "edit_distance": 0,
+                "match_type": "brand_plus_lure",
+                "lure_terms": candidate_lures,
+            }
+            if best_match is None or score > best_score:
+                best_score, best_match = score, match
             continue
 
         score = similarity_ratio(candidate_root, brand_root)
@@ -127,6 +150,8 @@ def find_lookalike_brand(domain: str, threshold: float = 0.80) -> Optional[Dict]
                 "brand": brand_domain,
                 "similarity": round(score, 3),
                 "edit_distance": levenshtein_distance(candidate_root, brand_root),
+                "match_type": "typosquat",
+                "lure_terms": [],
             }
 
     return best_match

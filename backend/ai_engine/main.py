@@ -5,7 +5,7 @@ Legacy Stage C content classification, now reused by Stage G.
 
 Analyzes ONLY the textual content of an email (subject / body_text /
 body_html) using Gemini, and classifies it against the fixed 30-category
-threat taxonomy defined in prompts.py. See README.md for local setup
+threat taxonomy defined in prompts.py. See CONTEXT.md (repo root) for local setup
 (Gemini API key) and full details.
 
 Usage (this is what other stages should do):
@@ -57,15 +57,18 @@ def _get_gemini_client():
             "its explicit offline fallback for local pipeline demos."
         )
 
+    timeout_ms = int(os.getenv("GEMINI_REQUEST_TIMEOUT_MS", "15000"))
+    timeout_ms = max(1000, min(timeout_ms, 60000))
     try:
         from google import genai
+        from google.genai import types
     except ImportError as exc:
         raise RuntimeError(
             "google-genai is not installed. Install backend dependencies from "
             "backend/requirements.txt to enable Gemini analysis."
         ) from exc
 
-    return genai.Client(api_key=api_key)
+    return genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=timeout_ms))
 
 
 def calculate_content_risk(categories):

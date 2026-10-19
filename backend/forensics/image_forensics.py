@@ -71,6 +71,23 @@ def _decode_qr_opencv(cv_img) -> list[str]:
     return []
 
 
+def available_qr_decoders() -> list[str]:
+    """Names of QR decoders that can actually run in this environment."""
+    found = []
+    try:
+        from pyzbar import pyzbar  # noqa: F401  (import fails without the zbar library)
+        found.append("pyzbar")
+    except Exception:
+        pass
+    try:
+        import cv2
+        cv2.QRCodeDetector()
+        found.append("opencv")
+    except Exception:
+        pass
+    return found
+
+
 def _run_ocr(cv_img_or_pil) -> str:
     """Attempt OCR using pytesseract if tesseract binary is installed."""
     try:
@@ -107,6 +124,9 @@ def scan_image_attachment(attachment_bytes: bytes, filename: str = "") -> dict[s
     result = {
         "ocr_text": "",
         "qr_urls": [],
+        "qr_payloads": [],          # every decoded QR, URL or not
+        "qr_status": "image_unreadable",
+        "qr_decoders": [],
         "has_qr": False,
         "has_ocr_text": False,
     }
@@ -135,7 +155,7 @@ def scan_image_attachment(attachment_bytes: bytes, filename: str = "") -> dict[s
 
     if cv_img is None and pil_img is None:
         logger.debug("Could not decode image bytes for '%s'", filename)
-        return result
+        return result  # qr_status stays "image_unreadable"
 
     # 3. QR Code Scanning
     qr_payloads: list[str] = []
@@ -148,6 +168,20 @@ def scan_image_attachment(attachment_bytes: bytes, filename: str = "") -> dict[s
     # Try OpenCV QRCodeDetector if pyzbar didn't find anything
     if not qr_payloads and cv_img is not None:
         qr_payloads.extend(_decode_qr_opencv(cv_img))
+
+    decoders = available_qr_decoders()
+    result["qr_decoders"] = decoders
+    if qr_payloads:
+        result["qr_status"] = "decoded"
+    elif not decoders:
+        result["qr_status"] = "decoder_unavailable"
+    else:
+        result["qr_status"] = "no_qr_found"
+    result["qr_payloads"] = [
+        {"kind": "url" if p.lower().startswith(("http://", "https://")) else "other",
+         "text": p[:500]}
+        for p in dict.fromkeys(qr_payloads)
+    ]
 
     # Filter/extract valid URLs from QR payloads
     qr_urls: list[str] = []

@@ -1,46 +1,56 @@
-// E-TAP Gmail prototype. Change this URL when deploying the backend.
-const ETAP_API_BASE_URL = 'https://etap-backend-od1c.onrender.com';
+importScripts('config.js', 'gmail-original.js', 'handoff-store.js');
+
+function gmailSender(sender) {
+    try { return new URL(sender.url).origin === 'https://mail.google.com' && Number.isInteger(sender.tab?.id); }
+    catch { return false; }
+}
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === 'analyzeEmail') {
-        const emailData = request.data;
-        
-        // Construct a raw EML structure dynamically
-        const emlContent = `From: ${emailData.sender || 'unknown@example.com'}
-To: current_user@domain.com
-Subject: ${emailData.subject || 'No Subject'}
-Date: ${new Date().toUTCString()}
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-
-${emailData.body}`;
-
-        // Create a blob representing the EML file
-        const blob = new Blob([emlContent], { type: 'message/rfc822' });
-        
-        // Create FormData matching the FastAPI '/analyze' endpoint
-        const formData = new FormData();
-        formData.append('file', blob, 'extension_scan.eml');
-        
-        // Hit the live Render API
-        fetch(`${ETAP_API_BASE_URL}/analyze`, {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('API Request Failed');
-            }
-            return response.json();
-        })
-        .then(data => {
-            sendResponse({ success: true, report: data });
-        })
-        .catch(error => {
-            console.error('E-TAP API Error:', error);
-            sendResponse({ success: false, error: error.toString() });
-        });
-        
-        // Return true to indicate asynchronous response
-        return true;
+    if (!['startEmailAnalysis', 'prepareEmailAnalysis', 'focusEmailAnalysis'].includes(request.action)) return;
+    if (!gmailSender(sender)) {
+        sendResponse({ success: false, code: 'invalid_sender' });
+        return;
     }
+    (async () => {
+        if (request.action === 'startEmailAnalysis') {
+            const id = crypto.randomUUID();
+            const job = {
+                id, createdAt: Date.now(), gmailTabId: sender.tab.id, state: 'retrieving',
+                data: {
+                    sender: String(request.data?.sender || ''),
+                    subject: String(request.data?.subject || ''),
+                    body: String(request.data?.body || ''),
+                },
+            };
+            if (new TextEncoder().encode(JSON.stringify(job.data)).length > EtapGmailOriginal.MAX_BYTES) throw new Error('too_large');
+            await EtapHandoffStore.create(job);
+            let tab;
+            try {
+                tab = await chrome.tabs.create({ url: chrome.runtime.getURL(`analysis.html?job=${id}`), active: true });
+            } catch (error) {
+                await EtapHandoffStore.remove(id);
+                throw error;
+            }
+            await EtapHandoffStore.update(id, (current) => ({ ...current, analysisTabId: tab.id }));
+            return { success: true, jobId: id };
+        }
+        const job = await EtapHandoffStore.get(request.jobId);
+        if (!job || job.gmailTabId !== sender.tab.id) throw new Error('handoff_expired');
+        if (request.action === 'focusEmailAnalysis') {
+            await chrome.tabs.update(job.analysisTabId, { active: true });
+            return { success: true };
+        }
+        if (request.rawEmailBase64) EtapGmailOriginal.decode(request.rawEmailBase64);
+        await EtapHandoffStore.update(job.id, (current) => current.state !== 'retrieving' ? current : {
+            ...current, state: 'ready', rawEmailBase64: request.rawEmailBase64 || null,
+            retrievalError: request.retrievalError || null,
+        });
+        return { success: true };
+    })().then(sendResponse).catch((error) => {
+        sendResponse({ success: false, code: error.code || error.message || 'handoff_failed' });
+    });
+    return true;
 });
+
+// Always provide a way into the platform, even outside an open message.
+chrome.action.onClicked.addListener(() => chrome.tabs.create({ url: ETAP_CONFIG.appBaseUrl }));

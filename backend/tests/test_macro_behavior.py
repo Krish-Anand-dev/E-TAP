@@ -80,6 +80,7 @@ def test_clean_document_produces_no_false_positives():
         "has_macro": False, "suspicious": False,
         "autoexec_triggers": [], "suspicious_actions": [],
         "referenced_iocs": [], "flags": [],
+        "parse_failed": False,
     }
     print("PASS: clean document produces no false positives")
 

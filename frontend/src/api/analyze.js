@@ -26,10 +26,8 @@ export async function analyzeEmailFile(file, onUploadProgress) {
  */
 export async function checkBackendHealth() {
   try {
-    // The local sandbox backend exposes liveness at /health. The deployment
-    // project's /ready endpoint is not part of this backend's API contract.
-    const response = await apiClient.get('/health', { timeout: 15000 });
-    return response.status === 200 && response.data?.status === 'ok';
+    const response = await apiClient.get('/ready', { timeout: 10000 });
+    return response.status === 200 && response.data?.status === 'ready';
   } catch {
     return false;
   }
@@ -42,5 +40,24 @@ export async function checkBackendHealth() {
  */
 export async function fetchInvestigation(id) {
   const response = await apiClient.get(`/investigations/${id}`);
+  return response.data;
+}
+
+/**
+ * Start a background analysis and return { job_id, stages } immediately.
+ * Poll getAnalysisJob(job_id) to follow live stage progress.
+ */
+export async function startAnalysisJob(file, source) {
+  const formData = new FormData();
+  formData.append('file', file, file.name);
+  if (source) formData.append('source', source);
+  const response = await apiClient.post('/analyze/jobs', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+}
+
+export async function getAnalysisJob(jobId) {
+  const response = await apiClient.get(`/analyze/jobs/${jobId}`, { timeout: 15000 });
   return response.data;
 }

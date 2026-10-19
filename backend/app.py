@@ -7,8 +7,8 @@ except ImportError:  # pragma: no cover
 
 if load_dotenv is not None:
     from pathlib import Path
-    # Resolve independently of the terminal's working directory; explicit
-    # process environment (including launcher options) takes precedence.
+    # Resolve the repository .env independently of the terminal's working
+    # directory; explicit process environment (launcher options) wins.
     load_dotenv(Path(__file__).resolve().parents[1] / '.env', override=False)
 
 import os
@@ -20,15 +20,18 @@ except ImportError:
 
 import logging
 import asyncio
+from typing import Any, Optional
 
-from fastapi import FastAPI, File, HTTPException, UploadFile, Request
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile, Request
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from email_parser.unified_parser import UnsupportedFileTypeError
-from pipeline import analyze_email_upload
+from pipeline import analyze_email_upload, VALID_SOURCES
+from verdicts import finalize_verdict
+from evidence import build_for_stored_record
 
 logger = logging.getLogger("E-TAP.api")
 
@@ -39,7 +42,7 @@ app = FastAPI(title="Threat Email Analysis Platform")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# CORS configuration: default to * in dev, configure ALLOWED_ORIGINS in production
+# CORS uses explicit origins in both local development and production.
 allowed_origins_raw = os.environ.get("ALLOWED_ORIGINS", "http://127.0.0.1:5173,http://localhost:5173")
 allowed_origins = [o.strip() for o in allowed_origins_raw.split(",") if o.strip()]
 
@@ -70,29 +73,73 @@ def startup_event():
         host = uri.split("@")[-1].split("/")[0] if "@" in uri else "Atlas Cluster"
         print(f"  [DB STATUS] MONGODB ATLAS CLUSTER (Cloud): {host}")
     else:
-        print(f"  [DB STATUS] LOCAL MONGODB: {uri.split('?')[0]}")
+        print("  [DB STATUS] LOCAL MONGODB")
 
     try:
         db = get_db()
         print(f"  [DATABASE]  Active Database: '{db.name}'")
         print(f"  [SECURITY]  Rate limiter configured (per-endpoint limits apply)")
         print(f"  [SECURITY]  Upload Limit: 25 MB | XSS Iframe Isolation active")
-        print(f"  [STATUS]    Ready to receive forensic email artifacts on port {os.getenv('PORT', '5000')}")
+        print(f"  [STATUS]    Ready to receive forensic email artifacts on port {os.environ.get('PORT', '5000')}")
     except Exception as exc:
-        print(f"  [DB ERROR]  Connection failed: {exc}")
+        print(f"  [DB ERROR]  Connection failed ({type(exc).__name__})")
     print("=" * 68 + "\n")
+
+
+@app.api_route("/", methods=["GET", "HEAD"])
+@limiter.exempt
+def root() -> dict:
+    """Small service index; the root URL is not an analysis endpoint."""
+    return {"service": "E-TAP API", "status": "online", "health": "/health", "readiness": "/ready", "docs": "/docs"}
 
 
 @app.get("/health")
 @limiter.exempt
 def health() -> dict:
-    return {"status": "ok"}
+    """Liveness probe: confirms the web process can answer requests."""
+    return {"status": "ok", "check": "liveness"}
+
+
+@app.get("/ready")
+@limiter.exempt
+def ready() -> Any:
+    """Readiness probe: checks that the configured database is reachable."""
+    from db.connection import get_db
+    from fastapi.responses import JSONResponse
+    try:
+        db = get_db()
+        if os.environ.get("USE_FAKE_DB") == "1":
+            database_status = "in_memory_fake"
+        else:
+            # MongoDB Database.command performs a real round-trip ping.
+            db.command("ping")
+            database_status = "ok"
+        return {"status": "ready", "checks": {"database": database_status}}
+    except Exception as exc:
+        logger.warning("Readiness check failed (%s)", type(exc).__name__)
+        return JSONResponse(
+            status_code=503,
+            content={"status": "not_ready", "checks": {"database": "unavailable"}},
+        )
 
 
 @app.post("/analyze", response_model=None)
 @limiter.limit("10/minute")
-async def analyze(request: Request, file: UploadFile = File(...)) -> dict:
+async def analyze(
+    request: Request,
+    file: UploadFile = File(...),
+    source: str | None = Form(None),
+) -> dict:
+    """
+    `source` is optional. Send "quick_content_check" when the .eml was rebuilt
+    from visible mail-client text so the backend does not pretend to have
+    original headers. The Gmail extension sends original bytes with
+    "full_message", or labels its visible-text fallback "quick_content_check".
+    Omitting source also selects full-message analysis.
+    """
     filename = file.filename or "uploaded_email.eml"
+    if source is not None and source not in VALID_SOURCES:
+        raise HTTPException(status_code=400, detail="Unsupported analysis source.")
     try:
         # Enforce streaming read with hard maximum size limit (25MB)
         raw_bytes = bytearray()
@@ -113,7 +160,9 @@ async def analyze(request: Request, file: UploadFile = File(...)) -> dict:
 
         # Run heavy synchronous pipeline (WHOIS, VirusTotal, Gemini, DB) in worker thread
         # to ensure the main asyncio event loop never freezes during /health checks
-        return await asyncio.to_thread(analyze_email_upload, filename, bytes(raw_bytes))
+        report = await asyncio.to_thread(analyze_email_upload, filename, bytes(raw_bytes), source)
+        from workflow_c import finish_analysis
+        return await asyncio.to_thread(finish_analysis, report)
 
     except UnsupportedFileTypeError as exc:
         # Clean 400 with descriptive client error
@@ -122,14 +171,55 @@ async def analyze(request: Request, file: UploadFile = File(...)) -> dict:
         raise
     except Exception as exc:
         # Prevent stack trace and filesystem path leakage
-        logger.exception(f"Unhandled error analyzing {filename}: {exc}")
+        logger.warning("Analysis failed (%s)", type(exc).__name__)
         raise HTTPException(
             status_code=500,
             detail="An error occurred while analyzing the email artifact. Verify the file is an undamaged RFC 822 (.eml) or Outlook (.msg) file."
         ) from None
 
 
-from typing import Optional, Any
+async def _read_upload(file: UploadFile) -> bytes:
+    raw_bytes = bytearray()
+    while True:
+        chunk = await file.read(64 * 1024)
+        if not chunk:
+            break
+        raw_bytes.extend(chunk)
+        if len(raw_bytes) > MAX_UPLOAD_SIZE:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Uploaded artifact exceeds maximum size limit of {MAX_UPLOAD_SIZE // (1024 * 1024)}MB."
+            )
+    if not raw_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+    return bytes(raw_bytes)
+
+
+@app.post("/analyze/jobs", response_model=None)
+@limiter.limit("10/minute")
+async def start_analysis_job(
+    request: Request,
+    file: UploadFile = File(...),
+    source: str | None = Form(None),
+) -> dict:
+    """Start an analysis in the background; poll GET /analyze/jobs/{job_id} for live stage progress."""
+    if source is not None and source not in VALID_SOURCES:
+        raise HTTPException(status_code=400, detail="Unsupported analysis source.")
+    from analysis_jobs import start_job
+    raw_bytes = await _read_upload(file)
+    return start_job(file.filename or "uploaded_email.eml", raw_bytes, source)
+
+
+@app.get("/analyze/jobs/{job_id}", response_model=None)
+@limiter.exempt
+async def get_analysis_job(request: Request, job_id: str) -> dict:
+    from analysis_jobs import get_job
+    job = get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Analysis job not found or expired.")
+    return job
+
+
 from pydantic import BaseModel, Field
 
 
@@ -137,6 +227,35 @@ class ChatRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=2000)
     email_id: Optional[str] = Field(None, description="Scope query strictly to the currently opened email artifact")
     email_context: Optional[dict[str, Any]] = Field(None, description="Active email dossier data from frontend")
+
+
+@app.get('/investigations')
+async def investigations(request: Request, offset: int = 0, limit: int = 50):
+    from db.connection import get_db
+    if offset < 0 or offset > 5000 or not 1 <= limit <= 100:
+        raise HTTPException(400, 'Invalid page')
+    fields = {'subject': 1, 'verdict': 1, 'risk_score': 1, 'verdict_band': 1, 'analyzed_at': 1, 'from_email': 1,
+              'campaign_id': 1, 'workflow.state': 1, 'content_analysis.attack_type': 1}
+    docs = list(get_db()['analyzed_emails'].find({}, fields).sort('analyzed_at', -1))
+    out = []
+    for d in docs[offset:offset+limit]:
+        decision = finalize_verdict(d.get('verdict'), d.get('risk_score') or 0)
+        analyzed = d.get('analyzed_at')
+        out.append({
+            'email_id': str(d['_id']), 'subject': d.get('subject'), 'from_email': d.get('from_email'),
+            'verdict': decision['verdict'], 'risk_score': decision['risk_score'], 'verdict_band': decision['verdict_band'],
+            'analyzed_at': analyzed.isoformat() if hasattr(analyzed, 'isoformat') else analyzed,
+            'campaign_id': d.get('campaign_id'),
+            'attack_type': (d.get('content_analysis') or {}).get('attack_type') or d.get('content_analysis.attack_type'),
+            'review_state': (d.get('workflow') or {}).get('state', d.get('workflow.state', 'unrecorded')),
+        })
+    return out
+
+
+@app.get('/campaigns')
+async def campaigns(request: Request):
+    from correlation.queries import list_campaigns
+    return list_campaigns()
 
 
 @app.post("/chat")
@@ -147,15 +266,23 @@ async def chat(request: Request, payload: ChatRequest) -> dict:
     from rag.chat import answer_query
     try:
         db = get_db()
+        if payload.email_context is not None:
+            raise HTTPException(400, "Client-supplied investigation context is not accepted; use email_id.")
+        if payload.email_id:
+            from db.repository import get_analysis
+            if get_analysis(db, payload.email_id) is None:
+                raise HTTPException(404, "Investigation not found")
         return await asyncio.to_thread(
             answer_query,
             payload.question,
             db,
             payload.email_id,
-            payload.email_context,
+            None,
         )
+    except HTTPException:
+        raise
     except Exception as exc:
-        logger.exception(f"Error during RAG chat query: {exc}")
+        logger.warning("Chat failed (%s)", type(exc).__name__)
         raise HTTPException(
             status_code=500,
             detail="An error occurred while answering the query against historical investigations."
@@ -165,32 +292,26 @@ async def chat(request: Request, payload: ChatRequest) -> dict:
 @app.get("/sandbox/{email_id}")
 @limiter.limit("60/minute")
 async def get_sandbox_status(request: Request, email_id: str) -> dict:
-    """Retrieve current sandbox analysis status for an email."""
+    """Current sandbox (VirtualBox detonation) status and results for an email."""
     from db.connection import get_db
-    from db.schema import ANALYSES_COLLECTION
-    from bson import ObjectId
+    from db.repository import get_analysis
+    from sandbox.worker import current_analysis
     try:
-        db = get_db()
-        query = {"_id": ObjectId(email_id)} if ObjectId.is_valid(email_id) else {"email_id": email_id}
-        doc = db[ANALYSES_COLLECTION].find_one(query)
-
+        doc = get_analysis(get_db(), email_id)
         if not doc:
             raise HTTPException(status_code=404, detail="Investigation not found")
-
-        sandbox = doc.get("sandbox_analysis") or {}
-        from sandbox.worker import current_analysis
-        sandbox = current_analysis(email_id, sandbox)
-
+        decision = finalize_verdict(doc.get("verdict"), doc.get("risk_score") or 0)
         return {
             "email_id": email_id,
-            "sandbox": sandbox,
-            "risk_score": doc.get("risk_score"),
-            "verdict": doc.get("verdict"),
+            "sandbox": current_analysis(email_id, doc.get("sandbox_analysis")),
+            "risk_score": decision["risk_score"],
+            "verdict": decision["verdict"],
+            "verdict_band": decision["verdict_band"],
         }
     except HTTPException:
         raise
     except Exception as exc:
-        logger.exception(f"Error fetching sandbox status {email_id}: {exc}")
+        logger.warning("Sandbox status read failed (%s)", type(exc).__name__)
         raise HTTPException(status_code=500, detail="Failed to retrieve sandbox status")
 
 
@@ -199,15 +320,11 @@ async def get_sandbox_status(request: Request, email_id: str) -> dict:
 async def get_investigation(request: Request, email_id: str) -> dict:
     """Retrieve a specific investigation dossier by ID."""
     from db.connection import get_db
-    from db.schema import ANALYSES_COLLECTION
-    from bson import ObjectId
     try:
         db = get_db()
         
-        # Determine if email_id is a valid ObjectId, otherwise try string search
-        query = {"_id": ObjectId(email_id)} if ObjectId.is_valid(email_id) else {"email_id": email_id}
-        
-        doc = db[ANALYSES_COLLECTION].find_one(query)
+        from db.repository import get_analysis
+        doc = get_analysis(db, email_id)
         
         if not doc:
             raise HTTPException(status_code=404, detail="Investigation not found")
@@ -223,12 +340,32 @@ async def get_investigation(request: Request, email_id: str) -> dict:
         
         fa = doc.get("final_assessment") or {}
         from sandbox.worker import current_analysis
-        sandbox = current_analysis(email_id, doc.get("sandbox_analysis"))
-        
+
+        # Same verdict/band logic as live analyses, so records saved before
+        # verdict normalization existed render consistently.
+        decision = finalize_verdict(
+            doc.get("verdict") or fa.get("verdict"),
+            doc.get("risk_score") if doc.get("risk_score") is not None else fa.get("risk_score", 0),
+        )
+
         mapped_doc = {
             "email_id": str(doc["_id"]),
-            "risk_score": doc.get("risk_score") or fa.get("risk_score", 0),
-            "verdict": doc.get("verdict") or fa.get("verdict", "UNKNOWN"),
+            "risk_score": decision["risk_score"],
+            "verdict": decision["verdict"],
+            "verdict_band": decision["verdict_band"],
+            "analysis_provenance": doc.get("analysis_provenance"),
+            # Stored with the record when available; older records are rebuilt
+            # from what they kept and marked `reconstructed`.
+            "evidence_report": doc.get("evidence_report") if (doc.get("evidence_report") or {}).get("schema_version") == 2 else build_for_stored_record(doc, decision),
+            # B5/B6/B10: absent on records saved before these existed (not rebuilt:
+            # the stored record never kept the HTML or the images).
+            "link_analysis": doc.get("link_analysis"),
+            "qr_trace": doc.get("qr_trace"),
+            "privacy_report": doc.get("privacy_report"),
+            "baseline_context": doc.get("baseline_context"),
+            "case": doc.get("case"),
+            "retention": {"days": doc.get("retention_days", 30), "expires_at": doc.get("expires_at")},
+            "provider_status": doc.get("provider_status"),
             "email": {
                 "subject": doc.get("subject", "(No Subject Header)"),
                 "from_raw": doc.get("from_email", ""),
@@ -253,17 +390,23 @@ async def get_investigation(request: Request, email_id: str) -> dict:
             },
             "mitre_attack": doc.get("mitre_attack") or [],
             "triage": doc.get("triage") or {},
-            "sandbox": sandbox or {"status": "not_applicable", "mode": "none"},
-            "stage_status": doc.get("stage_status") or {
-                "A": "complete", "B": "complete", "B2": "complete",
-                "D": "complete", "E": "live", "F": "complete",
-                "G": "gemini", "H": "complete",
-            },
+            "sandbox": current_analysis(email_id, doc.get("sandbox_analysis")) or {"status": "not_applicable", "mode": "none"},
+            # Older records predate stored stage_status; report "unknown" rather
+            # than inventing "live"/"gemini" for stages we cannot vouch for.
+            "stage_status": doc.get("stage_status") or {"E": "unknown", "G": "unknown"},
         }
+        # The sandbox can raise the score after the evidence report was stored;
+        # keep the report's headline numbers in step with the final decision.
+        conclusion = (mapped_doc.get("evidence_report") or {}).get("conclusion")
+        if isinstance(conclusion, dict) and conclusion.get("risk_score") != decision["risk_score"]:
+            conclusion.update(label=decision["verdict"], band=decision["verdict_band"], risk_score=decision["risk_score"])
         return mapped_doc
     except HTTPException:
         raise
     except Exception as exc:
-        logger.exception(f"Error fetching investigation {email_id}: {exc}")
+        logger.warning("Investigation read failed (%s)", type(exc).__name__)
         raise HTTPException(status_code=500, detail="Database query failed")
 
+
+from workflow_c import router as workflow_router
+app.include_router(workflow_router)

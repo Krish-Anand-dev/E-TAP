@@ -8,7 +8,9 @@ from datetime import datetime, timezone
 
 try:
     import whois  # python-whois package
+    _WHOIS_AVAILABLE = True
 except ImportError:  # pragma: no cover - exercised in minimal local envs
+    _WHOIS_AVAILABLE = False
     class _MissingWhois:
         @staticmethod
         def whois(domain: str):
@@ -45,7 +47,7 @@ def get_domain_info(domain: str, timeout_seconds: float = 3.0) -> dict:
     cache_key = f"whois:{domain}"
     cached = _domain_cache.get(cache_key)
     if cached is not None:
-        return cached
+        return dict(cached, lookup_source="cache")
 
     prev_timeout = socket.getdefaulttimeout()
     try:
@@ -62,15 +64,21 @@ def get_domain_info(domain: str, timeout_seconds: float = 3.0) -> dict:
             age_days = (datetime.now(timezone.utc) - creation_date).days
 
         result = {
+            "status": "available",
+            "lookup_source": "remote",
             "age_days": age_days,
             "registrar": _first(w.registrar),
             "creation_date": creation_date.isoformat() if creation_date else None,
             "country": _first(w.get("country")) if hasattr(w, "get") else None,
         }
+    except ImportError:
+        return {"status": "not_configured", "age_days": -1, "error": "python-whois is not installed"}
+    except (socket.timeout, TimeoutError):
+        return {"status": "timeout", "lookup_source": "remote", "age_days": -1, "error": "WHOIS request timed out"}
     except Exception as e:
-        # Common causes: domain doesn't exist, WHOIS server rate-limited us,
-        # privacy-protected registration with no useful data, or socket timeout
-        result = {"age_days": -1, "error": f"WHOIS lookup failed or timed out: {e}"}
+        # The exception may contain queried domains or network details; don't
+        # return it verbatim in a public report. Failed results are not cached.
+        return {"status": "network_error", "lookup_source": "remote", "age_days": -1, "error": f"WHOIS lookup failed ({type(e).__name__})"}
     finally:
         socket.setdefaulttimeout(prev_timeout)
 

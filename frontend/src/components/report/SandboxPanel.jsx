@@ -44,7 +44,7 @@ export function SandboxPanel({ sandbox }) {
       <div className="forensic-panel-header">
         <div className="panel-title-group">
           <span className="panel-title">
-            🧪 Sandbox Analysis
+            Sandbox Analysis
             {isReplay && (
               <span style={{
                 marginLeft: 8, padding: '2px 8px', borderRadius: 4,

@@ -70,6 +70,9 @@ def analyze_attachment(raw_attachment: dict) -> dict:
         "flags": [],
         "ocr_text": "",
         "qr_urls": [],
+        "qr_payloads": [],
+        "qr_status": None,   # only set for images: decoded / no_qr_found / decoder_unavailable / image_unreadable
+        "is_image": False,
     }
 
     if not b64_data:
@@ -130,19 +133,22 @@ def analyze_attachment(raw_attachment: dict) -> dict:
         or declared_type.startswith("image/")
         or any(lowered_name.endswith(ext) for ext in (".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tiff"))
     )
+    result["is_image"] = bool(is_image)
     if is_image:
         try:
             from .image_forensics import scan_image_attachment
             scan_res = scan_image_attachment(raw_bytes, filename)
             result["ocr_text"] = scan_res.get("ocr_text", "")
             result["qr_urls"] = scan_res.get("qr_urls", [])
+            result["qr_payloads"] = scan_res.get("qr_payloads", [])
+            result["qr_status"] = scan_res.get("qr_status")
             if result["qr_urls"]:
                 result["flags"].append(f"hidden QR code containing {len(result['qr_urls'])} URL(s) detected")
             if result["ocr_text"]:
                 result["flags"].append(f"text extracted from image via OCR ({len(result['ocr_text'])} chars)")
         except Exception as img_exc:
             # Must never crash attachment forensics
-            pass
+            result["qr_status"] = "scan_failed"
 
     executable_types = {"application/x-msdownload", "application/x-elf"}
     disguised_executable = (

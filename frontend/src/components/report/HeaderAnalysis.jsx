@@ -109,7 +109,7 @@ export function HeaderAnalysis({ headers = {} }) {
           </div>
         </div>
         <div className="meta-field">
-          <div className="meta-field-label">ORIGINATING IP</div>
+          <div className="meta-field-label">FIRST PUBLIC MAIL-HOP IP</div>
           <div className="meta-field-value mono-val">
             {available === false ? 'Not available' : (originating_ip || 'None detected (Internal/Relay)')}
           </div>

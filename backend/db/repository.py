@@ -32,6 +32,7 @@ def _return_document_after(db: Any) -> Any:
     """find_one_and_update's return_document sentinel differs between
     real pymongo and the fake backend; pick whichever one this db
     understands."""
+    db = getattr(db, "_db", db)
     if _PymongoReturnDocument is not None:
         try:
             from pymongo.database import Database as _MongoDatabase
@@ -84,10 +85,10 @@ def insert_analysis(db: Any, doc: dict) -> str:
 
 def get_analysis(db: Any, email_id: str) -> Optional[dict]:
     """Fetch a single analyzed_emails document by its string id."""
-    for doc in db[ANALYSES_COLLECTION].find({}):
-        if str(doc.get("_id")) == str(email_id):
-            return doc
-    return None
+    from bson import ObjectId
+    collection = db[ANALYSES_COLLECTION]
+    key = ObjectId(email_id) if ObjectId.is_valid(str(email_id)) else str(email_id)
+    return collection.find_one({'_id': key}) or collection.find_one({'email_id': str(email_id)})
 
 
 def update_analysis_fields(db: Any, email_id: str, fields: dict) -> bool:

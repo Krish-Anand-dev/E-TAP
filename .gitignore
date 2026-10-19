@@ -5,7 +5,6 @@ __pycache__/
 venv/
 .pytest_cache/
 .coverage
-.local/
 
 # Node / frontend build
 node_modules/
@@ -36,6 +35,12 @@ backend/tests/*results.json
 .DS_Store
 Thumbs.db
 
+# Local validation and delivery artifacts
+tmp/
+.local/
+output/
+
 # Sandbox work directory (samples, telemetry, temporary files)
 backend/sandbox/work/
+backend/backend/sandbox/work/
 backend/sandbox/replays/*.xml

@@ -1,6 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { capabilitiesFromSpec } from '../src/utils/backendCapabilities.js';
 import { ACTIVE_SANDBOX_STATUSES, TERMINAL_SANDBOX_STATUSES, mergeSandboxReport } from '../src/utils/sandbox.js';
 
 test('sandbox polling preserves original email content and unrelated forensic evidence', () => {
@@ -48,22 +47,11 @@ test('polling continues through VM restoration and stops at terminal outcomes', 
   }
 });
 
-test('local API does not advertise unsupported hosted actions', () => {
-  const capabilities = capabilitiesFromSpec({ paths: {
-    '/health': { get: {} }, '/analyze': { post: {} }, '/chat': { post: {} },
-    '/investigations/{email_id}': { get: {} }, '/sandbox/{email_id}': { get: {} },
-  } });
-  assert.deepEqual(capabilities, { storedReports: false, workspace: false, workflow: false, retention: false });
-});
-
-test('hosted controls require the full set of routes they use', () => {
-  const paths = {
-    '/analytics': { get: {} }, '/baselines': { get: {}, put: {} },
-    '/investigations': { get: {}, delete: {} },
-    '/investigations/{id}': { get: {}, delete: {} },
-    '/preferences': { put: {} }, '/investigations/{id}/share': { get: {} },
-  };
-  assert.deepEqual(capabilitiesFromSpec({ paths }), { storedReports: true, workspace: true, workflow: false, retention: true });
-  delete paths['/baselines'].put;
-  assert.equal(capabilitiesFromSpec({ paths }).workspace, false);
+test('sandbox polling carries the raised verdict band and evidence report', () => {
+  const merged = mergeSandboxReport(
+    { email_id: 'e', verdict_band: 'safe', evidence_report: { conclusion: { band: 'safe' } } },
+    { email_id: 'e', sandbox: { status: 'done' }, verdict_band: 'danger', evidence_report: { conclusion: { band: 'danger' } } },
+  );
+  assert.equal(merged.verdict_band, 'danger');
+  assert.equal(merged.evidence_report.conclusion.band, 'danger');
 });

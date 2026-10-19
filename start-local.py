@@ -68,7 +68,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--install', action='store_true', help='Create .venv and install Python/frontend dependencies')
     parser.add_argument('--memory-db', action='store_true', help='Use ephemeral storage; investigations are lost on shutdown')
-    parser.add_argument('--backend-port', type=int, default=0, help='Preferred API port (default: randomly assigned available port)')
+    parser.add_argument('--backend-port', type=int, default=5000, help='Preferred API port (default: 5000, which the Gmail extension uses; falls back if busy)')
     parser.add_argument('--frontend-port', type=int, default=5173, help='Preferred frontend port (default: 5173, falls back if busy)')
     parser.add_argument('--no-browser', action='store_true', help='Do not open the dashboard automatically')
     args = parser.parse_args()

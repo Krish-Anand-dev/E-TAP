@@ -36,6 +36,20 @@ class MitreAttackMapping(BaseModel):
     evidence: list[str]
 
 
+class AiFinding(BaseModel):
+    """
+    One interpretive statement by the model, tied to the evidence it rests on.
+
+    `evidence_ids` must be ids from the `evidence_ledger` supplied in the
+    prompt. Ids that do not exist are discarded server-side and the statement
+    is shown as "not tied to specific evidence" rather than as grounded.
+    """
+    claim: str
+    why_it_matters: str
+    direction: str  # "raises_risk" | "lowers_risk" | "neutral"
+    evidence_ids: list[str]
+
+
 class FinalAssessment(BaseModel):
     verdict: str
     risk_score: int = Field(ge=0, le=100)
@@ -45,6 +59,8 @@ class FinalAssessment(BaseModel):
     supporting_evidence: list[str]
     mitre_attack: list[MitreAttackMapping]
     recommended_actions: list[str]
+    # Optional so older outputs / offline fallbacks still validate.
+    ai_findings: list[AiFinding] = Field(default_factory=list)
 
 
 class CombinedAssessment(BaseModel):
