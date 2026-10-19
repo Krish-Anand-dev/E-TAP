@@ -16,7 +16,7 @@ Accepted files: `.json` (a serialised ParsedEmail, as in docs/extracted/) and
 cannot be counted twice.
 
 "malicious" here means "spam / unwanted" for the SpamAssassin data. That is
-NOT the same as phishing; see the historical-baseline warning in WORKFLOW-B-README.md before quoting a number.
+NOT the same as phishing; see the historical-baseline warning in CONTEXT.md (section 15) before quoting a number.
 """
 from __future__ import annotations
 

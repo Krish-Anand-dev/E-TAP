@@ -111,15 +111,48 @@ def _build_email_summary(data: dict) -> dict:
     }
 
 
-def _run_parsed_pipeline(parsed_email, source: str | None = None) -> dict:
+def _noop_progress(stage: str, state: str, detail: str | None = None) -> None:
+    return None
+
+
+def _plural(n: int, word: str) -> str:
+    return f"{n} {word}{'' if n == 1 else 's'}"
+
+
+def _run_parsed_pipeline(parsed_email, source: str | None = None, progress=None) -> dict:
+    # `progress(stage, state, detail)` reports live stage changes to a caller
+    # (see analysis_jobs.py). It never affects the analysis itself.
+    progress = progress or _noop_progress
     started_at = time.perf_counter()
     db = connection.get_db()
     data = parsed_email.to_dict()
     source = source if source in VALID_SOURCES else SOURCE_FULL_MESSAGE
     quick_check = source == SOURCE_QUICK_CHECK
 
+    progress("headers", "running")
     header_analysis = analyze_headers(parsed_email, headers_available=not quick_check)
+    if quick_check:
+        progress("headers", "skipped", "Original headers were not available")
+    else:
+        flags = len(header_analysis.get("red_flags") or [])
+        progress("headers", "done", _plural(flags, "red flag") if flags else "No header red flags")
+
+    progress("static_attachments", "running")
     attachment_analysis = analyze_attachments(data.get("attachments") or [])
+    _atts = attachment_analysis.get("attachments") or []
+    _sus = sum(1 for a in _atts if a.get("suspicious"))
+    if not _atts:
+        progress("static_attachments", "done", "No attachments")
+    else:
+        progress("static_attachments", "done",
+                 f"{_plural(len(_atts), 'file')} checked" + (f", {_sus} suspicious" if _sus else ", none suspicious"))
+
+    # Dynamic detonation runs only in E-TAP Local, which has the VirtualBox
+    # sandbox. The hosted pipeline reports the stage honestly as not run.
+    progress("sandbox", "not_available",
+             "Dynamic analysis runs in E-TAP Local's sandbox" if _atts else "No attachments to detonate")
+
+    progress("indicators", "running")
     ioc_analysis = extract_iocs(
         all_headers=data.get("all_headers"),
         body_text=data.get("body_text"),
@@ -132,10 +165,25 @@ def _run_parsed_pipeline(parsed_email, source: str | None = None) -> dict:
     # QR codes lead. Static only: nothing is fetched or followed.
     link_analysis = analyze_links(data.get("body_html"))
     qr_trace = build_qr_trace(attachment_analysis.get("attachments"))
+    _n_ind = sum(len(ioc_analysis.get(k) or []) for k in ("ips", "domains", "urls", "hashes"))
+    _n_links = (link_analysis.get("summary") or {}).get("total", 0)
+    progress("indicators", "done", f"{_plural(_n_ind, 'indicator')}, {_plural(_n_links, 'link')}")
 
     threat_intel_live = _env_truthy("THREAT_INTEL_LIVE", default="0")
+    progress("reputation", "running")
     threat_intel_analysis = enrich_iocs(ioc_analysis, live_lookup=threat_intel_live)
     attach_hop_geo(header_analysis, threat_intel_analysis, live=threat_intel_live)
+    if threat_intel_live:
+        _flagged = sum(
+            1 for sec in ("ip_reputation", "domain_info", "url_reputation", "hash_reputation")
+            for info in (threat_intel_analysis.get(sec) or {}).values()
+            if isinstance(info, dict) and info.get("malicious") is True
+        )
+        progress("reputation", "done", f"{_flagged} flagged by reputation services" if _flagged else "Nothing flagged")
+    else:
+        progress("reputation", "skipped", "Live reputation lookups are turned off")
+
+    progress("history", "running")
 
     correlation_result = correlate_and_store(
         ioc_analysis,
@@ -150,6 +198,9 @@ def _run_parsed_pipeline(parsed_email, source: str | None = None) -> dict:
         attachment_analysis=attachment_analysis,
         threat_intel_analysis=threat_intel_analysis,
     )
+    _related = len(correlation_result.get("related_emails") or [])
+    progress("history", "done",
+             f"Linked to {_plural(_related, 'earlier email')}" if _related else "No match with earlier emails")
 
     # Stage F' -- Graph Diffusion Score Engine (Personalized PageRank Label Propagation)
     try:
@@ -214,6 +265,7 @@ def _run_parsed_pipeline(parsed_email, source: str | None = None) -> dict:
         "evidence_ledger": compact_ledger(evidence_ledger),
     }
 
+    progress("ai", "running")
     # Stage C' -- Fast Metadata Triage Pre-Filter (XGBoost)
     try:
         from ai_engine.triage_model import extract_features, predict_triage
@@ -314,6 +366,14 @@ def _run_parsed_pipeline(parsed_email, source: str | None = None) -> dict:
         final_assessment = ai_analysis.get("final_assessment") or {}
 
     # One place decides the label, the score band and what clients should show.
+    if gemini_skipped:
+        progress("ai", "done", "Clearly benign metadata; AI review not needed")
+    elif (final_assessment.get("provider") or "") == "offline_fallback":
+        progress("ai", "done", "AI unavailable; offline assessment used")
+    else:
+        progress("ai", "done", "AI assessment complete")
+
+    progress("verdict", "running")
     decision = finalize_verdict(final_assessment.get("verdict"), final_assessment.get("risk_score"))
     final_assessment["verdict"] = decision["verdict"]
     final_assessment["risk_score"] = decision["risk_score"]
@@ -489,6 +549,7 @@ def _run_parsed_pipeline(parsed_email, source: str | None = None) -> dict:
         daemon=True,
     ).start()
 
+    progress("verdict", "done", f"{decision['verdict']} ({decision['risk_score']}/100)")
     return _json_safe(result)
 
 
@@ -498,7 +559,11 @@ def analyze_email_file(path: str, source: str | None = None) -> dict:
     return _run_parsed_pipeline(parsed, source=source)
 
 
-def analyze_email_upload(filename: str, raw_bytes: bytes, source: str | None = None) -> dict:
+def analyze_email_upload(filename: str, raw_bytes: bytes, source: str | None = None, progress=None) -> dict:
     """Analyze one uploaded .eml/.msg file from raw bytes."""
+    progress = progress or _noop_progress
+    progress("parse", "running")
     parsed = parse_email_from_upload(filename, raw_bytes)
-    return _run_parsed_pipeline(parsed, source=source)
+    n_att = len(parsed.attachments or [])
+    progress("parse", "done", f"Email read, {_plural(n_att, 'attachment')}")
+    return _run_parsed_pipeline(parsed, source=source, progress=progress)

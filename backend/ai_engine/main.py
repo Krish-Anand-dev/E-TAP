@@ -5,7 +5,7 @@ Legacy Stage C content classification, now reused by Stage G.
 
 Analyzes ONLY the textual content of an email (subject / body_text /
 body_html) using Gemini, and classifies it against the fixed 30-category
-threat taxonomy defined in prompts.py. See README.md for local setup
+threat taxonomy defined in prompts.py. See CONTEXT.md (repo root) for local setup
 (Gemini API key) and full details.
 
 Usage (this is what other stages should do):

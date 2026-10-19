@@ -6,7 +6,7 @@ Manual integration test for Stage C (AI Content Classification, the team).
 Runs the REAL analyze_email() -- Stage A parses a real sample file, and
 Stage C's own Gemini-backed classification logic runs unmodified against
 it. This does not mock or stub any Stage C logic; it needs a working
-GEMINI_API_KEY configured locally (see backend/ai_engine/README.md) since
+GEMINI_API_KEY configured locally (see CONTEXT.md, section 14) since
 ai_engine.main raises a clear error on import if one isn't set.
 
 Samples (not committed):
@@ -29,7 +29,7 @@ and not perfectly deterministic, so this test checks response SHAPE
 WARNING (not a hard failure) if the semantic verdict looks inverted.
 
 Usage (run from backend/, with GEMINI_API_KEY configured in your local
-.env -- see backend/ai_engine/README.md):
+.env -- see CONTEXT.md, section 14):
     python tests/test_classifier.py
 """
 

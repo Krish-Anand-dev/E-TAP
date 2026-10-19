@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { analyzeEmailFile, checkBackendHealth, fetchInvestigation } from '../api/analyze';
+import { checkBackendHealth, fetchInvestigation, startAnalysisJob, getAnalysisJob } from '../api/analyze';
 
 const InvestigationContext = createContext(null);
 
@@ -192,6 +192,7 @@ export function InvestigationProvider({ children }) {
   const [error, setError] = useState(null);
   const [activeFile, setActiveFile] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [jobStages, setJobStages] = useState([]);
   const [backendOnline, setBackendOnline] = useState(null);
   const [lastHealthCheck, setLastHealthCheck] = useState(null);
   const [history, setHistory] = useState(() => {
@@ -262,41 +263,53 @@ export function InvestigationProvider({ children }) {
    * Upload and execute investigation pipeline on the backend
    */
   const startAnalysis = async (file) => {
-    if (!file) return;
+    if (!file) return null;
 
     setStatus('uploading');
     setError(null);
-    setActiveFile({
-      name: file.name,
-      size: file.size,
-      lastModified: file.lastModified,
-    });
+    setData(null);
+    setJobStages([]);
+    setActiveFile({ name: file.name, size: file.size, lastModified: file.lastModified });
     setUploadProgress(0);
 
     try {
+      const job = await startAnalysisJob(file);
+      setJobStages(job.stages || []);
       setStatus('analyzing');
-      const result = await analyzeEmailFile(file, (progressEvent) => {
-        if (progressEvent.total) {
-          const pct = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          setUploadProgress(pct);
+      // Follow live stage progress until the backend finishes the job.
+      let current = job;
+      let failures = 0;
+      while (current.status === 'running') {
+        await new Promise((resolve) => setTimeout(resolve, 600));
+        try {
+          current = await getAnalysisJob(job.job_id);
+          failures = 0;
+          setJobStages(current.stages || []);
+        } catch (pollErr) {
+          failures += 1;
+          if (failures >= 5) throw pollErr;
         }
-      });
-
-      setData(result);
+      }
+      if (current.status !== 'done' || !current.report) {
+        throw Object.assign(new Error(current.error || 'Analysis failed.'), { jobError: true });
+      }
+      setData(current.report);
       setStatus('success');
-      persistInvestigation(result, file.name);
+      persistInvestigation(current.report, file.name);
+      return current.report;
     } catch (err) {
       console.error('Analysis failed:', err);
       setStatus('error');
-      let message = err.response?.data?.detail;
+      let message = err.jobError ? err.message : err.response?.data?.detail;
       if (!message) {
         if (err.message === 'Network Error' || !err.response || err.response?.status === 502) {
-          message = 'Unable to reach forensic backend. The cloud service may be waking up from free-tier sleep (~30-50s cold-start on Render). Please retry in a few moments.';
+          message = 'Unable to reach the analysis engine. The cloud service may be waking up (about 30-50 seconds on the free tier). Please retry in a moment.';
         } else {
-          message = err.message || 'Failed to connect to forensic backend service.';
+          message = err.message || 'Failed to connect to the analysis engine.';
         }
       }
       setError(message);
+      return null;
     }
   };
 
@@ -362,6 +375,7 @@ export function InvestigationProvider({ children }) {
     setError(null);
     setActiveFile(null);
     setUploadProgress(0);
+    setJobStages([]);
   };
 
   const clearHistory = () => {
@@ -377,6 +391,7 @@ export function InvestigationProvider({ children }) {
         error,
         activeFile,
         uploadProgress,
+        jobStages,
         backendOnline,
         lastHealthCheck,
         history,
