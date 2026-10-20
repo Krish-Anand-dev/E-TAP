@@ -2,7 +2,9 @@
 
 This is the single technical reference for E-TAP. It is written so that a person or an LLM with no prior knowledge can understand the whole system: what it does, how every stage works, which file does what, which libraries are used and why, how data is shaped, how it is configured and deployed, and what is known to be incomplete.
 
-The short, user-facing overview lives in [README.md](README.md). When this document and the code disagree, the code wins — update this file.
+The short, user-facing overview lives in [README.md](README.md). When this document and the code disagree, the code wins — update this file. Last updated 2026-10-20 (frontend revamp, live analysis jobs, verified trusted domains, Re-analyze).
+
+The sibling repository **E-TAP Local** (`../E-TAPlocal`) is this project plus a VirtualBox sandbox (stage S); it carries every feature described here.
 
 ---
 
@@ -37,7 +39,7 @@ E-TAP (Email-TAP, "Email Threat Analysis Platform") is a defensive email-forensi
 - a canonical verdict (`LIKELY LEGITIMATE` … `HIGH-RISK PHISHING`), a 0–100 risk score and a safe/caution/danger band;
 - every piece of evidence, each tagged as **observed** (E-TAP measured it), **reputation** (an external provider said it) or **ai_inferred** (a model said it), and each tagged present / absent / **unavailable**;
 - header, attachment, link, QR, IOC, threat-intel, geolocation, campaign-correlation, graph-diffusion and MITRE ATT&CK details;
-- plain-language "what to do" guidance, a privacy data-flow report and per-provider coverage status.
+- plain-language remediation steps, plus a privacy data-flow record and per-provider coverage status (both stored and returned by the API, deliberately not shown in the user-facing report).
 
 **Core design principles (enforced throughout the code):**
 
@@ -94,6 +96,8 @@ The orchestrator is `backend/pipeline.py::_run_parsed_pipeline`. Both the HTTP A
 14. `repository.update_analysis_fields` — persists all H fields
 15. background thread: `build_summary` + `embed_text` → `rag_summary`, `rag_embedding`
 
+**Live progress.** `_run_parsed_pipeline` takes an optional `progress(stage, state, detail)` callback and reports nine user-facing stages: `parse` (Reading the email), `headers` (Checking sender & headers), `static_attachments` (Static attachment analysis), `sandbox` (Dynamic attachment analysis; always `not_available` here, real in E-TAP Local), `indicators` (Extracting links & indicators), `reputation` (Threat reputation lookups; `skipped` when live intel is off), `history` (Comparing with past emails), `ai` (AI threat assessment) and `verdict` (Final verdict). States: `pending`, `running`, `done`, `skipped`, `not_available`, `error`; each finished stage carries a short detail such as "4 red flags" or "7 indicators, 0 links". `backend/analysis_jobs.py` runs the pipeline in a 2-worker thread pool for `POST /analyze/jobs`, stores the stage list in memory (1-hour expiry) and returns the report through `GET /analyze/jobs/{id}` when done. `POST /analyze` (Gmail extension, scripts) still runs synchronously.
+
 Stage letters are historical (C was originally the content classifier; it moved into G, and C′ is the XGBoost pre-filter that now runs right before G).
 
 ---
@@ -103,12 +107,14 @@ Stage letters are historical (C was originally the content classifier; it moved 
 ```text
 E-TAP/
 ├── README.md                 short overview
+├── CLAUDE.md                 working notes for Claude Code sessions (auto-loaded)
 ├── CONTEXT.md                this file
 ├── .env.example              commit-safe env template
 ├── requirements.txt          "-r backend/requirements.txt" (root convenience)
 ├── backend/
 │   ├── app.py                FastAPI app, CORS, rate limits, /analyze /chat /investigations
-│   ├── pipeline.py           Stage H orchestrator (A→…→H)
+│   ├── pipeline.py           Stage H orchestrator (A→…→H) with progress callbacks
+│   ├── analysis_jobs.py      background analysis jobs with live per-stage progress
 │   ├── run_pipeline.py       CLI: python run_pipeline.py file.eml
 │   ├── verdicts.py           canonical labels, thresholds, bands, finalize_verdict()
 │   ├── evidence.py           evidence ledger + evidence_report (schema v2)
@@ -410,9 +416,11 @@ All access goes through `db/repository.py`; every function takes `db` explicitly
 | `GET /`, `HEAD /` | service index |
 | `GET /health` | liveness |
 | `GET /ready` | DB ping; 503 when unavailable |
-| `POST /analyze` (10/min) | multipart `file` + optional `source` (`full_message`, `quick_content_check`) → full report |
+| `POST /analyze` (10/min) | multipart `file` + optional `source` (`full_message`, `quick_content_check`) → full report (used by the extension) |
+| `POST /analyze/jobs` (10/min) | same input; returns `{job_id, stages}` at once and analyses in the background |
+| `GET /analyze/jobs/{id}` | live stage list (state + detail per stage), `status` (`running`/`done`/`error`), then the report; 404 once expired |
 | `POST /chat` (30/min) | `{question, email_id?}`; client `email_context` is rejected (400) |
-| `GET /investigations?offset&limit` | listing (limit 1–100) |
+| `GET /investigations?offset&limit` | listing (limit 1–100): id, subject, sender, canonical verdict, score, band, date, campaign, attack type, review state |
 | `GET /investigations/{id}` (60/min) | stored report in the same shape as `/analyze` |
 | `DELETE /investigations/{id}`, `DELETE /investigations` | delete one / all (also campaigns refs, RAG vectors, graph cache) |
 | `GET /investigations/{id}/share` | redacted share pack |
@@ -422,7 +430,7 @@ All access goes through `db/repository.py`; every function takes `db` explicitly
 | `PUT /investigations/{id}/feedback` | `helpful` / `incorrect` |
 | `GET /campaigns` | campaign inventory |
 | `GET/PUT /preferences` | `retention_days` 1–365 |
-| `GET/PUT /baselines` | user-declared trusted domains (context only, never changes the score) |
+| `GET/PUT /baselines` | trusted sender domains (verified-trust rule, §10) |
 | `GET /analytics` | measured aggregates over ≤ 5 000 records |
 | `GET /recovery` | versioned fixed recovery checklists |
 | `/docs` | Swagger UI |
@@ -435,7 +443,7 @@ The API is **open**: no authentication or per-user scoping (see §17).
 
 - **Indexing** (background thread after each analysis): `rag/embeddings.build_summary` writes one sentence-style summary (incident id, verdict, score, campaign, sender, subject, IPs, domains, URLs, MITRE, assessment ≤ 280 chars); `embed_text` encodes it with sentence-transformers `all-MiniLM-L6-v2` (384-d) **if installed**, otherwise a deterministic hashed bag-of-words 384-d vector. On Render (`RENDER` env) or `USE_FALLBACK_EMBEDDINGS=1` the fallback is always used (memory). `backfill_embeddings.py` indexes older records.
 - **Answering** (`rag/chat.answer_query`):
-  - *Active-file mode* (`email_id` given): loads that record, builds a telemetry block (`_build_single_file_context`), sanitizes it, asks Gemini to answer **only** about that email; offline fallback prints the structured telemetry.
+  - *Active-file mode* (`email_id` given): loads that record, builds a telemetry block (`_build_single_file_context`), sanitizes it, asks Gemini to answer **only** about that email; offline fallback (no Gemini key) returns a readable summary of the stored report: verdict, score, main reasons, sender checks and remediation.
   - *Historical mode*: retrieves the top 5 records by cosine similarity (brute force in Python by default; `USE_ATLAS_VECTOR_SEARCH=1` uses an Atlas `$vectorSearch` index `ATLAS_VECTOR_INDEX`, default `vector_index`, path `rag_embedding`) and asks Gemini to answer citing incident IDs; offline fallback lists the top 3.
   - Both prompts treat retrieved content as untrusted data.
 
@@ -449,7 +457,8 @@ Implemented in `backend/workflow_c.py`, `recovery.py`, `integrations.py`.
 - **Deletion:** `delete_record` removes the analysis, legacy RAG entries, rebuilds campaign membership, clears stored graph/correlation/RAG snapshots on remaining records and invalidates the graph cache. Not a transaction; cannot recall provider copies.
 - **Review workflow:** states `submitted → analyzed → needs_review | confirmed_malicious | benign_or_spam | unresolved`; history ≤ 200, notes ≤ 2 000 chars; never changes the verdict.
 - **Recovery checklists:** opened email, clicked link/QR, downloaded file, opened attachment, entered password, approved MFA, sent money — deterministic, versioned (`2026-10-18.1`), no device-compromise inference.
-- **Baselines, case marking, feedback, analytics, Campaign Lens:** see §8.
+- **Trusted domains (verified trust):** `trusted_sender_check` (in `finish_analysis`) lowers the risk score by 25 only when the sender domain, or a parent of it, is on the list **and** SPF, DKIM and DMARC all pass **and** there are no spoofing (lookalike/homograph/display-name/Reply-To), suspicious-attachment or malicious-reputation findings. If the domain is listed but a check fails, nothing changes and the report warns of a possible impersonation. The outcome is stored in `baseline_context.trusted_sender` and shown in the verdict hero; the evidence-report conclusion is updated when the score changes.
+- **Case marking, feedback, analytics, Campaign Lens:** see §8.
 - **Scaffolds (not live):** `integrations.OriginalMessageProvider` (future OAuth original-message retrieval, mock only) and webhook contracts (`analysis.completed`, `review.changed`; HMAC-SHA256 over `timestamp.body`, 5-minute window, replay set, HTTPS-443 public-IP target validation, bounded retry delays) — nothing is ever sent.
 
 Status table from the original Workflow C record: C1 evidence v2 ✔, C2 recovery ✔, C3 review ✔, C4 share pack partial, C5 auth deferred, C6 retention ✔ (needs cron), C7 original-message integration scaffold, C8 case management partial, C9 webhooks scaffold, C10 baselines partial, C11 analytics partial, C12 local/private mode design-only, C13 language/accessibility partial (fixed EN/ES/HI summaries), C14 deployment docs ✔.
@@ -458,17 +467,31 @@ Status table from the original Workflow C record: C1 evidence v2 ✔, C2 recover
 
 ## 11. Frontend (React dashboard)
 
-Location `frontend/`. React 18, Vite 8 (`@vitejs/plugin-react`), Node ≥ 22.12. Dev server bound to `127.0.0.1:5173` (security note in `vite.config.js`) with a proxy for `/analyze /health /ready /chat /investigations /campaigns /preferences /recovery /analytics /baselines /me` → `127.0.0.1:5000`. Production uses `VITE_API_BASE_URL`.
+Location `frontend/`. React 18, Vite 8 (`@vitejs/plugin-react`), Node >= 22.12. Light cream / navy / red theme: `styles/workspace.css` is the base layer and `styles/v2.css` (loaded last) styles every revamp component. Dev server bound to `127.0.0.1:5173` with a proxy for `/analyze /health /ready /chat /investigations /campaigns /preferences /recovery /analytics /baselines /me` to `127.0.0.1:5000`; production uses `VITE_API_BASE_URL`. Icons are line icons from `components/common/Icon.jsx` (no emojis).
 
-- `src/main.jsx`, `App.jsx` — views: `overview`, `upload`, `dashboard`, `history`, `workspace`; handles the `?dossier=<email_id>` deep link used by the extension.
-- `context/InvestigationContext.jsx` — global state (status, data, error, active file, backend health polling via `/ready`, browser-session history under `E-TAP_investigations_history_v1`, a `SAMPLE_REPORT` schema reference).
-- `api/client.js` (axios, 120 s timeout, `askSocAssistant`), `api/analyze.js` (`analyzeEmailFile`, `checkBackendHealth`, `fetchInvestigation`).
-- `pages/` — `OverviewPage` (Recharts score trend, band counts), `UploadPage` (drag-and-drop plus two embedded sample emails sent to the real API), `DashboardPage` (the report), `HistoryPage` (session history + server `GET /investigations`).
-- `components/report/` — `VerdictBanner` + `RiskGauge`, `EvidenceNarrative` (renders `evidence_report`), `EvidenceBreakdown` (bar chart of `evidence_assessments`), `HeaderAnalysis`, `GeoMap` (react-leaflet, ArcGIS dark-gray tiles, hop polyline coloured by kind), `AttachmentTable`, `ContentAnalysis`, `IocTable` (with reputation + history columns), `ThreatGraph` (react-force-graph-2d with diffusion overlay and fullscreen), `MitreCards`, `HistoricalCorrelationCard`, `PrivacyDataPanel`, `ProviderStatusPanel`, `ResponseWorkflow` (review, recovery, related, plain-language summary EN/ES/HI), `TrustControls` (retention/delete/share), `ExportButton` + `PdfPreviewModal`.
-- `components/chat/SocChatDrawer.jsx` — SOC Assistant with "active file" vs "all investigations" scope.
-- `components/common/` — `Header` (sidebar nav), `Icon`, `WorkspaceTools` (analytics + baselines), `AuthGate` (legacy, unused).
-- `utils/` — `verdict.js` (threshold mirror, display labels, provenance chips), `geo.js` (shared coordinate validation for map + PDF), `pdfGenerator.js` (jsPDF + autotable report built from the same JSON; map captured with html2canvas), `plainSummary.js`.
-- Tests: `frontend/tests/geo.test.mjs`, `report.test.mjs` (`npm test` → `node --test`).
+**Navigation** (`components/common/Header.jsx`): Dashboard, Analyze email, Reports, Current investigation (enabled once a report is open), Trusted domains. Top bar: engine status, an "Analyzing" pill while a run is active, **New analysis** (resets the investigation and remounts the Analyze page).
+
+**Pages**
+- **Dashboard** (`pages/OverviewPage.jsx`) — numbers from all stored investigations (`GET /investigations`, falling back to the browser session): emails analysed (and last 7 days), high risk, suspicious, low risk, average risk; risk-over-time area chart, verdict donut, top threat types, and a recent-investigations table whose rows open the report.
+- **Analyze email** (`pages/UploadPage.jsx`) — drag-and-drop or two sample emails. `startAnalysis` posts to `/analyze/jobs` and polls every 0.6 s; `PipelineTimeline` lights up the nine stages with their detail lines and a progress bar. `usePacedStages` shows each finished stage for a minimum, randomised time (`MIN_STAGE_MS`, 0.7–2.3 s) so fast local runs remain readable; real slow stages are never delayed further, and `VITE_TIMELINE_PACING=off` shows raw timing. The result card shows score and verdict with **Open full report**, **Re-analyze** and **Analyze another**.
+- **Current investigation** (`pages/DashboardPage.jsx`) — one sticky tab bar (Summary, Why it was flagged, Remediation, Sender route, Threat analysis, Technical details, Past emails, Analyst tools):
+  - `VerdictHero` — animated score ring, canonical verdict, headline, "why it was risky" tags per category with counts, number tiles (same counts as the category cards), trusted-sender note, PDF/JSON export and **Re-analyze this email**.
+  - `RiskBreakdown` — category bars and cards (Sender & headers, Attachments, Links, Reputation, Past emails, Message content) with serious findings first, "+N more", reassuring signs and "not checked" counts.
+  - `Remediation` — "Do this now" (evidence-specific), "Recommended steps" (policy) and "AI suggestions".
+  - Sender route — `GeoMap` when any hop has coordinates, otherwise a card explaining why (headers unavailable, live lookups off, no public hop).
+  - Threat analysis — `EvidenceBreakdown` (multi-vector radar + score bars per angle) beside `MitreCards`.
+  - Technical details — collapsible `HeaderAnalysis`, `AttachmentTable`, `ContentAnalysis`, `IocTable`.
+  - Past emails — `HistoricalCorrelationCard` and `ThreatGraph`.
+  - Analyst tools (collapsed, last) — `ResponseWorkflow` (review state, recovery checklists, related reports, plain-language summary EN/ES/HI) and `TrustControls` (share pack, retention, delete).
+- **Reports** (`pages/HistoryPage.jsx`) — searchable list with High risk / Suspicious / Low risk filters; the selected report shows a summary card and nine stage cards (status Clear / Check / Problem / Skipped / Not run, with numbers) from `stageSummaries`.
+- **Trusted domains** (`pages/SettingsPage.jsx`) — add/remove domains as chips (pasted URLs/addresses are reduced to the domain), report retention period, and an explanation of verified trust.
+- **Assistant** (`components/chat/SocChatDrawer.jsx`) — "Ask E-TAP" drawer, This email / All investigations scope, suggested questions, formatted answers (bold, lists), source chips.
+
+**State and helpers**
+- `context/InvestigationContext.jsx` — status, current report, job stages, backend health (`/ready` every 15 s), session history (`sessionStorage` key `E-TAP_investigations_history_v1`), `SAMPLE_REPORT`. `resetToken` remounts the Analyze page on New analysis. `sourceFiles` keeps each uploaded `File` by `email_id` in memory for **Re-analyze** (`requestReanalysis` → the Analyze page runs it again); after a reload the file is gone and the report's Re-analyze button is disabled with an explanation.
+- `utils/reportSummary.js` — the one place that turns a report into UI numbers: `riskCategories`/`riskTags` (from `evidence_report.evidence` ids: `hdr.*`, `att.*`/`qr.*`, `link.*`, `rep.*`, `corr.*`, `ai.content*`/`ai.finding*`; fallback to raw fields for older records), `keyStats`, `verdictOf`, `stageSummaries`.
+- `utils/verdict.js` (threshold mirror), `utils/geo.js`, `utils/pdfGenerator.js` (jsPDF report built from the same JSON), `utils/plainSummary.js`.
+- Tests: `tests/geo.test.mjs`, `tests/report.test.mjs` (`npm test`).
 
 ---
 
@@ -562,7 +585,7 @@ Backend (`.env` at repo root locally; host settings in production — never in t
 | `PORT` | `5000` | server port (Render injects it) |
 | `KMP_DUPLICATE_LIB_OK` | set to `TRUE` by `app.py` | avoids an OpenMP clash with torch |
 
-Frontend: `VITE_API_BASE_URL` (empty in dev to use the proxy; the Render URL on Vercel).
+Frontend: `VITE_API_BASE_URL` (empty in dev to use the proxy; the Render URL on Vercel) and `VITE_TIMELINE_PACING` (`off` disables the timeline's minimum stage times).
 Extension: constants in `extension/config.js` and host permissions in `manifest.json`.
 
 ---
@@ -588,7 +611,7 @@ cd frontend && npm test && npm run build
 node --test --test-isolation=none extension/tests/*.test.mjs
 ```
 
-Test suites cover: parsing (`test_parse_any`, `test_single_email`), headers/origin (`test_received_chain_origin`, `test_hop_geo`), attachments/macros/images (`test_attachment_forensics`, `test_macro_behavior`, `test_image_forensics`), links/QR/privacy (`test_links_qr_privacy`), threat intel (`test_threat_intel`, live in `test_threat_intel_live`), triage/classifier, graph diffusion, correlation demo, evidence, verdicts (including frontend parity), provider status, truthfulness, RAG and chat API, the offline pipeline end-to-end, extension original-message parity and Workflow C (API, response, security, strategic, trust). `tests/run_batch_test.py`, `run_full_pipeline_test.py`, `batch_ioc_test.py`, `generate_sample_outputs.py` are manual scripts.
+Test suites cover: parsing (`test_parse_any`, `test_single_email`), headers/origin (`test_received_chain_origin`, `test_hop_geo`), attachments/macros/images (`test_attachment_forensics`, `test_macro_behavior`, `test_image_forensics`), links/QR/privacy (`test_links_qr_privacy`), threat intel (`test_threat_intel`, live in `test_threat_intel_live`), triage/classifier, graph diffusion, correlation demo, evidence, verdicts (including frontend parity), provider status, truthfulness, RAG and chat API, the offline pipeline end-to-end, extension original-message parity, analysis jobs and verified trusted senders (`test_analysis_jobs`), and Workflow C (API, response, security, strategic, trust). Thirteen tests in `test_workflow_c_api.py`/`test_workflow_c_security.py` fail on a clean checkout: they were written for the removed authentication layer and expect files such as `security.py` to be gone. `tests/run_batch_test.py`, `run_full_pipeline_test.py`, `batch_ioc_test.py`, `generate_sample_outputs.py` are manual scripts.
 
 **Evaluation** (`backend/eval/`): `python -m eval.run_eval ../docs/extracted [--use-gemini --live-threat-intel] [--out eval/results]` runs a labelled corpus through the real pipeline with a fresh fake DB per message and reports FPR/FNR with 95% Wilson intervals at three operating points (danger band, caution-or-worse, `high_risk_evidence`). The committed result (`eval/results/report.md`) is a 24-message, offline-only debugging run on 2002-era SpamAssassin mail — **not a benchmark**; it flags 1/15 ham and 0/9 spam at the danger band. No detection-rate claim should be made until a broader, authorised phishing corpus is evaluated with Gemini and live intel enabled.
 
@@ -606,7 +629,7 @@ Test suites cover: parsing (`test_parse_any`, `test_single_email`), headers/orig
 
 ## 17. Known gaps, quirks and future work
 
-- **Open API.** No authentication or multi-tenancy; anyone with the URL can analyse, read, share and delete (including `DELETE /investigations`). Per-IP limits see Render's proxy unless forwarded-for handling is added. The earlier bearer-key/role/owner-scoping implementation is still in the tree but **not wired**: `security.py` (`SecurityBoundary` middleware), `provision_key.py`, `db/scoped.py`, `migrate_workflow_c.py`, `frontend/src/components/common/AuthGate.jsx`, `extension/options.*`, the `/me` proxy entry and the `owner_id` index names. The original design is in git history (earlier notes cite a tag `pre-auth-removal`, which is not present in this clone). Future direction: OAuth/OIDC, `owner_id` scoping in one place, Atlas vector filter on `owner_id`, shared quota store.
+- **Open API.** No authentication or multi-tenancy; anyone with the URL can analyse, read, share and delete (including `DELETE /investigations`). Per-IP limits see Render's proxy unless forwarded-for handling is added. The earlier bearer-key/role/owner-scoping implementation is still in the tree but **not wired**: `security.py` (`SecurityBoundary` middleware), `provision_key.py`, `db/scoped.py`, `migrate_workflow_c.py`, `extension/options.*`, the `/me` proxy entry and the `owner_id` index names. The original design is in git history (earlier notes cite a tag `pre-auth-removal`, which is not present in this clone). Future direction: OAuth/OIDC, `owner_id` scoping in one place, Atlas vector filter on `owner_id`, shared quota store.
 - **`dnspython` not in requirements**, so the live-DNS auth tier is inactive in the Docker image unless added; header-reported results still work.
 - **sentence-transformers not in requirements**; hosted RAG uses lexical hash embeddings, not semantic ones.
 - **No dynamic sandbox.** `docs/workflow/etap-workflow.mmd` describes a Windows 11 VM + Sysmon detonation stage (Workstream A); none of it is in this repository. Attachment analysis is static only.
@@ -617,7 +640,8 @@ Test suites cover: parsing (`test_parse_any`, `test_single_email`), headers/orig
 - **ip-api.com** is called over plain HTTP (free tier).
 - **Tesseract path** is hard-coded for Windows when present; elsewhere the binary must be on `PATH`.
 - **PII masking regexes** can over-match long digit runs and remove body email addresses before IOC extraction.
-- **History page** uses browser session storage plus the server listing; it is not a full multi-user inventory.
+- **Reports and dashboard** read the server listing (100 most recent) plus the browser session; there is no paging beyond that, and Re-analyze only works for files uploaded since the page was opened.
+- **Analysis jobs** live in process memory (1-hour expiry, 2 workers); a restart loses running jobs. Run one Uvicorn worker.
 - Deletion is not transactional and cannot recall data already sent to providers or backups.
 - Planned / design-only: Tauri desktop shell with a local Python sidecar, fully local/private mode (no egress), OAuth original-message retrieval, live webhooks, professional translations and a WCAG audit.
 

@@ -169,7 +169,7 @@ export function PipelineTimeline({ stages, finished, failed }) {
 }
 
 export function UploadPage({ onOpenReport }) {
-  const { status, error, data, startAnalysis, loadDemoSample, backendOnline, jobStages } = useInvestigation();
+  const { status, error, data, startAnalysis, loadDemoSample, backendOnline, jobStages, rerunRequest, consumeRerunRequest } = useInvestigation();
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [runFinished, setRunFinished] = useState(false);
@@ -200,6 +200,15 @@ export function UploadPage({ onOpenReport }) {
     const report = await startAnalysis(file);
     if (report) setRunFinished(true);
   };
+
+  // Re-analyze requested from a report: run the same file here so the timeline shows.
+  useEffect(() => {
+    if (!rerunRequest || isBusy) return;
+    const { file } = rerunRequest;
+    consumeRerunRequest();
+    setSelectedFile(file);
+    run(file);
+  }, [rerunRequest]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -267,6 +276,7 @@ export function UploadPage({ onOpenReport }) {
               <div className="run-score"><strong>{result.score}</strong><span>/100</span></div>
               <div><span className="eyebrow">VERDICT</span><h3>{result.label}</h3></div>
               <button type="button" className="btn-primary-action" onClick={onOpenReport}>Open full report <Icon name="arrow" size={16} /></button>
+              <button type="button" className="btn-ghost" onClick={() => run(selectedFile)} title="Run the same email through the whole analysis again"><Icon name="history" size={15} /> Re-analyze</button>
               <button type="button" className="btn-ghost" onClick={() => { setRunFinished(false); setSelectedFile(null); }}>Analyze another</button>
             </div>
           )}

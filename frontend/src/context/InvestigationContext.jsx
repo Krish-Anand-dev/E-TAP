@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { checkBackendHealth, fetchInvestigation, startAnalysisJob, getAnalysisJob } from '../api/analyze';
 
 const InvestigationContext = createContext(null);
@@ -193,6 +193,12 @@ export function InvestigationProvider({ children }) {
   const [activeFile, setActiveFile] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [jobStages, setJobStages] = useState([]);
+  // Bumped by resetInvestigation so the Analyze page remounts fresh (New analysis).
+  const [resetToken, setResetToken] = useState(0);
+  // Files uploaded in this tab, by email_id, so a report can be re-analyzed
+  // without uploading again. Memory only: gone after a page reload.
+  const sourceFiles = useRef(new Map());
+  const [rerunRequest, setRerunRequest] = useState(null);
   const [backendOnline, setBackendOnline] = useState(null);
   const [lastHealthCheck, setLastHealthCheck] = useState(null);
   const [history, setHistory] = useState(() => {
@@ -295,6 +301,7 @@ export function InvestigationProvider({ children }) {
       }
       setData(current.report);
       setStatus('success');
+      if (current.report.email_id) sourceFiles.current.set(current.report.email_id, file);
       persistInvestigation(current.report, file.name);
       return current.report;
     } catch (err) {
@@ -376,7 +383,13 @@ export function InvestigationProvider({ children }) {
     setActiveFile(null);
     setUploadProgress(0);
     setJobStages([]);
+    setResetToken((n) => n + 1);
   };
+
+  const getSourceFile = useCallback((emailId) => (emailId ? sourceFiles.current.get(emailId) || null : null), []);
+  /** Ask the Analyze page to run this file again (it shows the live timeline). */
+  const requestReanalysis = useCallback((file) => { if (file) setRerunRequest({ file, at: Date.now() }); }, []);
+  const consumeRerunRequest = useCallback(() => setRerunRequest(null), []);
 
   const clearHistory = () => {
     sessionStorage.removeItem(STORAGE_KEY);
@@ -392,6 +405,11 @@ export function InvestigationProvider({ children }) {
         activeFile,
         uploadProgress,
         jobStages,
+        resetToken,
+        getSourceFile,
+        rerunRequest,
+        requestReanalysis,
+        consumeRerunRequest,
         backendOnline,
         lastHealthCheck,
         history,

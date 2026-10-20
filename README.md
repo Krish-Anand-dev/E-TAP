@@ -4,7 +4,7 @@
 
 E-TAP takes a raw email (`.eml` / `.msg`, or a message opened in Gmail through the browser extension) and runs it through a multi-stage forensic pipeline: header and authentication forensics, sender-origin tracing with IP geolocation, static attachment forensics (file signatures, macros, QR codes, OCR), IOC extraction, live threat-intelligence lookups, historical campaign correlation, graph-based risk propagation, an XGBoost pre-filter and a Gemini-backed final assessment with MITRE ATT&CK mapping.
 
-The result is one report that says **what was observed, why it matters and what to do**, written so a non-expert can act on it, with the full technical detail kept for security analysts.
+The result is one report that says **how risky the email is, why, and what to do**, written so a non-expert can act on it, with the full technical detail kept for security analysts.
 
 > E-TAP is a triage assistant, not an oracle. A missing or failed check is always reported as *unknown*, never as *safe*.
 
@@ -87,22 +87,18 @@ Six metadata features (attachment present, URL count, sender-domain age, SPF pas
 A **privacy-reduced copy** of all evidence (URLs redacted, PII masked) goes to Gemini in a single structured-JSON call that returns both a content-only classification against a fixed 30-category threat taxonomy and a full-evidence final verdict with MITRE ATT&CK techniques and recommended actions. The model is told that email content is untrusted data, and every AI finding must cite evidence IDs from the deterministic evidence ledger; uncited claims are kept but marked *ungrounded*. A chain of fallback Gemini models is tried within a time budget; if all fail, a deterministic offline scorer produces the result and the report says so.
 
 ### Stage H — Verdict, evidence report and persistence
-One function reconciles the label and the 0–100 score (the more severe wins) into five canonical verdicts — `LIKELY LEGITIMATE` (0–19), `LOW RISK` (20–39), `SUSPICIOUS` (40–64), `LIKELY PHISHING` (65–84), `HIGH-RISK PHISHING` (85–100) — and three UI bands (safe / caution / danger). The evidence report separates **observed** facts, **reputation** results and **AI-inferred** statements, lists what could not be checked, and produces a headline plus concrete next steps. A privacy report shows exactly what left the server, and a provider-status panel shows which services succeeded, timed out, were rate-limited or skipped. Everything is saved to MongoDB, and a summary + 384-dim embedding is indexed in the background for the SOC Assistant.
+One function reconciles the label and the 0–100 score (the more severe wins) into five canonical verdicts — `LIKELY LEGITIMATE` (0–19), `LOW RISK` (20–39), `SUSPICIOUS` (40–64), `LIKELY PHISHING` (65–84), `HIGH-RISK PHISHING` (85–100) — and three UI bands (safe / caution / danger). The evidence report separates **observed** facts, **reputation** results and **AI-inferred** statements, lists what could not be checked, and produces a headline plus concrete remediation steps. A privacy record of what left the server and a per-provider coverage status are stored with each report for analysts and the API. Everything is saved to MongoDB, and a summary + 384-dim embedding is indexed in the background for the SOC Assistant.
 
 ---
 
 ## What you get in the dashboard
 
-- Verdict banner with risk gauge, confidence and provenance chips
-- "What we observed / Why it matters / What to do" narrative
-- Header panel (SPF/DKIM/DMARC lights, red flags, Received chain)
-- Sender-route **GeoMap** (Leaflet) with hop-by-hop classification
-- Attachment table, link/QR findings, IOC table with reputation and history
-- Interactive **threat graph** with a diffusion-score overlay
-- MITRE ATT&CK cards and historical-correlation card
-- Privacy data-flow and provider-status panels
-- Review workflow (needs review → confirmed malicious / benign / unresolved), case marking, feedback, recovery checklists, retention and delete controls, redacted share pack
-- **PDF export** and the **SOC Assistant** chat (ask about the open report or search all past investigations)
+- **Dashboard** — emails analysed, high risk / suspicious / low risk counts, average risk, risk-over-time chart, verdict breakdown, top threat types and recent investigations, from everything stored
+- **Analyze email** — a live timeline that lights up each stage as it runs (reading the email, sender & headers, static attachments, links & indicators, reputation, past emails, AI assessment, verdict), then the score, the verdict and **Re-analyze**
+- **Investigation report** — a big score ring and verdict, "why it was risky" tags (Header issues, Attachment issues, Suspicious links, Bad reputation, Seen before, Suspicious wording), category cards with the serious findings first, **Remediation**, the sender-route map, multi-vector analysis and MITRE ATT&CK, collapsible technical details, past emails and the threat graph, and analyst tools (review, case, sharing, retention) at the end
+- **Reports** — every analysed email broken down stage by stage, searchable and filterable by risk
+- **Trusted domains** — senders you trust lower the risk only when SPF, DKIM and DMARC prove the email is genuine
+- **Ask E-TAP** — the SOC Assistant for the open report or all past investigations, plus **PDF/JSON export**
 
 ## Gmail extension
 
