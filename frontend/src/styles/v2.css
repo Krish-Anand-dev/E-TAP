@@ -432,3 +432,117 @@ button.risk-tag:hover { transform: translateY(-1px); }
 .vector-list p { font-size: 12px; color: var(--ink-3); margin-top: 4px; }
 .report-tabs button { transition: none; }
 .reanalyze-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; width: 100%; margin-top: 8px; }
+
+/* ---------- timeline cat mascot (components/common/TimelineCat.jsx) ---------- */
+.timeline ol.has-cat { padding-right: 186px; }
+.timeline-cat { position: absolute; right: 2px; top: 0; width: 178px; height: 160px; pointer-events: none; z-index: 2;
+  transition: top .8s cubic-bezier(.34, 1.45, .64, 1); }
+.timeline-cat .kc-drop { width: 100%; height: 100%; animation: kc-drop .8s cubic-bezier(.34, 1.45, .64, 1); transform-origin: 50% 100%; }
+.kc-svg { width: 100%; height: 100%; overflow: visible; }
+.kc-svg * { transform-box: fill-box; }
+@keyframes kc-drop {
+  0% { transform: translateY(-26px) scale(.96, 1.06); }
+  55% { transform: translateY(2px) scale(1.08, .86); }
+  75% { transform: translateY(-3px) scale(.97, 1.04); }
+  100% { transform: none; }
+}
+.kc-bob { animation: kc-bob 2.4s ease-in-out infinite; }
+@keyframes kc-bob { 50% { transform: translateY(-2px); } }
+.kc-tail { transform-origin: 100% 100%; animation: kc-tail 1.6s ease-in-out infinite; }
+@keyframes kc-tail { 50% { transform: rotate(12deg); } }
+.kc-eyes { transform-origin: 50% 50%; animation: kc-blink 4.2s infinite; }
+@keyframes kc-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
+.kc-head { transform-origin: 50% 90%; }
+
+/* reading: page flip */
+.kc-page { transform-origin: 0% 50%; animation: kc-flip 1.8s ease-in-out infinite; }
+@keyframes kc-flip { 0%, 30% { transform: scaleX(1); } 60%, 100% { transform: scaleX(-1); } }
+.kc-scene-parse .kc-head { animation: kc-read 3.6s ease-in-out infinite; }
+@keyframes kc-read { 50% { transform: rotate(4deg); } }
+
+/* headers: magnifier sweep */
+.kc-mag { transform-origin: 0% 100%; animation: kc-sweep 1.8s ease-in-out infinite; }
+@keyframes kc-sweep { 0%, 100% { transform: translate(-4px, 0) rotate(-4deg); } 50% { transform: translate(14px, 4px) rotate(5deg); } }
+
+/* static attachment: scratching */
+.kc-claw { fill: none; stroke: #b42338; stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 44; stroke-dashoffset: 44; animation: kc-claw 1.2s ease-out infinite; }
+.kc-claw:nth-child(2) { animation-delay: .08s; }
+.kc-claw:nth-child(3) { animation-delay: .16s; }
+@keyframes kc-claw { 0%, 20% { stroke-dashoffset: 44; opacity: 1; } 55% { stroke-dashoffset: 0; } 90% { opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+.kc-swipe { transform-origin: 0% 100%; animation: kc-swipe 1.2s ease-in-out infinite; }
+@keyframes kc-swipe { 0%, 15% { transform: translate(-2px, -6px) rotate(-6deg); } 55% { transform: translate(12px, 14px) rotate(6deg); } 100% { transform: translate(-2px, -6px) rotate(-6deg); } }
+
+/* dynamic attachment: tearing apart */
+.kc-half-left { transform-origin: 50% 100%; animation: kc-tear-l 2.2s ease-in-out infinite; }
+.kc-half-right { transform-origin: 50% 100%; animation: kc-tear-r 2.2s ease-in-out infinite; }
+@keyframes kc-tear-l { 0%, 25% { transform: none; } 55%, 85% { transform: translate(-9px, 3px) rotate(-14deg); } 100% { transform: none; } }
+@keyframes kc-tear-r { 0%, 25% { transform: none; } 55%, 85% { transform: translate(10px, 4px) rotate(16deg); } 100% { transform: none; } }
+.kc-bits { opacity: 0; animation: kc-bits 2.2s ease-out infinite; }
+@keyframes kc-bits { 0%, 45% { opacity: 0; transform: translateY(8px); } 60% { opacity: 1; } 90% { opacity: 0; transform: translateY(-12px); } 100% { opacity: 0; } }
+.kc-tug { transform-origin: 0% 50%; animation: kc-tug 2.2s ease-in-out infinite; }
+@keyframes kc-tug { 0%, 25% { transform: none; } 55%, 85% { transform: translate(-5px, 2px); } }
+.kc-scene-sandbox .kc-eyes { animation: kc-squint 2.2s ease-in-out infinite; }
+@keyframes kc-squint { 0%, 30%, 100% { transform: scaleY(1); } 50%, 80% { transform: scaleY(.35); } }
+
+/* links: pulling a chain */
+.kc-chain { animation: kc-chain 1.6s linear infinite; }
+@keyframes kc-chain { from { transform: translateX(0); } to { transform: translateX(-14px); } }
+.kc-pull { transform-origin: 0% 50%; animation: kc-pull 1.6s ease-in-out infinite; }
+@keyframes kc-pull { 50% { transform: translateX(-4px); } }
+
+/* reputation: typing, data to the globe */
+.kc-wire { fill: none; stroke: #3b82c4; stroke-width: 2; stroke-dasharray: 3 4; animation: kc-wire .9s linear infinite; }
+.kc-wire-2 { animation-duration: 1.3s; }
+@keyframes kc-wire { to { stroke-dashoffset: -14; } }
+.kc-meridian { transform-origin: 50% 50%; animation: kc-spin 2.4s linear infinite; }
+@keyframes kc-spin { 0% { transform: scaleX(1); } 50% { transform: scaleX(.1); } 100% { transform: scaleX(1); } }
+.kc-screen { animation: kc-screen 1.2s ease-in-out infinite; }
+@keyframes kc-screen { 50% { fill: #a5e3ff; } }
+.kc-type-a { animation: kc-type .32s ease-in-out infinite; }
+.kc-type-b { animation: kc-type .32s ease-in-out infinite .16s; }
+@keyframes kc-type { 50% { transform: translateY(-3px); } }
+
+/* past emails: detective board, red string */
+.kc-string { fill: none; stroke: #d12f3d; stroke-width: 1.8; stroke-dasharray: 120; stroke-dashoffset: 120; animation: kc-string 2.6s ease-in-out infinite; }
+@keyframes kc-string { 0% { stroke-dashoffset: 120; } 60%, 85% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+.kc-pointer { transform-origin: 0% 100%; animation: kc-point 2.6s ease-in-out infinite; }
+@keyframes kc-point { 0%, 100% { transform: rotate(0deg); } 30% { transform: rotate(-7deg); } 60% { transform: rotate(4deg); } }
+
+/* AI: suit up and hover */
+.kc-helmet { animation: kc-helmet .9s cubic-bezier(.34, 1.45, .64, 1) both; }
+@keyframes kc-helmet { 0% { transform: translateY(-46px); opacity: 0; } 60% { opacity: 1; } 100% { transform: none; opacity: 1; } }
+.kc-scene-ai .kc-bob { animation: kc-hover 1.4s ease-in-out infinite .9s; }
+@keyframes kc-hover { 50% { transform: translateY(-6px); } }
+.kc-visor { animation: kc-visor 1.4s ease-in-out infinite .9s; }
+@keyframes kc-visor { 50% { fill: #e6fbff; } }
+.kc-reactor { animation: kc-reactor 1.1s ease-in-out infinite; }
+@keyframes kc-reactor { 50% { fill: #e6fbff; filter: drop-shadow(0 0 3px #9be7ff); } }
+.kc-thrust { transform-origin: 50% 0%; animation: kc-thrust .18s ease-in-out infinite alternate; }
+@keyframes kc-thrust { to { transform: scaleY(.6); opacity: .7; } }
+.kc-hud { transform-origin: 50% 50%; animation: kc-hud 3s linear infinite; }
+@keyframes kc-hud { to { transform: rotate(360deg); } }
+.kc-repulsor { animation: kc-reactor .7s ease-in-out infinite; }
+
+/* verdict: writing in the notebook */
+.kc-write { fill: none; stroke: #5b6b8c; stroke-width: 1.8; stroke-linecap: round; stroke-dasharray: 34; stroke-dashoffset: 34; animation: kc-write 3s linear infinite; }
+.kc-write-2 { animation-delay: .7s; }
+.kc-write-3 { animation-delay: 1.4s; }
+@keyframes kc-write { 0% { stroke-dashoffset: 34; } 25%, 92% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+.kc-pencil { animation: kc-pencil 1s ease-in-out infinite; }
+@keyframes kc-pencil { 0%, 100% { transform: translate(-10px, 0); } 50% { transform: translate(12px, 3px); } }
+.kc-mood-done .kc-write { animation: none; stroke-dashoffset: 0; }
+.kc-mood-done .kc-pencil { animation: none; transform: translate(14px, -4px); }
+.kc-tick { fill: none; stroke: #2e9e6b; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 30; stroke-dashoffset: 30; animation: kc-tick .6s ease-out .3s forwards; }
+@keyframes kc-tick { to { stroke-dashoffset: 0; } }
+.kc-hearts { animation: kc-hearts 1.6s ease-out infinite; }
+@keyframes kc-hearts { 0% { transform: translateY(6px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateY(-14px); opacity: 0; } }
+.kc-mood-error .kc-head { transform: rotate(-10deg); }
+.kc-mood-error .kc-eyes { transform: scaleY(.3); animation: none; }
+
+@media (max-width: 760px) {
+  .timeline ol.has-cat { padding-right: 0; }
+  .timeline-cat { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .timeline-cat, .timeline-cat * { animation: none !important; transition: none !important; }
+}

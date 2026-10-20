@@ -28,6 +28,7 @@ Loaded automatically by Claude Code. Keep it short, current and true; update it 
 ## Frontend (React 18 + Vite 8, light cream/navy/red theme)
 - Styles: `styles/workspace.css` (base) + `styles/v2.css` (all revamp components; loaded last).
 - Pages: `OverviewPage` (dashboard numbers from `GET /investigations`), `UploadPage` (live timeline; stages paced by `MIN_STAGE_MS`, `VITE_TIMELINE_PACING=off` disables; Re-analyze), `DashboardPage` (report: sticky tabs, `VerdictHero`, `RiskBreakdown`, `Remediation`, map, `EvidenceBreakdown` radar + MITRE, collapsible details, analyst tools last), `HistoryPage` (Reports: per-stage cards from `stageSummaries`), `SettingsPage` (trusted domains + retention).
+- `components/common/TimelineCat.jsx`: animated SVG cat mascot on the Analyze timeline (one scene per stage: book, magnifier, PDF scratch, PDF tear, chain, laptop+globe, detective board, iron-cat suit, notebook). Positioned by `PipelineTimeline` next to the active row; drops with a bounce on each stage change; CSS keyframes `kc-*` in `v2.css`; hidden under 760 px and with reduced motion. Not yet ported to E-TAPlocal.
 - `utils/reportSummary.js`: risk categories, key stats, per-stage summaries — the single place that turns a report into UI numbers.
 - `context/InvestigationContext.jsx`: `startAnalysis` (job polling), `resetToken` (remounts Analyze page on New analysis), `sourceFiles` (uploaded File per email_id, memory only) + `requestReanalysis` / `rerunRequest` for Re-analyze.
 

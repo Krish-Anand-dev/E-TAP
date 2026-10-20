@@ -1,6 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { useInvestigation } from '../context/InvestigationContext';
 import Icon from '../components/common/Icon';
+import TimelineCat from '../components/common/TimelineCat';
 import { verdictOf } from '../utils/reportSummary';
 
 const REAL_SAMPLE_PHISHING_EML = `From: IT Helpdesk <support@northfield-logisitcs-helpdesk.com>
@@ -141,16 +142,45 @@ function useElapsed(active) {
   return seconds;
 }
 
+/** Index of the stage the cat should sit on: the running one, else the next waiting one. */
+function catIndex(list) {
+  const running = list.findIndex((s) => s.state === 'running');
+  if (running >= 0) return running;
+  const failedAt = list.findIndex((s) => s.state === 'error');
+  if (failedAt >= 0) return failedAt;
+  const waiting = list.findIndex((s) => s.state === 'pending');
+  if (waiting > 0) return waiting - 1;
+  return waiting === 0 ? 0 : list.length - 1;
+}
+
 export function PipelineTimeline({ stages, finished, failed }) {
   const list = stages && stages.length ? stages : DEFAULT_STAGES;
   const completed = list.filter((s) => ['done', 'skipped', 'not_available'].includes(s.state)).length;
   const pct = Math.round((completed / list.length) * 100);
+  const rows = useRef([]);
+  const [catTop, setCatTop] = useState(0);
+  const index = catIndex(list);
+  const scene = list[index]?.key || 'parse';
+  const mood = failed ? 'error' : finished ? 'done' : 'working';
+
+  // Keep the cat centred on its stage row (rows can change height as details appear).
+  useLayoutEffect(() => {
+    const place = () => {
+      const row = rows.current[index];
+      // centred on the row, but never above the list into the progress bar
+      if (row) setCatTop(Math.max(-12, row.offsetTop + row.offsetHeight / 2 - 88));
+    };
+    place();
+    window.addEventListener('resize', place);
+    return () => window.removeEventListener('resize', place);
+  }, [index, list.length]);
+
   return (
     <div className={`timeline ${finished ? 'finished' : ''} ${failed ? 'failed' : ''}`}>
       <div className="timeline-progress" aria-hidden="true"><i style={{ width: `${pct}%` }} /></div>
-      <ol>
+      <ol className="has-cat">
         {list.map((stage, i) => (
-          <li key={stage.key} className={`tl-step state-${stage.state} ${stage.key === 'sandbox' ? 'is-sandbox' : ''}`}>
+          <li key={stage.key} ref={(el) => { rows.current[i] = el; }} className={`tl-step state-${stage.state} ${stage.key === 'sandbox' ? 'is-sandbox' : ''}`}>
             <span className="tl-node">
               {stage.state === 'done' ? <Icon name="check" size={16} strokeWidth={2.4} />
                 : stage.state === 'error' ? <Icon name="x" size={16} strokeWidth={2.4} />
@@ -163,6 +193,10 @@ export function PipelineTimeline({ stages, finished, failed }) {
             <span className="tl-state">{STATE_TEXT[stage.state]}</span>
           </li>
         ))}
+        <li className="timeline-cat" style={{ top: catTop }} aria-hidden="true">
+          {/* keyed by stage so the drop-and-land animation replays on every move */}
+          <div className="kc-drop" key={scene}><TimelineCat scene={scene} mood={mood} /></div>
+        </li>
       </ol>
     </div>
   );
