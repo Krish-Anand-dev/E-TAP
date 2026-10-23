@@ -84,11 +84,17 @@ async def pair(request: Request, payload: PairRequest) -> dict:
 @limiter.limit("120/minute")
 async def pairing_status(request: Request) -> dict:
     """Is this client's sandbox paired, and is its agent online?"""
+    import os
     from sandbox import get_backend
-    if get_backend() != "agent":
+    backend = get_backend()
+    if backend in {"virtualbox", "replay"}:
+        # The VM (or recorded traces) sits with this server: nothing to pair.
+        return {"available": True, "mode": backend, "paired": True, "online": True,
+                "name": "This computer", "vm_name": os.getenv("SANDBOX_VM_NAME") if backend == "virtualbox" else "recorded traces"}
+    if backend != "agent":
         return {"available": False, "paired": False, "online": False}
     from sandbox import agent_queue
-    return {"available": True, **agent_queue.client_status(request.headers.get("x-etap-sandbox-token"))}
+    return {"available": True, "mode": "agent", **agent_queue.client_status(request.headers.get("x-etap-sandbox-token"))}
 
 
 @router.delete("/sandbox/pairing")

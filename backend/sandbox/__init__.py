@@ -7,10 +7,11 @@ investigation's score (never lower it).
 
 Backend modes (set via SANDBOX_BACKEND env var):
   - agent      : the user's own VM, reached through a paired E-TAP Sandbox
-                 Agent (hosted deployments; opt-in per analysis)
+                 Agent (default; opt-in per analysis, nothing runs until a
+                 user pairs an agent and asks for a deeper analysis)
   - virtualbox : a VM on the same machine as this server (local runs)
   - replay     : evaluate a recorded Sysmon trace (labeled mode="replay")
-  - none       : sandbox unavailable
+  - none       : sandbox switched off
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ BACKENDS = ("agent", "virtualbox", "replay", "none")
 
 def get_backend() -> str:
     """Return the configured sandbox backend (see BACKENDS)."""
-    backend = os.getenv("SANDBOX_BACKEND", "none").strip().lower()
+    backend = os.getenv("SANDBOX_BACKEND", "agent").strip().lower()
     return backend if backend in BACKENDS else "none"
 
 

@@ -135,9 +135,10 @@ def _sandbox_plan(attachments: list, sandbox: dict | None) -> tuple[str, list, d
             return backend, [], None, "skipped", "No attachments to open in the sandbox"
         agent = None
         online = False
+        # Every backend runs only when the caller chose a deeper analysis.
+        if not (sandbox or {}).get("requested"):
+            return backend, [], None, "skipped", "Standard analysis: attachments were not opened"
         if backend == "agent":
-            if not (sandbox or {}).get("requested"):
-                return backend, [], None, "skipped", "Standard analysis: attachments were not opened"
             from sandbox.agent_queue import agent_for_client, is_online
             agent = agent_for_client((sandbox or {}).get("token"))
             if agent is None:
@@ -164,7 +165,7 @@ def _submit_to_sandbox(email_id: str, raw_attachments: list, attachment_analysis
     if backend == "none":
         return {**status, "status": "unavailable", "message": "Sandbox is not configured."}, "unavailable"
     if not candidates:
-        if backend == "agent" and agent is None and attachment_analysis.get("attachments"):
+        if attachment_analysis.get("attachments") and (backend != "agent" or agent is None):
             return {**status, "status": "not_requested"}, "not_requested"
         return status, "not_applicable"
     try:

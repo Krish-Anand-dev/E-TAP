@@ -2,14 +2,19 @@ import React, { useEffect, useState } from 'react';
 import Icon from '../common/Icon';
 import { agentDownloadUrl, getSandboxPairing, pairSandbox, sandboxStateLabel, unpairSandbox } from '../../api/sandbox';
 
-/** Settings card: pair this browser with the user's E-TAP Sandbox Agent (once). */
-export default function SandboxPairing() {
+/**
+ * Pair this browser with the user's E-TAP Sandbox Agent (once).
+ * Full card on Settings; `compact` is the inline version on the Analyze page.
+ */
+export default function SandboxPairing({ compact = false, onChange }) {
   const [state, setState] = useState(null);
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
 
-  const refresh = () => getSandboxPairing().then(setState).catch(() => setState({ available: false, unreachable: true }));
+  const refresh = () => getSandboxPairing()
+    .then((next) => { setState(next); onChange?.(next); return next; })
+    .catch(() => setState({ available: false, unreachable: true }));
   useEffect(() => {
     refresh();
     const timer = setInterval(refresh, 15000);
@@ -17,6 +22,7 @@ export default function SandboxPairing() {
   }, []);
 
   if (!state) return null;
+  if (compact && (state.paired || !state.available)) return null;
   if (!state.available) {
     return (
       <section className="v2-card sandbox-pairing">
@@ -33,7 +39,7 @@ export default function SandboxPairing() {
     try {
       await pairSandbox(code);
       setCode('');
-      setMessage({ tone: 'ok', text: 'Paired. Deeper attachment analysis is now available on the Analyze page.' });
+      setMessage({ tone: 'ok', text: compact ? 'Paired. Your sandbox is ready.' : 'Paired. Deeper attachment analysis is now available on the Analyze page.' });
       await refresh();
     } catch (error) {
       setMessage({ tone: 'bad', text: error.message });
@@ -48,11 +54,15 @@ export default function SandboxPairing() {
   const tone = state.paired ? (state.online ? 'online' : 'offline') : '';
 
   return (
-    <section className="v2-card sandbox-pairing">
+    <section className={`v2-card sandbox-pairing ${compact ? 'compact' : ''}`}>
+      {compact ? (
+        <div className="pair-inline-head"><strong>Pair your sandbox once</strong><span>Deeper analysis runs on a virtual machine on your own PC, so E-TAP needs to know which one.</span></div>
+      ) : (
       <div className="v2-card-head">
         <div><h3>Deeper attachment analysis</h3><p>Open attachments inside a virtual machine you own and see what they do.</p></div>
         <span className={`sandbox-pill ${tone}`}><Icon name="box" size={14} />{sandboxStateLabel(state)}</span>
       </div>
+      )}
       {state.paired ? (
         <div className="sandbox-paired">
           <p>

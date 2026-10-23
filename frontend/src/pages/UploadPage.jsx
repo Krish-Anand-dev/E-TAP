@@ -4,6 +4,7 @@ import Icon from '../components/common/Icon';
 import TimelineCat from '../components/common/TimelineCat';
 import { verdictOf } from '../utils/reportSummary';
 import { getSandboxPairing, sandboxStateLabel } from '../api/sandbox';
+import SandboxPairing from '../components/settings/SandboxPairing';
 
 const REAL_SAMPLE_PHISHING_EML = `From: IT Helpdesk <support@northfield-logisitcs-helpdesk.com>
 To: priya.nair@northfield-logistics.com
@@ -66,7 +67,7 @@ const DEFAULT_STAGES = [
   ['sandbox', 'Dynamic attachment analysis'], ['indicators', 'Extracting links & indicators'], ['reputation', 'Threat reputation lookups'],
   ['history', 'Comparing with past emails'], ['ai', 'AI threat assessment'], ['verdict', 'Final verdict'],
 ].map(([key, label]) => ({ key, label, state: 'pending', detail: null }));
-const STATE_TEXT = { pending: 'Waiting', running: 'In progress', done: 'Done', skipped: 'Skipped', not_available: 'Not in this version', error: 'Failed' };
+const STATE_TEXT = { pending: 'Waiting', running: 'In progress', done: 'Done', skipped: 'Skipped', not_available: 'Not set up', error: 'Failed' };
 
 // Minimum time each stage stays "in progress" on screen, in ms. Locally (no API
 // keys) the backend finishes in about a second, which reads as nothing
@@ -203,8 +204,8 @@ export function PipelineTimeline({ stages, finished, failed }) {
   );
 }
 
-const DEEP_INFO = 'Also opens the attachments inside your own sandbox VM and records what they do. '
-  + 'Requires a VirtualBox VM (Windows Sandbox on Windows Pro is planned) and the E-TAP Sandbox Agent, paired once on the Settings page.';
+const DEEP_INFO = 'Opens the attachments inside your own sandbox VM and records what they do. '
+  + 'Requires a VirtualBox VM (Windows Sandbox on Windows Pro is planned) and the free E-TAP Sandbox Agent, paired once.';
 
 export function UploadPage({ onOpenReport, onOpenSettings }) {
   const { status, error, data, startAnalysis, loadDemoSample, backendOnline, jobStages, rerunRequest, consumeRerunRequest } = useInvestigation();
@@ -216,6 +217,7 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
   const [deep, setDeep] = useState(false);
   const [sandboxState, setSandboxState] = useState(null);
   const isBusy = status === 'uploading' || status === 'analyzing';
+  const deepBlocked = deep && !sandboxState?.paired;
 
   // Whether this server offers deeper analysis, and the paired sandbox's state.
   useEffect(() => {
@@ -301,22 +303,45 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
             <span className="file-tag">{selectedFile.name.split('.').pop()?.toUpperCase()}</span>
             <div><div className="file-name">{selectedFile.name}</div><div className="file-size">{(selectedFile.size / 1024).toFixed(1)} KB</div></div>
           </div>
-          {sandboxState?.available && (
-            <div className="deep-option">
-              <label>
-                <input type="checkbox" checked={deep && Boolean(sandboxState.paired)} disabled={!sandboxState.paired} onChange={(e) => setDeep(e.target.checked)} />
-                <span>Deeper attachment analysis</span>
-              </label>
-              <span className="info-dot" tabIndex={0} role="img" aria-label={DEEP_INFO} title={DEEP_INFO}>i</span>
-              <span className={`sandbox-pill ${sandboxState.paired ? (sandboxState.online ? 'online' : 'offline') : ''}`}>{sandboxStateLabel(sandboxState)}</span>
-              {!sandboxState.paired && <a href="#settings" onClick={(e) => { e.preventDefault(); onOpenSettings?.(); }}>Pair your sandbox</a>}
-            </div>
-          )}
           <div className="staged-actions">
             <button type="button" className="btn-ghost" onClick={() => setSelectedFile(null)}>Clear</button>
-            <button type="button" id="execute-pipeline-btn" className="btn-primary-action" onClick={() => run(selectedFile)} disabled={backendOnline === false}>Analyze email</button>
+            <button type="button" id="execute-pipeline-btn" className="btn-primary-action" onClick={() => run(selectedFile)}
+              disabled={backendOnline === false || deepBlocked} title={deepBlocked ? 'Pair your sandbox first, or choose Standard analysis' : undefined}>
+              {deep ? 'Run deeper analysis' : 'Analyze email'}
+            </button>
           </div>
         </div>
+      )}
+
+      {selectedFile && !showTimeline && (
+        <section className="analysis-choice" aria-label="Type of analysis">
+          <span className="eyebrow">HOW SHOULD E-TAP CHECK THIS EMAIL?</span>
+          <div className="choice-cards">
+            <button type="button" className={`choice-card ${deep ? '' : 'selected'}`} aria-pressed={!deep} onClick={() => setDeep(false)}>
+              <span className="choice-icon"><Icon name="shield" size={20} /></span>
+              <strong>Standard analysis</strong>
+              <span>Sender, headers, links, reputation, history and AI. Attachments are inspected without being opened.</span>
+            </button>
+            <button type="button" className={`choice-card ${deep ? 'selected' : ''}`} aria-pressed={deep}
+              onClick={() => setDeep(true)} disabled={sandboxState ? !sandboxState.available : false}>
+              <span className="choice-icon"><Icon name="box" size={20} /></span>
+              <strong>Deeper attachment analysis <span className="info-dot" role="img" aria-label={DEEP_INFO} title={DEEP_INFO}>i</span></strong>
+              <span>Also opens the attachments inside your own virtual machine and records what they do.</span>
+              {sandboxState && (
+                <span className={`sandbox-pill ${sandboxState.paired ? (sandboxState.online ? 'online' : 'offline') : ''}`}>
+                  <Icon name="box" size={13} />
+                  {!sandboxState.available ? 'Not set up on this server' : sandboxState.mode !== 'agent' && sandboxState.paired ? `This computer's VM${sandboxState.vm_name ? ` (${sandboxState.vm_name})` : ''}` : sandboxStateLabel(sandboxState)}
+                </span>
+              )}
+            </button>
+          </div>
+          {deep && sandboxState?.available && !sandboxState.paired && (
+            <SandboxPairing compact onChange={setSandboxState} />
+          )}
+          {deep && sandboxState?.paired && !sandboxState.online && (
+            <p className="choice-note"><Icon name="alert" size={14} />Your sandbox is offline. The attachments wait for it: start the E-TAP Sandbox Agent on the PC with your VM and the report updates by itself.</p>
+          )}
+        </section>
       )}
 
       {showTimeline && (
