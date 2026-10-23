@@ -117,6 +117,92 @@ A Manifest V3 extension adds **Analyze in E-TAP** above an opened Gmail message.
 
 ---
 
+## Using deeper attachment analysis, step by step
+
+Standard analysis never opens an attachment. **Deeper attachment analysis** opens it inside a virtual machine **you own**, watches what it does and adds that to the report. This is the whole journey for someone using the hosted E-TAP with a Windows VM in VirtualBox.
+
+### What runs where
+| On your PC | On the E-TAP server |
+|---|---|
+| Your VirtualBox VM, where attachments are opened | The analysis pipeline, the report and your score |
+| The **E-TAP Sandbox Agent**, a small program that drives the VM | The **detection rules** (`backend/sandbox/rules`) |
+| The agent's settings: VM name, snapshot, guest login (the password and pairing token are protected by Windows for your user only) | The job queue, holding attachments only until your agent has run them |
+
+- The agent only records what happened (Windows Sysmon events and new Windows Defender events) and uploads that record.
+- The server checks it against the rules, so rules can be updated without reinstalling anything.
+- The server never connects to your PC; the agent only makes outbound requests.
+- Only the attachments of an email you chose to deep-analyse are sent to it, never the whole email.
+
+### Before you start (once)
+Prepare a VM kept only for this, never your everyday one:
+- **VirtualBox** with a Windows 10/11 VM and **Guest Additions** installed;
+- **Sysmon** installed in the VM;
+- a Windows **user with a password** inside the VM;
+- a **snapshot taken in a clean state** (for example named `clean`). The VM goes back to it after every run.
+
+On your PC you also need **Python 3.10 or newer** (from python.org, with "Add to PATH" ticked). Windows Sandbox (Windows Pro) support is planned and not needed today. Setup details are in [`backend/sandbox/README.md`](backend/sandbox/README.md).
+
+### 1. Choose Deeper
+- **On the website:** open **Analyze email** and drop the email file. Two cards appear: **Standard analysis** and **Deeper attachment analysis** (its *i* icon explains what it needs). Pick Deeper.
+- **In Gmail:** click **Analyze in E-TAP**, then **Deeper attachment analysis**.
+
+The first time, it says **Your sandbox: not paired** and shows three steps.
+
+### 2. Download and start the agent
+1. Click **Download the E-TAP Sandbox Agent**, unzip `etap-sandbox-agent.zip` and double-click **`start-agent.cmd`**.
+2. The agent asks permission, then checks your computer:
+   - Windows and Python;
+   - VirtualBox and its version;
+   - the VMs it finds and their snapshots;
+   - whether Windows Sandbox exists (optional).
+   Nothing in the VM is changed during setup.
+3. Choose your VM, type the clean snapshot name, the guest Windows user and its password (hidden while typing).
+4. Answer whether attachments should open automatically when you ask for a deeper analysis. Answering *no* means the agent asks you each time.
+5. The agent shows a **pairing code** such as `K7QM-4XPN`. It works once and expires in 10 minutes.
+
+Optional check: `start-agent.cmd test` restores the VM once and confirms that the guest login, Sysmon and the Defender log all work.
+
+### 3. Pair (once)
+Type the code into the box on the website (or the extension's tab) and click **Pair**. The page shows **Your sandbox: online**, and the agent window says *Paired*. Keep the agent window open: it is your sandbox. The pairing is remembered, so you never enter a code again in that browser.
+
+### 4. Run it
+1. Click **Run deeper analysis**. In Gmail it continues by itself after pairing.
+2. The standard checks finish in seconds. The timeline's *Dynamic attachment analysis* step says the attachments were sent to your sandbox.
+3. The report opens with a **Sandbox behaviour** section showing *Waiting*, then *Running*. A *Sandbox running* pill sits in the top bar.
+4. The agent window shows each step while the VM runs in the background for about a minute:
+   1. restoring the clean snapshot and starting the VM;
+   2. opening the attachments;
+   3. collecting Sysmon events;
+   4. restoring the clean snapshot.
+
+### 5. Read the result
+The report updates by itself; there is no need to refresh. It shows:
+- **VM result:**
+  - *Threat seen*: a detection rule matched, or Defender blocked the file.
+  - *Nothing seen*: it ran with nothing matched. This is inconclusive, never proof of safety.
+  - *Not tested*: the file could not be opened, for example an Office document with no Office in the VM.
+  - *Waiting*: your agent is not running yet.
+- **Counts:** files opened, detection rules matched (with their MITRE ATT&CK techniques), files blocked by Windows Defender (or *Not checked* if Defender's log could not be read), and the processes the attachment started.
+- **The score:** a rule match raises the risk score to at least 65, or at least 85 for strong (prevention-grade) rules. The sandbox can only raise the score, never lower it.
+
+### Every time after that
+Double-click `start-agent.cmd`; it goes straight to *Your sandbox: online*. Then pick Standard or Deeper for any email.
+- **Agent not running:** the report waits for your sandbox and runs when you start it, if that is within 30 minutes.
+- **Settings:** the dashboard's **Settings** page shows your sandbox's status, and lets you pair another browser or unpair.
+
+### Good to know
+- **Limits:** up to 3 attachments per email, 10 MB each. Scripts and programs are opened first. ZIP files are unpacked and their files opened one by one.
+- **Documents:** nothing clicks inside documents yet, so Office files and PDFs that wait for a click usually come back inconclusive.
+- **Rule coverage:** 36 of the 164 bundled behaviour rules can be evaluated today.
+- **Agent window:** the agent runs only while its window is open. There is no background service or Windows auto-start yet.
+- **Problems:**
+  - Run `start-agent.cmd status` to see the saved settings and pairing.
+  - Run `start-agent.cmd setup` to change the VM.
+  - Run `start-agent.cmd forget` to remove everything the agent saved.
+- More detail: [`backend/sandbox_agent/README.md`](backend/sandbox_agent/README.md).
+
+---
+
 ## Tech stack
 
 | Layer | Technologies |
