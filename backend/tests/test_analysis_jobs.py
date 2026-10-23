@@ -49,7 +49,7 @@ class AnalysisJobTests(unittest.TestCase):
         job = self.wait(body["job_id"])
         self.assertEqual(job["status"], "done")
         states = {s["key"]: s["state"] for s in job["stages"]}
-        self.assertEqual(states["sandbox"], "not_available")
+        self.assertEqual(states["sandbox"], "skipped")  # no attachments to open
         self.assertEqual(states["reputation"], "skipped")
         for key in ("parse", "headers", "static_attachments", "indicators", "history", "ai", "verdict"):
             self.assertEqual(states[key], "done", key)

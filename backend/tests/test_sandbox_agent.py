@@ -186,6 +186,21 @@ class SandboxAgentTests(unittest.TestCase):
             "items": [], "sysmon_xml_gz_b64": base64.b64encode(gzip.compress(xml.encode())).decode()})
         self.assertEqual(response.status_code, 400)
 
+    def test_agent_is_the_default_backend(self):
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("SANDBOX_BACKEND", None)
+            self.assertTrue(self.client.get("/sandbox/pairing").json()["available"])
+
+    def test_local_vm_mode_needs_no_pairing_and_respects_the_choice(self):
+        with patch.dict(os.environ, {"SANDBOX_BACKEND": "virtualbox", "SANDBOX_VM_NAME": "Test VM"}):
+            state = self.client.get("/sandbox/pairing").json()
+            self.assertEqual((state["available"], state["paired"], state["mode"]), (True, True, "virtualbox"))
+            with patch("sandbox.worker.enqueue_job", return_value={"status": "queued", "mode": "virtualbox"}) as enqueue:
+                self.assertEqual(self.analyze({}, deep=False)["sandbox"]["status"], "not_requested")
+                enqueue.assert_not_called()
+                self.assertEqual(self.analyze({}, deep=True)["sandbox"]["status"], "queued")
+                enqueue.assert_called_once()
+
     def test_agent_routes_are_off_unless_backend_is_agent(self):
         with patch.dict(os.environ, {"SANDBOX_BACKEND": "none"}):
             self.assertEqual(self.client.post("/sandbox/agent/register", json={}).status_code, 404)

@@ -280,7 +280,7 @@ Red flags: `spf_fail|softfail`, `dkim_fail|key_not_found|misaligned`, `dmarc_fai
 
 Optional dynamic analysis: eligible attachments are opened inside an isolated Windows VM, Sysmon records what they do, and behavioural rules can **raise** the score (never lower it). Detailed VM setup and the rule inventory are in `backend/sandbox/README.md`; this section is the architecture.
 
-- **Backends** (`SANDBOX_BACKEND`): `agent` (hosted: the user's own VM through a paired agent, opt-in per analysis), `virtualbox` (the VM is on the server's own machine; in-process queue in `worker.py`), `replay` (recorded traces in `sandbox/replays/`) and `none` (default).
+- **Backends** (`SANDBOX_BACKEND`): `agent` (default: the user's own VM through a paired agent), `virtualbox` (the VM is on the server's own machine; in-process queue in `worker.py`; no pairing), `replay` (recorded traces in `sandbox/replays/`) and `none` (off). Every backend runs only when the caller asks for a deeper analysis (`deep_analysis=1`); the dashboard's Analyze page and the extension both ask Standard or Deeper before running, and the Analyze page pairs inline when needed.
 - **Selection** (`policy.py`, `archives.py`): up to 3 attachments of at most 10 MB each. Scripts and executables go first, then shortcuts, documents, PDFs, HTML and archives. ZIP members are expanded one by one, with path, size and encryption checks. Anything not opened stays in the report as "inspection incomplete".
 - **Running** (`sandbox_agent/runner.py`, used by both the agent and the local worker):
   1. restore the clean snapshot and start the VM headless;
@@ -639,7 +639,7 @@ Backend (`.env` at repo root locally; host settings in production — never in t
 | `ALLOWED_ORIGINS` | `http://127.0.0.1:5173,http://localhost:5173` | CORS |
 | `PORT` | `5000` | server port (Render injects it) |
 | `KMP_DUPLICATE_LIB_OK` | set to `TRUE` by `app.py` | avoids an OpenMP clash with torch |
-| `SANDBOX_BACKEND` | `none` | `agent` (hosted, paired user VMs), `virtualbox` (VM on this machine), `replay`, `none` |
+| `SANDBOX_BACKEND` | `agent` | `agent` (paired user VMs), `virtualbox` (VM on this machine), `replay`, `none` (off) |
 | `SANDBOX_AGENT_JOB_TTL_SECONDS`, `SANDBOX_AGENT_RUN_TIMEOUT_SECONDS` | `1800`, `900` | how long a job waits for the agent / may run without a result |
 | `SANDBOX_DWELL_SECONDS` | `30` | observation time per sample (local worker; the agent has its own setting) |
 | `SANDBOX_VM_NAME`, `SANDBOX_SNAPSHOT`, `SANDBOX_GUEST_USER`, `SANDBOX_GUEST_PASSWORD`, `VBOXMANAGE_PATH`, `SANDBOX_PDF_VIEWER` | — | VM settings for `virtualbox` mode (the agent keeps its own copy, sealed, in `%APPDATA%\E-TAP Sandbox Agent`) |
