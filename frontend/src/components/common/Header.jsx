@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useInvestigation } from '../../context/InvestigationContext';
 import Icon from './Icon';
+import { ACTIVE_SANDBOX_STATUSES } from '../../utils/sandbox';
 
 const TITLES = { overview: 'Dashboard', upload: 'Analyze email', dashboard: 'Investigation', history: 'Reports', settings: 'Trusted domains' };
 
@@ -9,6 +10,7 @@ export function Header({ currentView, setCurrentView }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const busy = status === 'uploading' || status === 'analyzing';
+  const sandboxRunning = ACTIVE_SANDBOX_STATUSES.has(data?.sandbox?.status);
 
   function navigate(view) {
     setCurrentView(view);
@@ -60,6 +62,7 @@ export function Header({ currentView, setCurrentView }) {
           {backendOnline === null ? 'Connecting' : backendOnline ? 'Engine online' : 'Engine offline'}
         </span>
         {busy && <span className="running-pill"><Icon name="activity" size={15} /><span>Analyzing</span></span>}
+        {!busy && sandboxRunning && <span className="running-pill" title="Attachments are being opened in a sandbox VM"><Icon name="box" size={15} /><span>Sandbox running</span></span>}
         <button className="new-analysis-button" onClick={() => { if (!busy) resetInvestigation(); navigate('upload'); }}><Icon name="plus" size={16} /><span>New analysis</span></button>
       </div>
     </header>

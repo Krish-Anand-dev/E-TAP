@@ -83,7 +83,7 @@ def _set_stage(job: dict, stage: str, state: str, detail: Optional[str] = None) 
         job["updated_at"] = _now()
 
 
-def _run(job: dict, filename: str, raw_bytes: bytes, source: Optional[str]) -> None:
+def _run(job: dict, filename: str, raw_bytes: bytes, source: Optional[str], sandbox: Optional[dict] = None) -> None:
     from email_parser.unified_parser import UnsupportedFileTypeError
     from pipeline import analyze_email_upload
     from workflow_c import finish_analysis
@@ -92,7 +92,7 @@ def _run(job: dict, filename: str, raw_bytes: bytes, source: Optional[str]) -> N
         _set_stage(job, stage, state, detail)
 
     try:
-        report = analyze_email_upload(filename, raw_bytes, source, progress=progress)
+        report = analyze_email_upload(filename, raw_bytes, source, progress=progress, sandbox=sandbox)
         report = finish_analysis(report)
         # finish_analysis may apply verified trusted-sender context, so the
         # verdict line reflects the final, stored decision.
@@ -118,7 +118,8 @@ def _fail(job: dict, message: str) -> None:
         job["updated_at"] = _now()
 
 
-def start_job(filename: str, raw_bytes: bytes, source: Optional[str] = None) -> dict:
+def start_job(filename: str, raw_bytes: bytes, source: Optional[str] = None,
+              sandbox: Optional[dict] = None) -> dict:
     _purge_expired()
     job_id = uuid.uuid4().hex
     job = {
@@ -132,7 +133,7 @@ def start_job(filename: str, raw_bytes: bytes, source: Optional[str] = None) -> 
     }
     with _lock:
         _jobs[job_id] = job
-    _executor.submit(_run, job, filename, raw_bytes, source)
+    _executor.submit(_run, job, filename, raw_bytes, source, sandbox)
     return _public(job)
 
 

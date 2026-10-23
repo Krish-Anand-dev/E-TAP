@@ -15,6 +15,7 @@ dist/
 # Secrets and local environment
 .env
 .env.*
+CLAUDE.local.md
 !.env.example
 *.pem
 *.key
@@ -39,3 +40,7 @@ Thumbs.db
 tmp/
 .local/
 output/
+
+# Sandbox run files (samples, telemetry) and local recorded traces
+backend/sandbox/work/
+backend/sandbox/replays/*.xml

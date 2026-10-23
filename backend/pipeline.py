@@ -119,7 +119,66 @@ def _plural(n: int, word: str) -> str:
     return f"{n} {word}{'' if n == 1 else 's'}"
 
 
-def _run_parsed_pipeline(parsed_email, source: str | None = None, progress=None) -> dict:
+def _sandbox_plan(attachments: list, sandbox: dict | None) -> tuple[str, list, dict | None, str, str]:
+    """Decide stage S before the record exists; never raises.
+
+    Returns (backend, candidates, paired agent, timeline state, timeline detail).
+    `sandbox` is the caller's request: {"requested": bool, "token": str | None}.
+    """
+    try:
+        from sandbox import get_backend
+        from sandbox.policy import get_detonation_candidates
+        backend = get_backend()
+        if backend == "none":
+            return backend, [], None, "not_available", "Deeper attachment analysis is not set up on this server"
+        if not attachments:
+            return backend, [], None, "skipped", "No attachments to open in the sandbox"
+        agent = None
+        online = False
+        if backend == "agent":
+            if not (sandbox or {}).get("requested"):
+                return backend, [], None, "skipped", "Standard analysis: attachments were not opened"
+            from sandbox.agent_queue import agent_for_client, is_online
+            agent = agent_for_client((sandbox or {}).get("token"))
+            if agent is None:
+                return backend, [], None, "not_available", "Deeper analysis needs your sandbox to be paired first"
+            online = is_online(agent)
+        candidates = get_detonation_candidates(attachments)
+        if not candidates:
+            return backend, [], agent, "skipped", "No attachment type that needs dynamic analysis"
+        where = {
+            "agent": "sent to your sandbox" + ("" if online else " (offline now; it runs when the agent reconnects)"),
+            "virtualbox": "queued for the Windows 11 VM",
+            "replay": "checked against a recorded trace",
+        }[backend]
+        return backend, candidates, agent, "done", f"{_plural(len(candidates), 'attachment')} {where}; results follow in the report"
+    except Exception as exc:
+        logger.warning("Sandbox planning failed (non-fatal): %s", type(exc).__name__)
+        return "none", [], None, "error", "Deeper attachment analysis could not be prepared"
+
+
+def _submit_to_sandbox(email_id: str, raw_attachments: list, attachment_analysis: dict,
+                       backend: str, candidates: list, agent: dict | None) -> tuple[dict, str]:
+    """Queue eligible attachments for detonation. Returns (sandbox status, stage S label)."""
+    status = {"status": "not_applicable", "email_id": email_id, "mode": backend}
+    if backend == "none":
+        return {**status, "status": "unavailable", "message": "Sandbox is not configured."}, "unavailable"
+    if not candidates:
+        if backend == "agent" and agent is None and attachment_analysis.get("attachments"):
+            return {**status, "status": "not_requested"}, "not_requested"
+        return status, "not_applicable"
+    try:
+        from sandbox import submit
+        status = submit(email_id, raw_attachments, attachment_analysis, agent=agent)
+        return status, status.get("status", "submitted")
+    except Exception as exc:
+        # The sandbox must never break the static report.
+        logger.warning("Sandbox submit failed (non-fatal): %s", type(exc).__name__)
+        return {**status, "status": "error", "message": "Deeper attachment analysis could not be queued."}, "error"
+
+
+def _run_parsed_pipeline(parsed_email, source: str | None = None, progress=None,
+                         sandbox: dict | None = None) -> dict:
     # `progress(stage, state, detail)` reports live stage changes to a caller
     # (see analysis_jobs.py). It never affects the analysis itself.
     progress = progress or _noop_progress
@@ -147,10 +206,11 @@ def _run_parsed_pipeline(parsed_email, source: str | None = None, progress=None)
         progress("static_attachments", "done",
                  f"{_plural(len(_atts), 'file')} checked" + (f", {_sus} suspicious" if _sus else ", none suspicious"))
 
-    # Dynamic detonation runs only in E-TAP Local, which has the VirtualBox
-    # sandbox. The hosted pipeline reports the stage honestly as not run.
-    progress("sandbox", "not_available",
-             "Dynamic analysis runs in E-TAP Local's sandbox" if _atts else "No attachments to detonate")
+    # Stage S planning: which attachments the sandbox will open. The run
+    # itself starts after the record is stored (it needs the email id) and
+    # finishes in the background; see the submit step near the end.
+    _sb_backend, _sb_candidates, _sb_agent, _sb_state, _sb_detail = _sandbox_plan(_atts, sandbox)
+    progress("sandbox", _sb_state, _sb_detail)
 
     progress("indicators", "running")
     ioc_analysis = extract_iocs(
@@ -526,6 +586,14 @@ def _run_parsed_pipeline(parsed_email, source: str | None = None, progress=None)
         "stage_status": stage_status,
     }
 
+    # Stage S -- dynamic attachment analysis (see sandbox/__init__.py).
+    # Runs in the background; the report polls GET /sandbox/{id}.
+    sandbox_status, stage_status["S"] = _submit_to_sandbox(
+        correlation_result["email_id"], data.get("attachments") or [], attachment_analysis,
+        _sb_backend, _sb_candidates, _sb_agent)
+    result["sandbox"] = sandbox_status
+    repository.update_analysis_fields(db, correlation_result["email_id"], {"stage_status": stage_status})
+
     # Fire-and-forget background persistence of RAG summary and vector embedding
     def _bg_persist_rag(email_id: str, doc_snapshot: dict):
         try:
@@ -559,11 +627,12 @@ def analyze_email_file(path: str, source: str | None = None) -> dict:
     return _run_parsed_pipeline(parsed, source=source)
 
 
-def analyze_email_upload(filename: str, raw_bytes: bytes, source: str | None = None, progress=None) -> dict:
+def analyze_email_upload(filename: str, raw_bytes: bytes, source: str | None = None, progress=None,
+                         sandbox: dict | None = None) -> dict:
     """Analyze one uploaded .eml/.msg file from raw bytes."""
     progress = progress or _noop_progress
     progress("parse", "running")
     parsed = parse_email_from_upload(filename, raw_bytes)
     n_att = len(parsed.attachments or [])
     progress("parse", "done", f"Email read, {_plural(n_att, 'attachment')}")
-    return _run_parsed_pipeline(parsed, source=source, progress=progress)
+    return _run_parsed_pipeline(parsed, source=source, progress=progress, sandbox=sandbox)

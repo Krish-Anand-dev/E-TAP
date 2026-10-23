@@ -328,3 +328,43 @@ test('expired handoffs retain a manual original-file import and platform access'
     assert.equal(result.nodes.platform.href, 'https://e-tap-lac.vercel.app');
     assert.notEqual(result.nodes.original.disabled, true);
 });
+
+test('deeper analysis sends the flag and sandbox token only with original mail', async () => {
+    let request;
+    const sandbox = withCore({ fetch: async (url, options) => { request = options; return Response.json({ email_id: 'deep1' }); } });
+    await sandbox.analysis.submit({ rawEmailBase64: raw.toString('base64'), deep: true }, undefined, 'ets_token');
+    assert.equal(request.body.get('deep_analysis'), '1');
+    assert.equal(request.headers['X-ETAP-Sandbox-Token'], 'ets_token');
+    await sandbox.analysis.submit({ data: { body: 'Visible' }, deep: true }, undefined, 'ets_token');
+    assert.equal(request.body.get('deep_analysis'), null);
+    await sandbox.analysis.submit({ rawEmailBase64: raw.toString('base64') }, undefined, 'ets_token');
+    assert.equal(request.headers['X-ETAP-Sandbox-Token'], undefined);
+});
+
+test('worker records the deeper-analysis choice on the handoff', async () => {
+    const { send, jobs } = worker();
+    const { jobId } = await send({ action: 'startEmailAnalysis', data: {}, deep: true });
+    assert.equal(jobs.get(jobId).deep, true);
+    const second = await send({ action: 'startEmailAnalysis', data: {}, deep: 'yes' });
+    assert.equal(jobs.get(second.jobId).deep, false);
+});
+
+test('Analyze asks standard or deeper first, with the requirement explained', async () => {
+    const calls = [];
+    const sandbox = content((request, callback) => {
+        calls.push(request);
+        callback(request.action === 'sandboxStatus'
+            ? { success: true, state: { available: true, paired: true, online: true } }
+            : { success: true, jobId: 'job1' });
+    });
+    vm.runInContext('renderChoice(container, null, emailKey(extractEmailData()))', sandbox);
+    const text = allText(sandbox.rendered);
+    assert.match(text, /Standard analysis/);
+    assert.match(text, /Deeper attachment analysis/);
+    const info = sandbox.rendered.children[2].children[1].children[1];
+    assert.match(info.title, /VirtualBox VM/);
+    assert.match(info.title, /Windows Pro/);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.match(allText(sandbox.rendered), /Your sandbox: online/);
+    assert.equal(calls[0].action, 'sandboxStatus');
+});

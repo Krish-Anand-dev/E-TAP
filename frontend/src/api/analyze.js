@@ -1,4 +1,5 @@
 import apiClient from './client';
+import { sandboxRequestHeaders } from './sandbox';
 
 /**
  * Upload an .eml or .msg file to the backend for forensic analysis.
@@ -47,12 +48,14 @@ export async function fetchInvestigation(id) {
  * Start a background analysis and return { job_id, stages } immediately.
  * Poll getAnalysisJob(job_id) to follow live stage progress.
  */
-export async function startAnalysisJob(file, source) {
+export async function startAnalysisJob(file, source, { deep = false } = {}) {
   const formData = new FormData();
   formData.append('file', file, file.name);
   if (source) formData.append('source', source);
+  // Deeper analysis also opens attachments in the user's paired sandbox.
+  if (deep) formData.append('deep_analysis', '1');
   const response = await apiClient.post('/analyze/jobs', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
+    headers: { 'Content-Type': 'multipart/form-data', ...(deep ? sandboxRequestHeaders() : {}) },
   });
   return response.data;
 }

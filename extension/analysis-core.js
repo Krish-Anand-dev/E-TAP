@@ -20,11 +20,14 @@ const EtapAnalysis = (() => {
         form.append('file', new Blob([bytes], { type: 'message/rfc822' }), original ? 'gmail_original.eml' : 'gmail_visible_content.eml');
         // Never present a reconstruction as original-header forensics.
         form.append('source', original ? 'full_message' : 'quick_content_check');
+        // Deeper analysis needs the original attachments, so only full messages ask for it.
+        if (job.deep && original) form.append('deep_analysis', '1');
         return form;
     }
-    async function submit(job, signal) {
+    async function submit(job, signal, sandboxToken = null) {
+        const headers = sandboxToken && job.deep ? { 'X-ETAP-Sandbox-Token': sandboxToken } : {};
         const response = await fetch(`${ETAP_CONFIG.apiBaseUrl}/analyze`, {
-            method: 'POST', body: payloadFor(job), signal,
+            method: 'POST', body: payloadFor(job), headers, signal,
         });
         if (!response.ok) {
             const messages = {

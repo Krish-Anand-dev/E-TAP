@@ -5,6 +5,7 @@ import { useInvestigation } from '../context/InvestigationContext';
 import { bandFor, displayLabel } from '../utils/verdict';
 import { stageSummaries, verdictOf, riskTags } from '../utils/reportSummary';
 import Icon from '../components/common/Icon';
+import { needsSandboxRefresh } from '../utils/sandbox';
 
 const STATUS_TEXT = { good: 'Clear', warn: 'Check', bad: 'Problem', skipped: 'Skipped', not_run: 'Not run' };
 const FILTERS = [['all', 'All'], ['danger', 'High risk'], ['caution', 'Suspicious'], ['safe', 'Low risk']];
@@ -74,7 +75,8 @@ export function HistoryPage({ onOpenReport, navigate }) {
   useEffect(() => {
     if (!selectedId) return;
     const row = rows.find((r) => r.id === selectedId);
-    if (row?.report) { setSelected(row.report); setLoadError(''); return; }
+    // Session copies made before the sandbox finished only hold its short status.
+    if (row?.report && !needsSandboxRefresh(row.report.sandbox)) { setSelected(row.report); setLoadError(''); return; }
     let active = true;
     setLoading(true);
     setLoadError('');
@@ -87,7 +89,7 @@ export function HistoryPage({ onOpenReport, navigate }) {
 
   const openFull = () => {
     const row = rows.find((r) => r.id === selectedId);
-    loadFromHistory(row?.report ? { id: row.id, report: row.report } : selectedId);
+    loadFromHistory(row?.report && !needsSandboxRefresh(row.report.sandbox) ? { id: row.id, report: row.report } : selectedId);
     onOpenReport();
   };
 

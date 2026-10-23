@@ -1,0 +1,18 @@
+[rule]
+id = "etap-006"
+name = "DNS Query by Unusual Process"
+description = "Detects DNS queries made by script interpreters or LOLBins, which may indicate malware attempting to reach C2 infrastructure."
+version = "1"
+os_list = ["windows"]
+query = '''dns where
+  process.name : ("powershell.exe", "pwsh.exe", "wscript.exe", "cscript.exe", "mshta.exe", "certutil.exe", "regsvr32.exe", "rundll32.exe")
+'''
+
+[[actions]]
+action = "kill_process"
+
+[[threat]]
+tactic.name = "Command and Control"
+[[threat.technique]]
+id = "T1071.001"
+name = "Application Layer Protocol: Web Protocols"

@@ -15,14 +15,18 @@ import EvidenceBreakdown from '../components/report/EvidenceBreakdown';
 import HistoricalCorrelationCard from '../components/report/HistoricalCorrelationCard';
 import ResponseWorkflow from '../components/report/ResponseWorkflow';
 import TrustControls from '../components/report/TrustControls';
+import SandboxPanel from '../components/report/SandboxPanel';
 import Icon from '../components/common/Icon';
+import { fetchInvestigation } from '../api/analyze';
 import { getGeoMapData } from '../utils/geo.js';
-import { keyStats } from '../utils/reportSummary';
+import { keyStats, hasSandbox } from '../utils/reportSummary';
+import { TERMINAL_SANDBOX_STATUSES, mergeSandboxReport, sandboxSummary, sandboxOutcome, sandboxPlace, needsSandboxRefresh } from '../utils/sandbox';
 
 const SECTIONS = [
   ['sec-summary', 'Summary'],
   ['sec-why', 'Why it was flagged'],
   ['sec-remediation', 'Remediation'],
+  ['sec-sandbox', 'Sandbox'],
   ['sec-map', 'Sender route'],
   ['sec-analysis', 'Threat analysis'],
   ['sec-details', 'Technical details'],
@@ -48,8 +52,33 @@ function Detail({ id, icon, title, count, children }) {
 
 export function DashboardPage({ navigate }) {
   const { getSourceFile, requestReanalysis } = useInvestigation();
-  const { data } = useInvestigation();
+  const { data, setData, persistInvestigation, activeFile } = useInvestigation();
   const [active, setActive] = useState('sec-summary');
+
+  // While attachments run in a sandbox, refresh the result every 4 s; the
+  // score and verdict follow when the run finishes.
+  useEffect(() => {
+    if (!data?.email_id || !needsSandboxRefresh(data.sandbox)) return undefined;
+    let cancelled = false;
+    let inFlight = false;
+    const poll = async () => {
+      if (inFlight) return;
+      inFlight = true;
+      try {
+        const updated = await fetchInvestigation(data.email_id);
+        if (!cancelled) setData((current) => mergeSandboxReport(current, updated));
+      } catch { /* a temporary failure does not end an active job */ }
+      finally { inFlight = false; }
+    };
+    poll();
+    const interval = setInterval(poll, 4000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [data?.email_id, data?.sandbox?.status, Array.isArray(data?.sandbox?.items), setData]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Save the finished sandbox result into this session's report list.
+  useEffect(() => {
+    if (data?.email_id && TERMINAL_SANDBOX_STATUSES.has(data.sandbox?.status)) persistInvestigation(data, activeFile?.name);
+  }, [data?.email_id, data?.sandbox?.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const onScroll = () => {
@@ -90,7 +119,7 @@ export function DashboardPage({ navigate }) {
   return (
     <div className="v2-page report-page">
       <nav className="report-tabs" aria-label="Report sections">
-        {SECTIONS.map(([id, label]) => (
+        {SECTIONS.filter(([id]) => id !== 'sec-sandbox' || hasSandbox(data)).map(([id, label]) => (
           <button key={id} type="button" className={active === id ? 'active' : ''} onClick={() => jump(id)}>{label}</button>
         ))}
       </nav>
@@ -99,6 +128,30 @@ export function DashboardPage({ navigate }) {
         onReanalyze={() => { const file = getSourceFile(data.email_id); if (file) { requestReanalysis(file); navigate('upload'); } }} />
       <RiskBreakdown data={data} />
       <Remediation data={data} />
+
+      {hasSandbox(data) && (
+        <section id="sec-sandbox" className="report-section">
+          <div className="report-section-head"><h2>Sandbox behaviour</h2><p>What happened when the attachments were opened inside {sandboxPlace(data.sandbox)}, an isolated virtual machine.</p></div>
+          {(() => {
+            const sb = sandboxSummary(data.sandbox);
+            const outcome = sandboxOutcome(data.sandbox);
+            return (
+              <div className="hero-numbers sandbox-numbers">
+                <div className={`hero-number tone-${outcome.tone}`} title={outcome.note}><strong>{outcome.label}</strong><span>VM result</span></div>
+                <div className="hero-number tone-muted"><strong>{sb.items}</strong><span>Files opened</span></div>
+                <div className={`hero-number ${sb.matches ? 'tone-bad' : 'tone-ok'}`}><strong>{sb.matches}</strong><span>Detection rules matched</span></div>
+                {data.sandbox.defender_checked === false && !sb.blocked
+                  ? <div className="hero-number tone-muted" title={data.sandbox.defender_note}><strong>Not checked</strong><span>Blocked by Defender</span></div>
+                  : <div className={`hero-number ${sb.blocked ? 'tone-bad' : 'tone-ok'}`}><strong>{sb.blocked}</strong><span>Blocked by Defender</span></div>}
+              </div>
+            );
+          })()}
+          {['Not tested', 'Waiting'].includes(sandboxOutcome(data.sandbox).label) && (
+            <div className="trusted-note warn sandbox-note"><Icon name="alert" size={16} />{sandboxOutcome(data.sandbox).note}{sandboxOutcome(data.sandbox).label === 'Not tested' ? '. The file was copied into the VM but not opened, so this is not a result either way.' : ''}</div>
+          )}
+          <SandboxPanel sandbox={data.sandbox} />
+        </section>
+      )}
 
       <section id="sec-map" className="report-section">
         <div className="report-section-head"><h2>Sender route</h2><p>Where the mail servers that handled this email are located.</p></div>

@@ -51,7 +51,7 @@ function AppContent() {
       <Header currentView={currentView} setCurrentView={setCurrentView} />
       <div className="workspace-main" id="main-content">
         {currentView === 'overview' && <OverviewPage navigate={setCurrentView} />}
-        {currentView === 'upload' && <UploadPage key={resetToken} onOpenReport={() => setCurrentView('dashboard')} />}
+        {currentView === 'upload' && <UploadPage key={resetToken} onOpenReport={() => setCurrentView('dashboard')} onOpenSettings={() => setCurrentView('settings')} />}
         {currentView === 'dashboard' && <DashboardPage navigate={setCurrentView} />}
         {currentView === 'history' && <HistoryPage onOpenReport={() => setCurrentView('dashboard')} navigate={setCurrentView} />}
         {currentView === 'settings' && <SettingsPage />}

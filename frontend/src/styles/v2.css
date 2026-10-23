@@ -546,3 +546,28 @@ button.risk-tag:hover { transform: translateY(-1px); }
 @media (prefers-reduced-motion: reduce) {
   .timeline-cat, .timeline-cat * { animation: none !important; transition: none !important; }
 }
+
+/* Sandbox section on the report */
+.hero-numbers.sandbox-numbers { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); margin: 0 0 14px; }
+.sandbox-note { margin: 0 0 14px; }
+
+/* Deeper attachment analysis: Analyze-page option and Settings pairing */
+.staged-file-card { flex-wrap: wrap; gap: 14px; }
+.deep-option { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: #29334c; }
+.deep-option label { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; cursor: pointer; }
+.deep-option input:disabled + span { opacity: .55; }
+.deep-option a { color: #ad3845; font-weight: 600; }
+.info-dot { display: inline-grid; place-items: center; width: 17px; height: 17px; border-radius: 50%; border: 1.5px solid #687082; color: #687082; font: italic 700 10px Georgia, serif; cursor: help; }
+.sandbox-pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 4px 11px; font-size: 11px; font-weight: 700; background: #eeede5; color: #61697a; white-space: nowrap; }
+.sandbox-pill.online { background: #e1f3e6; color: #1d6b3b; }
+.sandbox-pill.offline { background: #fff1dc; color: #8a5a08; }
+.sandbox-pairing { margin-top: 18px; }
+.sandbox-pairing .v2-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.pair-steps { list-style: none; padding: 0; margin: 14px 0; display: grid; gap: 10px; }
+.pair-steps li { display: flex; gap: 12px; align-items: flex-start; font-size: 13px; color: #3c4559; line-height: 1.6; }
+.pair-steps li > span { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: #29334c; color: #fff; font-size: 12px; font-weight: 700; }
+.pair-steps a { color: #ad3845; font-weight: 600; }
+.pair-form input { font-family: ui-monospace, Consolas, monospace; letter-spacing: .12em; text-transform: uppercase; max-width: 14ch; }
+.pair-req { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #687082; margin-top: 10px; }
+.sandbox-paired { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; font-size: 13px; color: #3c4559; }
+.sandbox-paired p { margin: 0; line-height: 1.7; }

@@ -18,6 +18,25 @@
       <button id="retry" hidden>Retry analysis</button>
       <button id="limited" hidden>Continue with visible text</button>
     </div>
+    <section id="sandbox" hidden>
+      <h2>Deeper attachment analysis</h2>
+      <p><span id="sandbox-state" class="pill">Your sandbox: checking…</span></p>
+      <div id="sandbox-setup" hidden>
+        <p>Deeper analysis opens this email's attachments inside a virtual machine you own and records what they do. Set it up once:</p>
+        <ol>
+          <li><a id="agent-download" href="#" target="_blank" rel="noopener noreferrer">Download the E-TAP Sandbox Agent</a> and unzip it on the PC that has your VirtualBox VM.</li>
+          <li>Double-click <strong>start-agent.cmd</strong>. It checks your computer, asks before each step and then shows a pairing code.</li>
+          <li>Enter the code here.</li>
+        </ol>
+        <label for="pair-code">Pairing code</label>
+        <div class="pair-row">
+          <input id="pair-code" placeholder="ABCD-1234" autocomplete="off" maxlength="12" spellcheck="false">
+          <button id="pair" class="primary">Pair and analyze</button>
+        </div>
+        <p id="pair-error" role="alert"></p>
+        <button id="standard-instead">Run standard analysis instead</button>
+      </div>
+    </section>
     <section>
       <h2>Have the original email?</h2>
       <p>If Gmail blocks automatic retrieval, use the message’s <strong>More → Show original → Download original</strong>, then select the <strong>.eml</strong> here. We will analyze it and open its full report automatically.</p>
@@ -28,6 +47,7 @@
   <script src="config.js"></script>
   <script src="gmail-original.js"></script>
   <script src="handoff-store.js"></script>
+  <script src="sandbox-pairing.js"></script>
   <script src="analysis-core.js"></script>
   <script src="analysis.js"></script>
 </body>

@@ -163,3 +163,39 @@ button.etap-btn {
     background-color: #1558b0;
     text-decoration: none;
 }
+
+/* Standard / deeper analysis choice */
+.etap-choice {
+    justify-content: flex-start;
+}
+
+.etap-choice .etap-btn {
+    margin-left: 0;
+    padding: 6px 12px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.etap-deep {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.etap-info {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1.5px solid currentColor;
+    font: italic 700 11px Georgia, serif;
+    cursor: help;
+    opacity: 0.8;
+}
+
+.etap-info:focus {
+    outline: 2px solid #1f2a44;
+    outline-offset: 2px;
+}

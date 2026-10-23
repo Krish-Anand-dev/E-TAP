@@ -311,6 +311,7 @@ class FakeCollection:
 
 class FakeDatabase:
     def __init__(self) -> None:
+        self.name = 'etap-memory'
         self._collections: dict[str, FakeCollection] = {}
 
     def __getitem__(self, name: str) -> FakeCollection:

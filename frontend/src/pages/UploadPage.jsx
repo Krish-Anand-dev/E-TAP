@@ -3,6 +3,7 @@ import { useInvestigation } from '../context/InvestigationContext';
 import Icon from '../components/common/Icon';
 import TimelineCat from '../components/common/TimelineCat';
 import { verdictOf } from '../utils/reportSummary';
+import { getSandboxPairing, sandboxStateLabel } from '../api/sandbox';
 
 const REAL_SAMPLE_PHISHING_EML = `From: IT Helpdesk <support@northfield-logisitcs-helpdesk.com>
 To: priya.nair@northfield-logistics.com
@@ -202,14 +203,26 @@ export function PipelineTimeline({ stages, finished, failed }) {
   );
 }
 
-export function UploadPage({ onOpenReport }) {
+const DEEP_INFO = 'Also opens the attachments inside your own sandbox VM and records what they do. '
+  + 'Requires a VirtualBox VM (Windows Sandbox on Windows Pro is planned) and the E-TAP Sandbox Agent, paired once on the Settings page.';
+
+export function UploadPage({ onOpenReport, onOpenSettings }) {
   const { status, error, data, startAnalysis, loadDemoSample, backendOnline, jobStages, rerunRequest, consumeRerunRequest } = useInvestigation();
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [runFinished, setRunFinished] = useState(false);
   const [runId, setRunId] = useState(0);
   const fileInputRef = useRef(null);
+  const [deep, setDeep] = useState(false);
+  const [sandboxState, setSandboxState] = useState(null);
   const isBusy = status === 'uploading' || status === 'analyzing';
+
+  // Whether this server offers deeper analysis, and the paired sandbox's state.
+  useEffect(() => {
+    let cancelled = false;
+    getSandboxPairing().then((state) => { if (!cancelled) setSandboxState(state); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
   const paced = usePacedStages(jobStages, runId);
   // Still "working" on screen until the paced timeline has shown every stage.
   const isWorking = isBusy || (runFinished && !paced.done);
@@ -231,7 +244,7 @@ export function UploadPage({ onOpenReport }) {
   const run = async (file) => {
     setRunFinished(false);
     setRunId((n) => n + 1);
-    const report = await startAnalysis(file);
+    const report = await startAnalysis(file, { deep: deep && Boolean(sandboxState?.paired) });
     if (report) setRunFinished(true);
   };
 
@@ -288,6 +301,17 @@ export function UploadPage({ onOpenReport }) {
             <span className="file-tag">{selectedFile.name.split('.').pop()?.toUpperCase()}</span>
             <div><div className="file-name">{selectedFile.name}</div><div className="file-size">{(selectedFile.size / 1024).toFixed(1)} KB</div></div>
           </div>
+          {sandboxState?.available && (
+            <div className="deep-option">
+              <label>
+                <input type="checkbox" checked={deep && Boolean(sandboxState.paired)} disabled={!sandboxState.paired} onChange={(e) => setDeep(e.target.checked)} />
+                <span>Deeper attachment analysis</span>
+              </label>
+              <span className="info-dot" tabIndex={0} role="img" aria-label={DEEP_INFO} title={DEEP_INFO}>i</span>
+              <span className={`sandbox-pill ${sandboxState.paired ? (sandboxState.online ? 'online' : 'offline') : ''}`}>{sandboxStateLabel(sandboxState)}</span>
+              {!sandboxState.paired && <a href="#settings" onClick={(e) => { e.preventDefault(); onOpenSettings?.(); }}>Pair your sandbox</a>}
+            </div>
+          )}
           <div className="staged-actions">
             <button type="button" className="btn-ghost" onClick={() => setSelectedFile(null)}>Clear</button>
             <button type="button" id="execute-pipeline-btn" className="btn-primary-action" onClick={() => run(selectedFile)} disabled={backendOnline === false}>Analyze email</button>

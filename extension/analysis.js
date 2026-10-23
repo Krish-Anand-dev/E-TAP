@@ -26,11 +26,17 @@ async function run(job) {
     coverage.textContent = original
         ? 'The original .eml is included. Available headers and MIME attachments go through the full forensic pipeline.'
         : 'Gmail did not provide the original message. This report will clearly mark sender authentication, routing and attachment contents as unavailable. Upload the original .eml for those checks.';
+    if (job.deep) {
+        coverage.textContent += original
+            ? ' Eligible attachments are also opened in your sandbox; the report updates when it finishes.'
+            : ' Deeper analysis needs the original attachments, so none were opened this time.';
+    }
     controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), ETAP_CONFIG.requestTimeoutMs);
     try {
         if (jobId) await EtapHandoffStore.update(jobId, (current) => ({ ...current, ...job, state: 'uploading' }));
-        const report = await EtapAnalysis.submit(job, controller.signal);
+        const token = job.deep ? await EtapSandbox.token() : null;
+        const report = await EtapAnalysis.submit(job, controller.signal, token);
         const destination = EtapAnalysis.reportUrl(report);
         // Cleanup must not prevent a completed report from opening.
         if (jobId) await EtapHandoffStore.remove(jobId).catch(() => {});
@@ -62,12 +68,63 @@ async function initialize() {
             job = await EtapHandoffStore.get(jobId);
             if (!job) throw new Error('This email handoff expired. Select an original .eml below or open E-TAP.');
         }
-        if (!manualOverride) await run(job);
+        if (job.deep && !manualOverride) job = await prepareDeep(job);
+        if (job && !manualOverride) await run(job);
     } catch (error) {
         heading.textContent = 'Open your email in E-TAP';
         statusText.textContent = error.message;
         limited.hidden = true;
     }
+}
+
+// Deeper analysis: make sure the user's sandbox is paired first (once), or let them fall back.
+function showSandboxState(state) {
+    const pill = document.getElementById('sandbox-state');
+    pill.textContent = EtapSandbox.label(state);
+    pill.className = `pill ${state?.paired ? (state.online ? 'online' : 'offline') : ''}`;
+}
+async function prepareDeep(job) {
+    const section = document.getElementById('sandbox');
+    section.hidden = false;
+    const state = await EtapSandbox.status();
+    if (!state.available && !state.unreachable) {
+        document.getElementById('sandbox-state').textContent = 'Deeper analysis is not offered by this E-TAP server';
+        return { ...job, deep: false };
+    }
+    showSandboxState(state);
+    if (state.paired) {
+        if (!state.online) statusText.textContent = 'Your sandbox is offline. The attachments wait for it; start the E-TAP Sandbox Agent and the report updates by itself.';
+        return job;
+    }
+    heading.textContent = 'Pair your sandbox';
+    statusText.textContent = 'Deeper analysis needs your own sandbox. Pair it once below, or run the standard analysis.';
+    limited.hidden = true;
+    document.getElementById('sandbox-setup').hidden = false;
+    document.getElementById('agent-download').href = EtapSandbox.downloadUrl();
+    return new Promise((resolve) => {
+        const code = document.getElementById('pair-code');
+        const error = document.getElementById('pair-error');
+        const pairButton = document.getElementById('pair');
+        pairButton.addEventListener('click', async () => {
+            error.textContent = '';
+            pairButton.disabled = true;
+            try {
+                await EtapSandbox.pair(code.value);
+                showSandboxState(await EtapSandbox.status());
+                document.getElementById('sandbox-setup').hidden = true;
+                resolve(job);
+            } catch (failure) {
+                error.textContent = failure.message;
+            } finally {
+                pairButton.disabled = false;
+            }
+        });
+        code.addEventListener('keydown', (event) => { if (event.key === 'Enter') pairButton.click(); });
+        document.getElementById('standard-instead').addEventListener('click', () => {
+            section.hidden = true;
+            resolve({ ...job, deep: false });
+        });
+    });
 }
 
 limited.addEventListener('click', () => { useVisibleText = true; });

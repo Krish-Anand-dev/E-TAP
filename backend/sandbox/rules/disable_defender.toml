@@ -1,0 +1,20 @@
+[rule]
+id = "etap-002"
+name = "Attempt to Disable Windows Defender Services"
+description = "Detects attempts to stop or disable Windows Defender services via sc.exe, net.exe, or PowerShell Set-MpPreference."
+version = "1"
+os_list = ["windows"]
+query = '''process where
+  (process.name : "sc.exe" and process.command_line : ("stop", "delete") and process.command_line : ("WinDefend", "WdFilter", "WdNisSvc", "WdNisDrv", "Sense"))
+  or (process.name : "net.exe" and process.command_line : "stop" and process.command_line : ("WinDefend", "WdFilter", "WdNisSvc"))
+  or (process.name : "powershell.exe" and process.command_line : ("Set-MpPreference" and ("DisableRealtimeMonitoring", "DisableBehaviorMonitoring", "DisableIOAVProtection")))
+'''
+
+[[actions]]
+action = "kill_process"
+
+[[threat]]
+tactic.name = "Defense Evasion"
+[[threat.technique]]
+id = "T1562.001"
+name = "Impair Defenses: Disable or Modify Tools"
