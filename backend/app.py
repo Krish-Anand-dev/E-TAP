@@ -126,6 +126,7 @@ async def analyze(
     request: Request,
     file: UploadFile = File(...),
     source: str | None = Form(None),
+    deep_analysis: str | None = Form(None),
 ) -> dict:
     """
     `source` is optional. Send "quick_content_check" when the .eml was rebuilt
@@ -133,6 +134,10 @@ async def analyze(
     original headers. The Gmail extension sends original bytes with
     "full_message", or labels its visible-text fallback "quick_content_check".
     Omitting source also selects full-message analysis.
+
+    `deep_analysis=1` plus an `X-ETAP-Sandbox-Token` header (from pairing)
+    also opens eligible attachments in the caller's paired sandbox; the
+    result arrives later on GET /sandbox/{email_id}.
     """
     filename = file.filename or "uploaded_email.eml"
     if source is not None and source not in VALID_SOURCES:
@@ -157,7 +162,8 @@ async def analyze(
 
         # Run heavy synchronous pipeline (WHOIS, VirusTotal, Gemini, DB) in worker thread
         # to ensure the main asyncio event loop never freezes during /health checks
-        report = await asyncio.to_thread(analyze_email_upload, filename, bytes(raw_bytes), source)
+        report = await asyncio.to_thread(analyze_email_upload, filename, bytes(raw_bytes), source,
+                                         None, _sandbox_request(request, deep_analysis))
         from workflow_c import finish_analysis
         return await asyncio.to_thread(finish_analysis, report)
 
@@ -173,6 +179,14 @@ async def analyze(
             status_code=500,
             detail="An error occurred while analyzing the email artifact. Verify the file is an undamaged RFC 822 (.eml) or Outlook (.msg) file."
         ) from None
+
+
+def _sandbox_request(request: Request, deep_analysis: str | None) -> dict:
+    """The caller's choice of deeper attachment analysis and its paired-sandbox token."""
+    return {
+        "requested": (deep_analysis or "").strip().lower() in {"1", "true", "yes", "on"},
+        "token": request.headers.get("x-etap-sandbox-token"),
+    }
 
 
 async def _read_upload(file: UploadFile) -> bytes:
@@ -198,13 +212,15 @@ async def start_analysis_job(
     request: Request,
     file: UploadFile = File(...),
     source: str | None = Form(None),
+    deep_analysis: str | None = Form(None),
 ) -> dict:
     """Start an analysis in the background; poll GET /analyze/jobs/{job_id} for live stage progress."""
     if source is not None and source not in VALID_SOURCES:
         raise HTTPException(status_code=400, detail="Unsupported analysis source.")
     from analysis_jobs import start_job
     raw_bytes = await _read_upload(file)
-    return start_job(file.filename or "uploaded_email.eml", raw_bytes, source)
+    return start_job(file.filename or "uploaded_email.eml", raw_bytes, source,
+                     _sandbox_request(request, deep_analysis))
 
 
 @app.get("/analyze/jobs/{job_id}", response_model=None)
@@ -363,7 +379,13 @@ async def get_investigation(request: Request, email_id: str) -> dict:
             # Older records predate stored stage_status; report "unknown" rather
             # than inventing "live"/"gemini" for stages we cannot vouch for.
             "stage_status": doc.get("stage_status") or {"E": "unknown", "G": "unknown"},
+            "sandbox": _sandbox_for(email_id, doc),
         }
+        # The sandbox can raise the score after the evidence report was stored;
+        # keep the report's headline numbers in step with the final decision.
+        conclusion = (mapped_doc.get("evidence_report") or {}).get("conclusion")
+        if isinstance(conclusion, dict) and conclusion.get("risk_score") != decision["risk_score"]:
+            conclusion.update(label=decision["verdict"], band=decision["verdict_band"], risk_score=decision["risk_score"])
         return mapped_doc
     except HTTPException:
         raise
@@ -372,5 +394,18 @@ async def get_investigation(request: Request, email_id: str) -> dict:
         raise HTTPException(status_code=500, detail="Database query failed")
 
 
+def _sandbox_for(email_id: str, doc: dict) -> dict:
+    """Live sandbox state for a stored investigation; never breaks the report."""
+    try:
+        from sandbox import current_analysis
+        return current_analysis(email_id, doc.get("sandbox_analysis")) or {"status": "not_applicable", "mode": "none"}
+    except Exception as exc:
+        logger.warning("Sandbox state read failed (%s)", type(exc).__name__)
+        return doc.get("sandbox_analysis") or {"status": "not_applicable", "mode": "none"}
+
+
 from workflow_c import router as workflow_router
 app.include_router(workflow_router)
+
+from sandbox_api import router as sandbox_router
+app.include_router(sandbox_router)

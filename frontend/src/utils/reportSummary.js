@@ -7,6 +7,7 @@
  * stored reports without it fall back to the raw stage fields.
  */
 import { bandFor, displayLabel } from './verdict.js';
+import { SANDBOX_RUN_MODES, sandboxPlace } from './sandbox.js';
 
 export const CATEGORY_META = {
   headers: { label: 'Header issues', title: 'Sender & headers', icon: 'mail' },
@@ -15,6 +16,7 @@ export const CATEGORY_META = {
   reputation: { label: 'Bad reputation', title: 'Reputation', icon: 'globe' },
   history: { label: 'Seen before', title: 'Past emails', icon: 'history' },
   content: { label: 'Suspicious wording', title: 'Message content', icon: 'message' },
+  sandbox: { label: 'Malicious behaviour', title: 'Sandbox behaviour', icon: 'box' },
 };
 export const CATEGORY_ORDER = ['headers', 'attachments', 'links', 'reputation', 'history', 'content'];
 
@@ -49,18 +51,51 @@ function fallbackItems(report) {
   return items;
 }
 
+/** True when attachments were (or are being) opened in a sandbox for this report. */
+export function hasSandbox(report = {}) {
+  const sb = report.sandbox;
+  return Boolean(sb) && SANDBOX_RUN_MODES.has(sb.mode) && !['not_requested', 'unavailable'].includes(sb.status);
+}
+
+/** What the VirtualBox sandbox observed, as evidence items (category "sandbox"). */
+export function sandboxItems(report = {}) {
+  if (!hasSandbox(report)) return [];
+  const items = [];
+  (Array.isArray(report.sandbox.items) ? report.sandbox.items : []).forEach((it, n) => {
+    const file = it.filename || 'attachment';
+    (it.matches || []).forEach((m, k) => items.push({
+      id: `sbx.${n}.${k}`, cat: 'sandbox', kind: 'observed', status: 'present', direction: 'raises_risk',
+      weight: m.prevention_grade ? 'strong' : 'weak',
+      title: m.rule || m.rule_id || 'Detection rule matched',
+      why: `Seen when ${file} was opened in ${sandboxPlace(report.sandbox)}${(m.mitre || []).length ? ` (MITRE ${m.mitre.map((t) => t.technique).filter(Boolean).join(', ')})` : ''}.`,
+    }));
+    if (it.verdict === 'blocked_by_security_control') items.push({
+      id: `sbx.${n}.blocked`, cat: 'sandbox', kind: 'observed', status: 'present', direction: 'raises_risk', weight: 'strong',
+      title: `Windows Defender blocked ${file}`,
+      why: it.note || 'Windows security stopped this attachment from running inside the VM.',
+    });
+    if (['inspection_incomplete', 'error'].includes(it.verdict)) items.push({
+      id: `sbx.${n}.incomplete`, cat: 'sandbox', kind: 'observed', status: 'unavailable', direction: 'neutral', weight: 'weak',
+      title: `${file} could not be fully tested`, why: it.note || it.launch_error || '',
+    });
+  });
+  return items;
+}
+
 /** Evidence items, normalised so every one has a `cat`. */
 export function evidenceItems(report = {}) {
   const raw = report.evidence_report?.evidence;
   const items = Array.isArray(raw) && raw.length ? raw : fallbackItems(report);
   return items.map((it) => ({ ...it, cat: it.cat || categoryOf(it.id) || it.category }))
+    .concat(sandboxItems(report))
     .filter((it) => CATEGORY_META[it.cat]);
 }
 
 /** One entry per category with what raised risk, what lowered it, and what was not checked. */
 export function riskCategories(report = {}) {
   const items = evidenceItems(report);
-  return CATEGORY_ORDER.map((key) => {
+  const order = hasSandbox(report) ? [...CATEGORY_ORDER, 'sandbox'] : CATEGORY_ORDER;
+  return order.map((key) => {
     const mine = items.filter((it) => it.cat === key);
     const raises = mine.filter((it) => it.status === 'present' && it.direction === 'raises_risk' && it.grounding !== 'ungrounded');
     raises.sort((a, b) => (a.weight === 'strong' ? 0 : 1) - (b.weight === 'strong' ? 0 : 1));
@@ -132,6 +167,38 @@ export function verdictOf(report = {}) {
 const authText = (v) => (v ? String(v).replace(/_/g, ' ') : 'n/a');
 const isPass = (v) => String(v || '').toLowerCase() === 'pass';
 
+const SANDBOX_RUNNING = new Set(['queued', 'starting', 'interacting', 'collecting', 'evaluating', 'restoring', 'pending', 'submitted']);
+
+function sandboxStage(report, s) {
+  const sb = report.sandbox || {};
+  const items = Array.isArray(sb.items) ? sb.items : [];
+  const matches = items.reduce((n, i) => n + (i.matches || []).length, 0);
+  const blocked = items.filter((i) => i.verdict === 'blocked_by_security_control').length;
+  const base = { key: 'sandbox', title: 'Dynamic attachment analysis', icon: 'box' };
+  const metrics = [['Files opened', items.length], ['Rules matched', matches], ['Blocked by Defender', blocked]];
+  if (!hasSandbox(report)) {
+    return { ...base, status: s.attachments ? 'not_run' : 'skipped', metrics: [],
+      summary: sb.status === 'not_applicable' ? 'No attachment needed opening in the sandbox.'
+        : sb.status === 'not_requested' ? 'Standard analysis: the attachments were not opened. Choose Deeper attachment analysis to open them in your own sandbox.'
+        : s.attachments ? 'Deeper attachment analysis was not run for this email.' : 'No attachments to open in the sandbox.' };
+  }
+  if (sb.status === 'not_applicable') return { ...base, status: 'skipped', metrics: [], summary: 'No attachment type that needs dynamic analysis.' };
+  if (sb.status === 'queued' && sb.mode === 'agent') return { ...base, status: 'warn', metrics, summary: 'Waiting for your sandbox to pick up the attachments.' };
+  if (SANDBOX_RUNNING.has(sb.status)) return { ...base, status: 'warn', metrics, summary: `Running in ${sandboxPlace(sb)} (${sb.status}).` };
+  if (items.length && items.every((i) => ['inspection_incomplete', 'error'].includes(i.verdict)) && !matches && !blocked && !sb.error) {
+    const reason = items.map((i) => i.launch_error || i.note).find(Boolean);
+    return { ...base, status: 'skipped', metrics, summary: `Could not be opened in the VM${reason ? ` (${reason})` : ''}; not tested.` };
+  }
+  return {
+    ...base, metrics,
+    status: matches || blocked ? 'bad' : sb.status === 'error' ? 'warn' : 'good',
+    summary: matches || blocked
+      ? `Malicious behaviour seen in ${sandboxPlace(sb)}: ${matches} rule match(es)${blocked ? `, ${blocked} blocked by Windows Defender` : ''}.`
+      : sb.status === 'error' ? 'The sandbox run did not complete; see the report for details.'
+        : `Opened in ${sandboxPlace(sb)} with no malicious behaviour observed (inconclusive, not proof of safety).`,
+  };
+}
+
 /**
  * One summary per pipeline stage, in pipeline order. `status`:
  * good | warn | bad | skipped | not_run.
@@ -168,11 +235,7 @@ export function stageSummaries(report = {}) {
         : s.suspiciousAttachments ? `${s.suspiciousAttachments} of ${s.attachments} attachment(s) look dangerous.` : `${s.attachments} attachment(s) checked, none look dangerous.`,
       metrics: [['Files', s.attachments], ['Suspicious', s.suspiciousAttachments], ['Macros', s.macros], ['QR codes', s.qrCodes]],
     },
-    {
-      key: 'sandbox', title: 'Dynamic attachment analysis', icon: 'box', status: 'not_run',
-      summary: s.attachments ? 'Opening attachments in a safe virtual machine runs in E-TAP Local; not run in this version.' : 'No attachments to open in the sandbox.',
-      metrics: [],
-    },
+    sandboxStage(report, s),
     {
       key: 'indicators', title: 'Links & indicators', icon: 'link',
       status: s.mismatchedLinks || s.flaggedLinks > 2 ? 'bad' : s.flaggedLinks ? 'warn' : 'good',

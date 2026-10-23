@@ -2,9 +2,9 @@
 
 This is the single technical reference for E-TAP. It is written so that a person or an LLM with no prior knowledge can understand the whole system: what it does, how every stage works, which file does what, which libraries are used and why, how data is shaped, how it is configured and deployed, and what is known to be incomplete.
 
-The short, user-facing overview lives in [README.md](README.md). When this document and the code disagree, the code wins — update this file. Last updated 2026-10-20 (frontend revamp, live analysis jobs, verified trusted domains, Re-analyze).
+The short, user-facing overview lives in [README.md](README.md). When this document and the code disagree, the code wins — update this file. Last updated 2026-10-24 (deeper attachment analysis through a paired sandbox agent; before that the frontend revamp, live analysis jobs, verified trusted domains and Re-analyze).
 
-The sibling repository **E-TAP Local** (`../E-TAPlocal`) is this project plus a VirtualBox sandbox (stage S); it carries every feature described here.
+This is the only codebase. Dynamic attachment analysis (stage S) is part of it: attachments are opened in a VM the user owns, reached through the paired **E-TAP Sandbox Agent** (§4, Stage S). The older sibling folder E-TAP Local is kept only as the reference implementation the sandbox code came from. History and decisions: [`Development notes and iterations/`](Development%20notes%20and%20iterations/README.md).
 
 ---
 
@@ -96,7 +96,7 @@ The orchestrator is `backend/pipeline.py::_run_parsed_pipeline`. Both the HTTP A
 14. `repository.update_analysis_fields` — persists all H fields
 15. background thread: `build_summary` + `embed_text` → `rag_summary`, `rag_embedding`
 
-**Live progress.** `_run_parsed_pipeline` takes an optional `progress(stage, state, detail)` callback and reports nine user-facing stages: `parse` (Reading the email), `headers` (Checking sender & headers), `static_attachments` (Static attachment analysis), `sandbox` (Dynamic attachment analysis; always `not_available` here, real in E-TAP Local), `indicators` (Extracting links & indicators), `reputation` (Threat reputation lookups; `skipped` when live intel is off), `history` (Comparing with past emails), `ai` (AI threat assessment) and `verdict` (Final verdict). States: `pending`, `running`, `done`, `skipped`, `not_available`, `error`; each finished stage carries a short detail such as "4 red flags" or "7 indicators, 0 links". `backend/analysis_jobs.py` runs the pipeline in a 2-worker thread pool for `POST /analyze/jobs`, stores the stage list in memory (1-hour expiry) and returns the report through `GET /analyze/jobs/{id}` when done. `POST /analyze` (Gmail extension, scripts) still runs synchronously.
+**Live progress.** `_run_parsed_pipeline` takes an optional `progress(stage, state, detail)` callback and reports nine user-facing stages: `parse` (Reading the email), `headers` (Checking sender & headers), `static_attachments` (Static attachment analysis), `sandbox` (Dynamic attachment analysis; `skipped` for a standard analysis, `done` when attachments were queued for a sandbox, `not_available` when the server has no sandbox backend or the caller is not paired), `indicators` (Extracting links & indicators), `reputation` (Threat reputation lookups; `skipped` when live intel is off), `history` (Comparing with past emails), `ai` (AI threat assessment) and `verdict` (Final verdict). States: `pending`, `running`, `done`, `skipped`, `not_available`, `error`; each finished stage carries a short detail such as "4 red flags" or "7 indicators, 0 links". `backend/analysis_jobs.py` runs the pipeline in a 2-worker thread pool for `POST /analyze/jobs`, stores the stage list in memory (1-hour expiry) and returns the report through `GET /analyze/jobs/{id}` when done. `POST /analyze` (Gmail extension, scripts) still runs synchronously.
 
 Stage letters are historical (C was originally the content classifier; it moved into G, and C′ is the XGBoost pre-filter that now runs right before G).
 
@@ -121,6 +121,20 @@ E-TAP/
 │   ├── privacy.py            URL lookup policy, Gemini sanitizer, privacy report
 │   ├── provider_status.py    per-provider coverage object
 │   ├── workflow_c.py         APIRouter: review, retention, share, analytics, baselines…
+│   ├── sandbox_api.py        APIRouter: per-email sandbox status, pairing, agent job endpoints
+│   ├── sandbox/              Stage S on the server: selection, archives, rules, scoring, providers
+│   │   ├── __init__.py       SANDBOX_BACKEND switch (agent / virtualbox / replay / none), submit()
+│   │   ├── agent_queue.py    pairing codes, token hashes, MongoDB job queue for paired agents
+│   │   ├── analysis.py       shared: evaluate rules per sample, item verdicts, store + raise score
+│   │   ├── worker.py         in-process queue when the VM is on the server's own machine
+│   │   ├── replay.py         recorded Sysmon traces (demos, rule tests)
+│   │   ├── policy.py, archives.py, ecs_convert.py, rule_engine.py, scoring.py, rules/ (164 TOML)
+│   ├── sandbox_agent/        the E-TAP Sandbox Agent (runs on the user's PC; stdlib only)
+│   │   ├── cli.py            start / setup / pair / run / test / status / forget
+│   │   ├── runner.py         one VM run: restore, open samples, export Sysmon + Defender, restore
+│   │   ├── vbox.py           VBoxManage wrapper; launchers.py file-type launchers
+│   │   ├── recon.py          read-only system checks; config.py + protect.py (DPAPI) settings
+│   │   └── start-agent.cmd, README.md
 │   ├── recovery.py           fixed "I clicked / I entered my password…" checklists
 │   ├── integrations.py       NOT LIVE: original-message provider + webhook contracts
 │   ├── security.py           NOT WIRED: bearer-key auth middleware (legacy)
@@ -262,6 +276,37 @@ Red flags: `spf_fail|softfail`, `dkim_fail|key_not_found|misaligned`, `dmarc_fai
 - **Images** (`image_forensics.scan_image_attachment`): decode with OpenCV and PIL; QR via pyzbar, then OpenCV `QRCodeDetector` (multi then single); `qr_status` ∈ `decoded | no_qr_found | decoder_unavailable | image_unreadable | scan_failed`; QR payloads kept (URL or other), URLs extracted. OCR via pytesseract on the grayscale image (hard-coded Windows path `C:\Program Files\Tesseract-OCR\tesseract.exe` is used if it exists).
 - `suspicious = mismatch or has_macro or double_ext or disguised_exe or qr_urls`.
 
+### Stage S — Deeper attachment analysis (`sandbox/`, `sandbox_agent/`, `sandbox_api.py`)
+
+Optional dynamic analysis: eligible attachments are opened inside an isolated Windows VM, Sysmon records what they do, and behavioural rules can **raise** the score (never lower it). Detailed VM setup and the rule inventory are in `backend/sandbox/README.md`; this section is the architecture.
+
+- **Backends** (`SANDBOX_BACKEND`): `agent` (hosted: the user's own VM through a paired agent, opt-in per analysis), `virtualbox` (the VM is on the server's own machine; in-process queue in `worker.py`), `replay` (recorded traces in `sandbox/replays/`) and `none` (default).
+- **Selection** (`policy.py`, `archives.py`): up to 3 attachments of at most 10 MB each. Scripts and executables go first, then shortcuts, documents, PDFs, HTML and archives. ZIP members are expanded one by one, with path, size and encryption checks. Anything not opened stays in the report as "inspection incomplete".
+- **Running** (`sandbox_agent/runner.py`, used by both the agent and the local worker):
+  1. restore the clean snapshot and start the VM headless;
+  2. copy each sample in under a random `sample_<job>_<id>` name and open it with the launcher for its type;
+  3. wait the dwell time;
+  4. export the Sysmon log and new Defender events;
+  5. restore the snapshot.
+- **Findings** (`analysis.py`):
+  - Rules (`rule_engine.py`, an EQL subset: 36 of 164 definitions evaluable) run against the sample's process tree, matched by ProcessGuid from the marker.
+  - Each item gets a verdict: `behavior_observed`, `blocked_by_security_control`, `no_behavior_observed_inconclusive`, `inspection_incomplete` or `error`.
+  - The job status is `done`, `partial` or `error`.
+  - `scoring.apply_sandbox` raises the floor to 65 for any match and to 85 for a prevention-grade match, adds MITRE techniques and evidence lines, and re-finalises the verdict.
+- **Paired agent flow** (`agent_queue.py`):
+  1. The agent registers (`/sandbox/agent/register`) and gets a secret agent token plus a single-use pairing code (`ABCD-1234`, 10 minutes).
+  2. The user enters the code in the extension or on Settings (`POST /sandbox/pair`), which returns that client's sandbox token. Up to 5 clients can be paired per agent.
+  3. An analysis sent with `deep_analysis=1` and `X-ETAP-Sandbox-Token` queues a job for that agent.
+  4. The agent polls `POST /sandbox/agent/jobs/next` every 5 s (this is also its heartbeat; online means seen within 30 s), downloads each sample, reports progress and uploads the raw record (gzip Sysmon XML, Defender events, item launch notes).
+  5. The server evaluates it, as above.
+- **Security rules:**
+  - Only SHA-256 hashes of tokens are stored.
+  - Jobs are scoped to one agent.
+  - Samples are deleted when a job finishes or expires: 30 minutes queued, or 15 minutes running without a result.
+  - The agent's item fields are cleaned and the issued file names and hashes win.
+  - Sysmon uploads are size-capped (64 MB expanded), and any DTD is refused.
+  - The agent only makes outbound requests. It stores its token and the guest password sealed with Windows DPAPI.
+
 ### Stage B5 — Link analysis (`forensics/link_analysis.py`)
 
 `analyze_links(body_html)` parses anchors with `html.parser` (an `<img alt>` inside a link counts as visible text), deduplicates, caps at 200. `analyze_url(href, display_text)` flags: `non_web_scheme` (`javascript:`, `data:`, `vbscript:`), `plain_http`, `userinfo_in_url`, `ip_address_host`, `non_standard_port`, `url_shortener` (bit.ly, tinyurl, t.co, …), `punycode_host`, `homograph_suspected`, `lookalike_domain`, `redirect_parameter_to_other_site` (query keys like `url`, `redirect`, `next`, `goto` pointing at a different registrable domain — reported as `inferred_target_host`), `text_shows_different_site`, `text_names_brand_link_goes_elsewhere`. `resolution.status` is always `not_resolved`: nothing is fetched.
@@ -339,11 +384,11 @@ Training (`train_triage_model.py`): XGBClassifier (100 trees, depth 4, lr 0.1) o
 
 ### Stage H — Assembly (`pipeline.py`)
 
-Produces the response (also persisted): `email_id, risk_score, verdict, verdict_band, analysis_provenance, evidence_report, link_analysis, qr_trace, privacy_report, provider_status, email, headers, attachments, iocs, threat_intel, correlation, historical_correlation, category_status, graph_diffusion, ai_analysis{content_classification, final_assessment}, mitre_attack, triage, stage_status`, then `finish_analysis` adds `retention` and `baseline_context`.
+Produces the response (also persisted): `email_id, risk_score, verdict, verdict_band, analysis_provenance, evidence_report, link_analysis, qr_trace, privacy_report, provider_status, email, headers, attachments, iocs, threat_intel, correlation, historical_correlation, category_status, graph_diffusion, ai_analysis{content_classification, final_assessment}, mitre_attack, triage, stage_status, sandbox`. `sandbox` is the short submit status (`queued`, `not_requested`, `not_applicable`, `unavailable`, `error`); the full result lives in the stored `sandbox_analysis` and is served by `GET /sandbox/{id}` and `GET /investigations/{id}`, then `finish_analysis` adds `retention` and `baseline_context`.
 
 `analysis_provenance`: `input_mode, headers_available, threat_intel_mode, threat_intel_lookups, threat_intel_unavailable, assessment_provider, assessment_model, fallback_used, fallback_reason, gemini_skipped_by_triage, verdict_reconciled, verdict_original, provider_status_summary, provider_coverage_status, analysis_duration_ms`.
 
-`stage_status`: `A, B (complete|headers_unavailable), B2, D, E (live|offline_placeholder), F, F_prime (complete|insufficient_data), C_prime (bypassed_gemini|evaluated|offline), G (skipped_by_triage|gemini|offline_fallback), H`.
+`stage_status`: `A, B (complete|headers_unavailable), B2, D, E (live|offline_placeholder), F, F_prime (complete|insufficient_data), C_prime (bypassed_gemini|evaluated|offline), G (skipped_by_triage|gemini|offline_fallback), H, S (sandbox submit status)`.
 
 ---
 
@@ -402,6 +447,10 @@ Collections:
 - `counters` — `{_id: "campaign_id", seq}` for sequential campaign IDs.
 - `preferences` — `{kind: "settings", retention_days}`, `{kind: "baselines", domains[]}`.
 - `emails` — legacy RAG index collection, cleaned on delete.
+- `sandbox_agents` — `agent_id, agent_token_hash, client_token_hashes[], pairing_code, pairing_expires_ts, name, version, vm{name, snapshot, provider, provider_version}, created_ts, last_seen_ts, paired_ts`.
+- `sandbox_jobs` — `job_id, agent_id, email_id, status, samples[{index, filename, sha256, size_bytes, has_file, archive?, inspection_error?}], candidates, created_ts, expires_ts, claimed_ts, finished_ts, error`.
+- `sandbox_job_files` — `job_id, index, content_b64`; deleted when the job ends.
+- `analyzed_emails.sandbox_analysis` — the live sandbox doc shown in the report (status, mode, items with matches/process tree/notes, coverage, agent name, times).
 
 All access goes through `db/repository.py`; every function takes `db` explicitly.
 
@@ -416,7 +465,7 @@ All access goes through `db/repository.py`; every function takes `db` explicitly
 | `GET /`, `HEAD /` | service index |
 | `GET /health` | liveness |
 | `GET /ready` | DB ping; 503 when unavailable |
-| `POST /analyze` (10/min) | multipart `file` + optional `source` (`full_message`, `quick_content_check`) → full report (used by the extension) |
+| `POST /analyze` (10/min) | multipart `file` + optional `source` (`full_message`, `quick_content_check`) and `deep_analysis=1` (with header `X-ETAP-Sandbox-Token`) → full report (used by the extension) |
 | `POST /analyze/jobs` (10/min) | same input; returns `{job_id, stages}` at once and analyses in the background |
 | `GET /analyze/jobs/{id}` | live stage list (state + detail per stage), `status` (`running`/`done`/`error`), then the report; 404 once expired |
 | `POST /chat` (30/min) | `{question, email_id?}`; client `email_context` is rejected (400) |
@@ -433,6 +482,12 @@ All access goes through `db/repository.py`; every function takes `db` explicitly
 | `GET/PUT /baselines` | trusted sender domains (verified-trust rule, §10) |
 | `GET /analytics` | measured aggregates over ≤ 5 000 records |
 | `GET /recovery` | versioned fixed recovery checklists |
+| `GET /sandbox/{id}` | live sandbox status/result for an investigation, with the current score and verdict |
+| `POST /sandbox/pair` (10/min) | `{code}` → `{sandbox_token, name, online, vm_name}` (agent backend only) |
+| `GET/DELETE /sandbox/pairing` | this client's pairing state (`available, paired, online, …`) / unpair; header `X-ETAP-Sandbox-Token` |
+| `GET /sandbox/agent/download` | the agent as `etap-sandbox-agent.zip` |
+| `POST /sandbox/agent/register` (5/min), `GET /sandbox/agent/me`, `POST /sandbox/agent/pairing-code` | agent identity and pairing (agent routes use `Authorization: Bearer <agent token>`) |
+| `POST /sandbox/agent/jobs/next`, `GET …/jobs/{id}/samples/{n}`, `POST …/jobs/{id}/progress`, `POST …/jobs/{id}/result` | agent job loop |
 | `/docs` | Swagger UI |
 
 The API is **open**: no authentication or per-user scoping (see §17).
@@ -497,15 +552,15 @@ Location `frontend/`. React 18, Vite 8 (`@vitejs/plugin-react`), Node >= 22.12. 
 
 ## 12. Gmail extension
 
-Location `extension/`, Manifest V3, version 1.5.1. Permissions: `activeTab`, `scripting`; hosts: `mail.google.com`, local backend, Render backend. Config in `config.js` (`apiBaseUrl`, `appBaseUrl`, `requestTimeoutMs` 90 s).
+Location `extension/`, Manifest V3, version 1.6.0. Permissions: `activeTab`, `scripting`, `storage` (the sandbox token); hosts: `mail.google.com`, local backend, Render backend. Config in `config.js` (`apiBaseUrl`, `appBaseUrl`, `requestTimeoutMs` 90 s).
 
 Flow:
 
-1. `content.js` watches Gmail's DOM (MutationObserver, debounced) and inserts an **Analyze in E-TAP** banner above each opened message body (`.ii.gt`). Nothing is read or sent until the click.
+1. `content.js` watches Gmail's DOM (MutationObserver, debounced) and inserts an **Analyze in E-TAP** banner above each opened message body (`.ii.gt`). Nothing is read or sent until the click. The click first asks **Standard analysis** or **Deeper attachment analysis**; an info icon explains that deeper analysis needs a VirtualBox VM (Windows Sandbox on Windows Pro is planned), and a line shows *Your sandbox: online / offline / not paired*.
 2. On click: snapshot sender/subject/visible body; `gmail-original.js` builds a reference from Gmail's message IDs (`data-legacy-message-id` → `th=`, new `msg-f:` IDs → `permmsgid=`) preserving the account path (`/mail/u/N/`, delegated paths, `authuser`).
 3. `background.js` (service worker) validates the sender is a Gmail tab, creates a job in `handoff-store.js` (extension-origin IndexedDB, 1 h expiry) and opens `analysis.html?job=<uuid>`.
 4. The content script downloads the original message (`view=om`/attachment view, 30 s timeout, 25 MB cap), validates it looks like RFC 822 (`isOriginal`), and hands the base64 bytes to the job.
-5. `analysis.js` waits up to 35 s, then `analysis-core.js` uploads either the original (`gmail_original.eml`, `source=full_message`) or a reconstructed text-only message (`gmail_visible_content.eml`, `source=quick_content_check`) to `/analyze`, and redirects to `<appBaseUrl>?dossier=<email_id>`. The tab also offers retry, "continue with visible text", manual `.eml` upload and **Open E-TAP**.
+5. `analysis.js` waits up to 35 s, then `analysis-core.js` uploads either the original (`gmail_original.eml`, `source=full_message`) or a reconstructed text-only message (`gmail_visible_content.eml`, `source=quick_content_check`) to `/analyze`, and redirects to `<appBaseUrl>?dossier=<email_id>`. The tab also offers retry, "continue with visible text", manual `.eml` upload and **Open E-TAP**. For a deeper analysis it first checks the pairing (`sandbox-pairing.js`): if unpaired it shows the three setup steps (download the agent, run `start-agent.cmd`, enter the code) or **Run standard analysis instead**; once paired it sends `deep_analysis=1` and the token header. Only original messages carry attachments, so a text-only fallback never asks for a sandbox run.
 
 Tests: `extension/tests/original-message.test.mjs` (Node), `backend/tests/test_extension_original.py`. `options.html/options.js` are leftovers from the removed API-key auth.
 
@@ -584,6 +639,11 @@ Backend (`.env` at repo root locally; host settings in production — never in t
 | `ALLOWED_ORIGINS` | `http://127.0.0.1:5173,http://localhost:5173` | CORS |
 | `PORT` | `5000` | server port (Render injects it) |
 | `KMP_DUPLICATE_LIB_OK` | set to `TRUE` by `app.py` | avoids an OpenMP clash with torch |
+| `SANDBOX_BACKEND` | `none` | `agent` (hosted, paired user VMs), `virtualbox` (VM on this machine), `replay`, `none` |
+| `SANDBOX_AGENT_JOB_TTL_SECONDS`, `SANDBOX_AGENT_RUN_TIMEOUT_SECONDS` | `1800`, `900` | how long a job waits for the agent / may run without a result |
+| `SANDBOX_DWELL_SECONDS` | `30` | observation time per sample (local worker; the agent has its own setting) |
+| `SANDBOX_VM_NAME`, `SANDBOX_SNAPSHOT`, `SANDBOX_GUEST_USER`, `SANDBOX_GUEST_PASSWORD`, `VBOXMANAGE_PATH`, `SANDBOX_PDF_VIEWER` | — | VM settings for `virtualbox` mode (the agent keeps its own copy, sealed, in `%APPDATA%\E-TAP Sandbox Agent`) |
+| `SANDBOX_RULES_DIR`, `SANDBOX_WORK_DIR` | `sandbox/rules`, `sandbox/work` | rule and scratch folders |
 
 Frontend: `VITE_API_BASE_URL` (empty in dev to use the proxy; the Render URL on Vercel) and `VITE_TIMELINE_PACING` (`off` disables the timeline's minimum stage times).
 Extension: constants in `extension/config.js` and host permissions in `manifest.json`.
@@ -632,7 +692,7 @@ Test suites cover: parsing (`test_parse_any`, `test_single_email`), headers/orig
 - **Open API.** No authentication or multi-tenancy; anyone with the URL can analyse, read, share and delete (including `DELETE /investigations`). Per-IP limits see Render's proxy unless forwarded-for handling is added. The earlier bearer-key/role/owner-scoping implementation is still in the tree but **not wired**: `security.py` (`SecurityBoundary` middleware), `provision_key.py`, `db/scoped.py`, `migrate_workflow_c.py`, `extension/options.*`, the `/me` proxy entry and the `owner_id` index names. The original design is in git history (earlier notes cite a tag `pre-auth-removal`, which is not present in this clone). Future direction: OAuth/OIDC, `owner_id` scoping in one place, Atlas vector filter on `owner_id`, shared quota store.
 - **`dnspython` not in requirements**, so the live-DNS auth tier is inactive in the Docker image unless added; header-reported results still work.
 - **sentence-transformers not in requirements**; hosted RAG uses lexical hash embeddings, not semantic ones.
-- **No dynamic sandbox.** `docs/workflow/etap-workflow.mmd` describes a Windows 11 VM + Sysmon detonation stage (Workstream A); none of it is in this repository. Attachment analysis is static only.
+- **Dynamic analysis coverage.** Only 36 of 164 rule definitions are evaluable by the EQL subset (Sigma/YARA are the planned engine). Nothing clicks inside documents, so Office files and click-triggered PDFs usually come back inconclusive. Windows Sandbox support, a signed agent build and an agent auto-start are not built yet. Agent jobs are scoped by pairing token only, like the rest of the open API.
 - **XGBoost model** lineage is undocumented; features are coarse (e.g. SPF pass is mostly unknown for text-only training data). Treat as a triage aid.
 - **Evaluation** is not yet meaningful (see §15).
 - **Gmail extension** relies on Gmail's private web endpoints (no Gmail API/OAuth) and can break when Gmail changes.
@@ -652,7 +712,7 @@ Test suites cover: parsing (`test_parse_any`, `test_single_email`), headers/orig
 - **Stages A–H** come from the original team plan: A parse, B headers, B2 attachments, C content classifier (folded into G), C′ XGBoost triage, D IOCs, E threat intel, F correlation, F′ graph diffusion, G Gemini, H assembly/report.
 - **Workflow B (B0–B11)** hardened truthfulness and evidence: B0 canonical verdicts and safe failure, B1/B9 evidence ledger and "observed / why / what to do", B2 evaluation harness and offline-fallback/charset fixes, B5 link analysis, B6 QR trace, B10 privacy controls, B11 provider status, timeouts, `/ready`.
 - **Workflow C (C1–C14)** added trust and response features (see §10); authentication (C5) was built and then removed before the demo.
-- **Workstream A** is the separate dynamic-sandbox effort, not in this repo.
+- **Workstream A**, the dynamic-sandbox effort, was developed in the separate E-TAP Local folder and merged here on 2026-10-24 as stage S with the paired agent (see `Development notes and iterations/`).
 - Older per-workflow notes (`WORKFLOW-B-README.md`, `WORKFLOW-C-README.md`, `SETUP.md`, `DEPLOYMENT.md`, `work.md`, `study.txt`, per-package READMEs) were consolidated into README.md and this file; they remain available in git history.
 
 ---

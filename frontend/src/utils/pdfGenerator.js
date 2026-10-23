@@ -702,6 +702,30 @@ export function generatePdfDocument(data, options = {}) {
       `${e.provenance_type || e.kind} / ${e.confidence || 'unknown'}`,
       `${JSON.stringify(e.raw_observation ?? null)}\n${e.normalized_explanation || e.why || ''}\nSupports: ${(e.supports || []).join(', ')}; contradicts: ${(e.contradicts || []).join(', ')}`
     ]) });
+  if (['agent', 'virtualbox', 'replay'].includes(data.sandbox?.mode) && !['not_requested', 'unavailable'].includes(data.sandbox?.status)) {
+    const sandbox = data.sandbox;
+    doc.addPage();
+    let sandboxY = sectionTitle(doc, 'Sandbox Analysis', 'Observed guest behavior and Windows security evidence', 50);
+    sandboxY = keyValueGrid(doc, [
+      ['Mode / status', `${sandbox.mode || 'unknown'} / ${sandbox.status || 'unknown'}`],
+      ['Job ID', sandbox.job_id || 'Not recorded'],
+      ['Detection coverage', `${sandbox.coverage?.rules_loaded ?? 'Unknown'} rules loaded`],
+      ['Finished', sandbox.finished_at || 'Not finished'],
+    ], sandboxY);
+    sandboxY = tableBlock(doc, sandboxY, {
+      head: [['Attachment / sample', 'Verdict / events', 'Matched rules / observation notes']],
+      body: (sandbox.items || []).map(item => [
+        `${item.filename || 'Unknown'}\n${item.sample || ''}`,
+        `${item.verdict || 'unknown'}\n${item.event_count || 0} events`,
+        `${(item.matches || []).map(match => `${match.rule_id}: ${match.rule}`).join('\n')}\n${item.note || item.launch_error || ''}`,
+      ]),
+    });
+    const security = sandbox.security_events || (sandbox.items || []).flatMap(item => item.security_events || []);
+    if (security.length) tableBlock(doc, sandboxY, {
+      head: [['Windows event', 'Security evidence']],
+      body: security.map(event => [String(event.event_id), event.message || '']),
+    });
+  }
   pageFooter(doc, generatedAt);
   return doc;
 }

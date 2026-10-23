@@ -9,28 +9,9 @@ export default defineConfig({
     // For external demos on other devices, serve the static production build (npm run build).
     host: '127.0.0.1',
     port: 5173,
-    proxy: {
-      ...Object.fromEntries(['/me', '/campaigns', '/preferences', '/recovery', '/analytics', '/baselines'].map(path => [path, { target: 'http://127.0.0.1:5000', changeOrigin: true }])),
-      '/analyze': {
-        target: 'http://127.0.0.1:5000',
-        changeOrigin: true,
-      },
-      '/health': {
-        target: 'http://127.0.0.1:5000',
-        changeOrigin: true,
-      },
-      '/ready': {
-        target: 'http://127.0.0.1:5000',
-        changeOrigin: true,
-      },
-      '/chat': {
-        target: 'http://127.0.0.1:5000',
-        changeOrigin: true,
-      },
-      '/investigations': {
-        target: 'http://127.0.0.1:5000',
-        changeOrigin: true,
-      },
-    },
+    proxy: Object.fromEntries(
+      ['/analyze', '/health', '/ready', '/chat', '/investigations', '/sandbox', '/me', '/campaigns', '/preferences', '/recovery', '/analytics', '/baselines']
+        .map((path) => [path, { target: 'http://127.0.0.1:5000', changeOrigin: true }]),
+    ),
   },
 });

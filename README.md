@@ -59,6 +59,16 @@ Every input becomes the same `ParsedEmail` object. The file type is decided from
 ### Stage B2 — Attachment forensics (static, nothing is executed)
 For each attachment: SHA-256, true type from magic bytes (libmagic when installed, built-in signature table otherwise), declared-vs-actual type mismatch, double extensions (`invoice.pdf.exe`), executables disguised under harmless names, and password-protected/corrupt Office files. Office documents get **static VBA analysis with oletools**: auto-run triggers (`AutoOpen`), suspicious APIs (`Shell`, `CreateObject`, PowerShell) and referenced IOCs. Images are decoded for **QR codes** (pyzbar, OpenCV fallback) and **OCR text** (Tesseract); OCR text is appended to the content the AI reviews, so image-only phishing is not invisible.
 
+### Stage S — Deeper attachment analysis (optional, in your own sandbox)
+When you choose **Deeper attachment analysis**, eligible attachments (scripts, executables, shortcuts, documents, PDFs, ZIP members; up to 3 per email) are opened inside a VirtualBox Windows VM **you own**. The free **E-TAP Sandbox Agent** runs next to the VM and pairs once with a short code. For each job it:
+1. restores the VM's clean snapshot;
+2. opens the files;
+3. records what happens with Sysmon and Windows Defender;
+4. restores the snapshot again;
+5. uploads only the recorded events.
+
+E-TAP checks them against behavioural detection rules (MITRE-mapped). A match raises the risk score, and "nothing observed" never lowers it. The agent only makes outbound requests. See [`backend/sandbox_agent/README.md`](backend/sandbox_agent/README.md).
+
 ### Stages B5 / B6 — Link and QR analysis
 Every `<a href>` is compared with the text a reader sees: "text shows a different site", "text names PayPal but the link goes elsewhere", credentials in URLs (`paypal.com@evil.com`), IP hosts, non-standard ports, shorteners, punycode, lookalikes and redirect parameters (`?url=https://other.site`, reported as *inferred*). QR destinations get the same checks. Links are never fetched or followed.
 
@@ -94,15 +104,16 @@ One function reconciles the label and the 0–100 score (the more severe wins) i
 ## What you get in the dashboard
 
 - **Dashboard** — emails analysed, high risk / suspicious / low risk counts, average risk, risk-over-time chart, verdict breakdown, top threat types and recent investigations, from everything stored
-- **Analyze email** — a live timeline that lights up each stage as it runs (reading the email, sender & headers, static attachments, links & indicators, reputation, past emails, AI assessment, verdict), then the score, the verdict and **Re-analyze**
+- **Analyze email** — a live timeline that lights up each stage as it runs (reading the email, sender & headers, static attachments, dynamic attachments, links & indicators, reputation, past emails, AI assessment, verdict), then the score, the verdict and **Re-analyze**; a **Deeper attachment analysis** option once your sandbox is paired
 - **Investigation report** — a big score ring and verdict, "why it was risky" tags (Header issues, Attachment issues, Suspicious links, Bad reputation, Seen before, Suspicious wording), category cards with the serious findings first, **Remediation**, the sender-route map, multi-vector analysis and MITRE ATT&CK, collapsible technical details, past emails and the threat graph, and analyst tools (review, case, sharing, retention) at the end
 - **Reports** — every analysed email broken down stage by stage, searchable and filterable by risk
-- **Trusted domains** — senders you trust lower the risk only when SPF, DKIM and DMARC prove the email is genuine
+- **Sandbox behaviour** — for deeper analyses, what each attachment did in your VM (rules matched, Defender blocks, processes), updating live while it runs
+- **Trusted domains** — senders you trust lower the risk only when SPF, DKIM and DMARC prove the email is genuine; the same page pairs your sandbox
 - **Ask E-TAP** — the SOC Assistant for the open report or all past investigations, plus **PDF/JSON export**
 
 ## Gmail extension
 
-A Manifest V3 extension adds **Analyze in E-TAP** above an opened Gmail message. On click it downloads the original RFC 822 message through the signed-in Gmail session (full headers and attachments) and submits it as `full_message`. If Gmail does not provide the original, it submits the visible sender/subject/body as a clearly labelled `quick_content_check`, where header checks are reported as unavailable. The report then opens in the web dashboard.
+A Manifest V3 extension adds **Analyze in E-TAP** above an opened Gmail message. On click it asks for a **Standard analysis** or a **Deeper attachment analysis** (an info icon explains that the deeper option needs a VirtualBox VM; Windows Sandbox on Windows Pro is planned). The first deeper analysis walks you through downloading the agent and entering its pairing code, after which the extension shows *Your sandbox: online*. It then downloads the original RFC 822 message through the signed-in Gmail session (full headers and attachments) and submits it as `full_message`. If Gmail does not provide the original, it submits the visible sender/subject/body as a clearly labelled `quick_content_check`, where header checks are reported as unavailable. The report then opens in the web dashboard.
 
 ---
 
@@ -169,7 +180,7 @@ samples/     Dataset manifests (raw emails are not committed)
 - The API is open (no sign-in or per-user isolation); do not upload sensitive real mail to a public instance.
 - Live lookups and Gemini receive indicators and privacy-reduced email content.
 - The bundled XGBoost model is an initial triage aid, not a calibrated production detector, and no benchmark accuracy is claimed yet.
-- Attachments are analysed statically only; dynamic sandbox detonation is planned work.
+- Dynamic analysis needs your own VirtualBox VM and the agent; nothing clicks inside documents yet, so Office files and click-triggered PDFs are often inconclusive, and only 36 of the 164 bundled behaviour rules can be evaluated so far.
 - The Gmail extension uses Gmail's web endpoints, not the official Gmail API.
 
 ## Team Members

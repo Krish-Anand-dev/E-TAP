@@ -1,4 +1,4 @@
-importScripts('config.js', 'gmail-original.js', 'handoff-store.js');
+importScripts('config.js', 'gmail-original.js', 'handoff-store.js', 'sandbox-pairing.js');
 
 function gmailSender(sender) {
     try { return new URL(sender.url).origin === 'https://mail.google.com' && Number.isInteger(sender.tab?.id); }
@@ -6,16 +6,21 @@ function gmailSender(sender) {
 }
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (!['startEmailAnalysis', 'prepareEmailAnalysis', 'focusEmailAnalysis'].includes(request.action)) return;
+    if (!['startEmailAnalysis', 'prepareEmailAnalysis', 'focusEmailAnalysis', 'sandboxStatus'].includes(request.action)) return;
     if (!gmailSender(sender)) {
         sendResponse({ success: false, code: 'invalid_sender' });
         return;
     }
     (async () => {
+        if (request.action === 'sandboxStatus') {
+            const state = await EtapSandbox.status();
+            return { success: true, state: { available: Boolean(state.available), paired: Boolean(state.paired), online: Boolean(state.online) } };
+        }
         if (request.action === 'startEmailAnalysis') {
             const id = crypto.randomUUID();
             const job = {
                 id, createdAt: Date.now(), gmailTabId: sender.tab.id, state: 'retrieving',
+                deep: request.deep === true,
                 data: {
                     sender: String(request.data?.sender || ''),
                     subject: String(request.data?.subject || ''),

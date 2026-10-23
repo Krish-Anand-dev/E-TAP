@@ -268,7 +268,7 @@ export function InvestigationProvider({ children }) {
   /**
    * Upload and execute investigation pipeline on the backend
    */
-  const startAnalysis = async (file) => {
+  const startAnalysis = async (file, options = {}) => {
     if (!file) return null;
 
     setStatus('uploading');
@@ -279,7 +279,7 @@ export function InvestigationProvider({ children }) {
     setUploadProgress(0);
 
     try {
-      const job = await startAnalysisJob(file);
+      const job = await startAnalysisJob(file, undefined, options);
       setJobStages(job.stages || []);
       setStatus('analyzing');
       // Follow live stage progress until the backend finishes the job.
