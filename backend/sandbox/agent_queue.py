@@ -48,7 +48,7 @@ PAIRING_CODE_TTL = 10 * 60
 ONLINE_WINDOW = 30          # seconds since the last poll that still count as online
 MAX_CLIENT_TOKENS = 5       # extension + dashboard + a few re-pairings
 MAX_ITEMS = 20
-MAX_SYSMON_BYTES = 64 * 1024 * 1024
+MAX_SYSMON_BYTES = 24 * 1024 * 1024  # the agent sends only the sample's own events; a full log would exhaust small servers
 MAX_SECURITY_EVENTS = 100
 CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
@@ -476,7 +476,7 @@ def _sysmon_text(payload: dict) -> str:
     with gzip.GzipFile(fileobj=io.BytesIO(raw)) as stream:
         data = stream.read(MAX_SYSMON_BYTES + 1)
     if len(data) > MAX_SYSMON_BYTES:
-        raise AgentError("Sysmon export is too large.", 413)
+        raise AgentError("The Sysmon events are too large. Update the agent: it now sends only the sample's own events.", 413)
     text = data.decode("utf-8-sig", errors="replace")
     # Sysmon exports never declare entities; refuse any that do.
     if "<!DOCTYPE" in text[:4096].upper() or "<!ENTITY" in text.upper():

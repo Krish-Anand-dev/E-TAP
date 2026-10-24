@@ -306,18 +306,31 @@ def handle_job(client: Client, config: cfgmod.AgentConfig, job: dict, assume_yes
         "defender_checkpoint_error": record.get("defender_checkpoint_error"),
         "vm": _vm_summary(config),
     }
+    say(f"  Uploading the result ({len(payload['sysmon_xml_gz_b64']) / 1e6:.1f} MB of events)...")
+    reason = "the server did not accept it"
     for attempt in range(1, 4):
         try:
             answer = client.result(job_id, payload)
             say(f"  Done ({answer.get('status')}). The E-TAP report updates by itself.")
             return answer
         except ServerError as exc:
+            reason = str(exc)
             if exc.status and exc.status < 500:
                 say(f"  The server refused the result: {exc}")
-                return {"status": "refused"}
+                break
             say(f"  Upload failed ({exc}); retrying ({attempt}/3)...")
             time.sleep(5 * attempt)
-    say("  Could not upload the result; the report will show the run as incomplete.")
+    # Never leave the report waiting for ever: send a small note saying what happened instead.
+    say("  Sending a short note instead, so the report does not keep waiting...")
+    note = {**payload, "sysmon_xml_gz_b64": "",
+            "items": [{k: v for k, v in item.items() if k != "interaction_log"} for item in payload["items"]],
+            "error": f"The sandbox finished, but its result could not be uploaded ({reason})."[:480]}
+    try:
+        answer = client.result(job_id, note)
+        say(f"  The report now shows the run as incomplete ({answer.get('status')}).")
+        return answer
+    except ServerError as exc:
+        say(f"  Could not reach the server ({exc}); the report will time out and show the run as incomplete.")
     return {"status": "upload_failed"}
 
 

@@ -243,6 +243,22 @@ class SandboxAgentTests(unittest.TestCase):
         self.assertEqual((len(candidates), state), (1, "done"))
         self.assertIn("sent to your sandbox", detail)
 
+    def test_an_oversized_event_upload_is_refused_fast_with_a_clear_message(self):
+        auth, client = self.pair()
+        self.analyze(client)
+        job = self.client.post("/sandbox/agent/jobs/next", headers=auth).json()["job"]
+        with patch.object(agent_queue, "MAX_SYSMON_BYTES", 1000):
+            big = "<Events>" + "x" * 5000 + "</Events>"
+            response = self.client.post(f"/sandbox/agent/jobs/{job['job_id']}/result", headers=auth, json={
+                "items": [], "sysmon_xml_gz_b64": base64.b64encode(gzip.compress(big.encode())).decode()})
+        self.assertEqual(response.status_code, 413)
+        self.assertIn("only the sample", response.json()["detail"])
+        # The short note the agent sends next closes the job instead of leaving it waiting.
+        note = self.client.post(f"/sandbox/agent/jobs/{job['job_id']}/result", headers=auth, json={
+            "items": [], "sysmon_xml_gz_b64": "", "error": "The sandbox finished, but its result could not be uploaded (too large)."})
+        self.assertEqual(note.status_code, 200)
+        self.assertEqual(note.json()["status"], "error")
+
     def test_dtd_in_telemetry_is_refused(self):
         auth, client = self.pair()
         self.analyze(client)
