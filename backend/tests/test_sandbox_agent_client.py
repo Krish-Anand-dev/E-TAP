@@ -179,6 +179,113 @@ class HealthTests(unittest.TestCase):
             self.assertIn("inaccessible", recon.vm_health("v", "clean")["reason"])
 
 
+def _event(event_id, guid, parent="", command="", extra=""):
+    from xml.sax.saxutils import escape
+    fields = {"ProcessGuid": guid, "ParentProcessGuid": parent, "CommandLine": command,
+              "Image": r"C:\Windows\System32\cmd.exe", "ParentImage": "p", "TargetFilename": extra}
+    data = "".join(f'<Data Name="{k}">{escape(v)}</Data>' for k, v in fields.items())
+    return ('<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event"><System>'
+            f"<EventID>{event_id}</EventID></System><EventData>{data}</EventData></Event>")
+
+
+class SysmonTrimTests(unittest.TestCase):
+    """Only the sample's own events may leave the PC: a full log can be hundreds of MB."""
+
+    marker = "sample_job_abc_1234"
+
+    def trimmed(self, events, markers=None):
+        from sandbox_agent.trim import trim_sysmon
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        log = Path(folder.name) / "sysmon.xml"
+        log.write_text("<Events>" + "".join(events) + "</Events>", encoding="utf-8-sig")
+        return trim_sysmon(log, [self.marker] if markers is None else markers)
+
+    def test_keeps_the_sample_tree_and_drops_everything_else(self):
+        noise = [_event(11, f"noise{i}", extra=f"C:\\cache\\{i}") for i in range(500)]
+        events = (noise[:250]
+                  + [_event(1, "late", "child", "net.exe")]           # logged before its parent is known
+                  + noise[250:]
+                  + [_event(1, "root", "outside", f"cscript C:\\sandbox\\in\\{self.marker}.js"),
+                     _event(1, "child", "root", "certutil -urlcache"),
+                     _event(11, "child", extra="C:\\x\\a.txt"),
+                     _event(10, "child")])                            # an event type the server ignores
+        out = self.trimmed(events)
+        self.assertEqual(out.count("<Event "), 4)
+        self.assertNotIn("noise", out)
+        from sandbox.ecs_convert import sample_tree_events
+        names = {e["process"]["command_line"] for e in sample_tree_events(out, self.marker) if e["_category"] == "process"}
+        self.assertEqual(names, {f"cscript C:\\sandbox\\in\\{self.marker}.js", "certutil -urlcache", "net.exe"})
+
+    def test_nothing_launched_or_nothing_found_uploads_nothing(self):
+        self.assertEqual(self.trimmed([_event(1, "a", "", "cmd")], markers=[]), "<Events></Events>")
+        self.assertEqual(self.trimmed([_event(1, "a", "", "cmd")]), "<Events></Events>")
+
+    def test_a_damaged_log_still_yields_the_good_events(self):
+        from sandbox_agent.trim import trim_sysmon
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        log = Path(folder.name) / "sysmon.xml"
+        good = [_event(1, "root", "", f"cscript {self.marker}.js"), _event(11, "root", extra="C:\\a")]
+        # An export cut off in the middle of an event is not well-formed XML as a whole.
+        log.write_text("<Events>" + good[0] + good[1] + "<Event><cut off", encoding="utf-8")
+        self.assertEqual(trim_sysmon(log, [self.marker]).count("<Event "), 2)
+
+    def test_collect_sysmon_trims_and_deletes_the_full_export(self):
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        work = Path(folder.name)
+        vbox = MagicMock()
+        full = "<Events>" + "".join(_event(11, f"n{i}") for i in range(50)) + _event(1, "r", "", f"x {self.marker}") + "</Events>"
+        vbox.copy_from.side_effect = lambda guest, host: Path(host).write_text(full, encoding="utf-8")
+        xml = runner._collect_sysmon(vbox, work, [self.marker])
+        self.assertEqual(xml.count("<Event "), 1)
+        runner._cleanup_work_dir(work)
+        self.assertFalse((work / "sysmon.xml").exists())
+
+
+class UploadFallbackTests(unittest.TestCase):
+    def setUp(self):
+        self.home = tempfile.TemporaryDirectory()
+        self.addCleanup(self.home.cleanup)
+        env = patch.dict(os.environ, {"ETAP_AGENT_HOME": self.home.name})
+        env.start()
+        self.addCleanup(env.stop)
+        self.config = cfgmod.AgentConfig()
+        self.config.vm.name, self.config.vm.guest_user = "win 11", "sandbox"
+        self.config.vm.set_guest_password("pw")
+        self.config.vm.login_verified = True
+
+    def run_job(self, client):
+        record = {"items": [{"filename": "a.pdf", "interaction_log": [{"action": "launch"}]}], "sysmon_xml": "<Events></Events>",
+                  "security_events": [], "error": None, "cleanup_error": None, "login_error": False}
+        job = {"job_id": "job_1", "samples": [{"index": 0, "filename": "a.pdf", "has_file": False, "inspection_error": "x"}]}
+        client.sample.return_value = b""
+        with patch.object(runner, "run_job", return_value=record), patch.object(cli, "_vbox"), \
+             patch.object(cli, "_vm_summary", return_value={}), patch.object(cli.time, "sleep"):
+            return cli.handle_job(client, self.config, job)
+
+    def test_a_failed_upload_is_followed_by_a_short_note_so_the_report_does_not_wait(self):
+        from sandbox_agent.client import ServerError
+        client = MagicMock()
+        client.result.side_effect = [ServerError("connection reset"), ServerError("connection reset"),
+                                     ServerError("connection reset"), {"status": "error"}]
+        self.assertEqual(self.run_job(client)["status"], "error")
+        self.assertEqual(client.result.call_count, 4)
+        note = client.result.call_args.args[1]
+        self.assertEqual(note["sysmon_xml_gz_b64"], "")
+        self.assertIn("could not be uploaded (connection reset)", note["error"])
+        self.assertNotIn("interaction_log", note["items"][0])
+
+    def test_a_refusal_is_not_retried_but_still_reported(self):
+        from sandbox_agent.client import ServerError
+        client = MagicMock()
+        client.result.side_effect = [ServerError("The Sysmon events are too large.", 413), {"status": "error"}]
+        self.run_job(client)
+        self.assertEqual(client.result.call_count, 2)
+        self.assertIn("too large", client.result.call_args.args[1]["error"])
+
+
 class DefenderCheckpointTests(unittest.TestCase):
     def test_slow_first_call_is_retried_and_reasons_are_kept(self):
         import subprocess

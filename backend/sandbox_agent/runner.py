@@ -22,6 +22,7 @@ from typing import Callable
 
 from .vbox import VBox, VBoxError, GuestLoginError, GuestProcessTimeout
 from .launchers import launcher_for
+from .trim import trim_sysmon
 
 logger = logging.getLogger("E-TAP.sandbox.runner")
 
@@ -64,7 +65,8 @@ def run_job(job_id: str, samples: list[dict], work_dir: Path, *, vbox: VBox | No
             record["items"].append(detonate_single(vbox, job_id, sample, work_dir))
 
         on_status("collecting")
-        record["sysmon_xml"] = _collect_sysmon(vbox, work_dir)
+        markers = [i.get("sample_marker") for i in record["items"] if i.get("launched")]
+        record["sysmon_xml"] = _collect_sysmon(vbox, work_dir, markers)
         record["security_events"] = _collect_security_events(vbox, security_baseline)
     except Exception as exc:
         logger.exception("Job %s failed: %s", job_id, exc)
@@ -248,30 +250,27 @@ def _collect_security_events(vbox: VBox, baseline: int) -> list[dict]:
         return []
 
 
-def _collect_sysmon(vbox: VBox, work_dir: Path) -> str:
-    """Export Sysmon log from VM and return the XML content."""
+def _collect_sysmon(vbox: VBox, work_dir: Path, markers=()) -> str:
+    """Export the Sysmon log from the VM and return only the samples' own events.
+
+    The full log is large and is deleted with the work folder; it never leaves this PC."""
     guest_xml = r"C:\sandbox\out\sysmon.xml"
-    host_xml = str(work_dir / "sysmon.xml")
+    host_xml = work_dir / "sysmon.xml"
 
     vbox.export_sysmon(guest_xml)
-
-    # Copy to host
-    vbox.copy_from(guest_xml, host_xml)
-
-    # Read
-    try:
-        with open(host_xml, "r", encoding="utf-8-sig") as f:
-            return f.read()
-    except UnicodeDecodeError:
-        with open(host_xml, "r", encoding="utf-8") as f:
-            return f.read()
+    vbox.copy_from(guest_xml, str(host_xml))
+    xml = trim_sysmon(host_xml, markers)
+    logger.info("Sysmon log %.1f MB, %.1f MB kept for upload",
+                host_xml.stat().st_size / 1e6, len(xml) / 1e6)
+    return xml
 
 
 def _cleanup_work_dir(work_dir: Path):
     """Remove sample files from work directory, keep metadata."""
     try:
         for f in work_dir.iterdir():
-            if f.name.startswith("sample_") and f.is_file():
+            # The samples and the (possibly huge) full Sysmon export are not kept.
+            if f.is_file() and (f.name.startswith("sample_") or f.name == "sysmon.xml"):
                 f.unlink()
     except Exception:
         pass

@@ -48,4 +48,5 @@ Settings are saved in `%APPDATA%\E-TAP Sandbox Agent\config.json`.
 ## Limits
 - Up to 3 attachments per email, 10 MB each. Script and executable types are opened first, and ZIP members are opened one by one.
 - Office documents and anything that waits for a click usually come back **inconclusive**: nothing clicks inside the document yet.
+- Only the events of the attachment's own processes are uploaded, never the whole Sysmon log, and the log is deleted from this PC after each run. If the upload still fails, the agent sends a short note so the report shows the run as incomplete instead of waiting.
 - A result of "no behaviour observed" never lowers E-TAP's risk score. Matched behaviour can only raise it.
