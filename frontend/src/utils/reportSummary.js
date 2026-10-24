@@ -177,10 +177,10 @@ function sandboxStage(report, s) {
   const base = { key: 'sandbox', title: 'Dynamic attachment analysis', icon: 'box' };
   const metrics = [['Files opened', items.length], ['Rules matched', matches], ['Blocked by Defender', blocked]];
   if (!hasSandbox(report)) {
-    return { ...base, status: s.attachments ? 'not_run' : 'skipped', metrics: [],
-      summary: sb.status === 'not_applicable' ? 'No attachment needed opening in the sandbox.'
-        : sb.status === 'not_requested' ? 'Standard analysis: the attachments were not opened. Choose Deeper attachment analysis to open them in your own sandbox.'
-        : s.attachments ? 'Deeper attachment analysis was not run for this email.' : 'No attachments to open in the sandbox.' };
+    // A standard analysis has nothing to say here unless attachments were left unopened.
+    if (!s.attachments || sb.status === 'not_applicable') return null;
+    return { ...base, status: 'not_run', metrics: [],
+      summary: 'Standard analysis: the attachments were inspected without being opened.' };
   }
   if (sb.status === 'not_applicable') return { ...base, status: 'skipped', metrics: [], summary: 'No attachment type that needs dynamic analysis.' };
   if (sb.status === 'queued' && sb.mode === 'agent') return { ...base, status: 'warn', metrics, summary: 'Waiting for your sandbox to pick up the attachments.' };
@@ -268,5 +268,5 @@ export function stageSummaries(report = {}) {
       summary: `${v.label}, ${v.score}/100.`,
       metrics: [['Risk score', `${v.score}/100`]],
     },
-  ];
+  ].filter(Boolean);
 }

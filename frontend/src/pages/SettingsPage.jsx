@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import apiClient from '../api/client';
 import Icon from '../components/common/Icon';
 import SandboxPairing from '../components/settings/SandboxPairing';
+import { animationSpeedLocked, getAnimationSpeed, setAnimationSpeed } from '../utils/animationSpeed';
 
 const DOMAIN_RE = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
 
@@ -99,7 +100,36 @@ export default function SettingsPage() {
           <p className="trust-result warn"><Icon name="alert" size={16} />If any check fails, nothing is lowered and the report warns of a possible impersonation.</p>
         </section>
       </div>
+      <AnimationSetting />
       <SandboxPairing />
     </div>
+  );
+}
+
+// Per-browser preference: how the Analyze timeline is revealed.
+function AnimationSetting() {
+  const locked = animationSpeedLocked();
+  const [speed, setSpeed] = useState(getAnimationSpeed);
+  const choose = (next) => { setSpeed(next); setAnimationSpeed(next); };
+  return (
+    <section className="v2-card animation-setting">
+      <div className="v2-card-head">
+        <div>
+          <h3>Analysis animation</h3>
+          <p>How the Analyze page shows each check running. This is saved in this browser only.</p>
+        </div>
+      </div>
+      <div className="choice-cards">
+        <button type="button" className={`choice-card ${speed === 'full' ? 'selected' : ''}`} aria-pressed={speed === 'full'} disabled={locked} onClick={() => choose('full')}>
+          <strong>Full animation</strong>
+          <span>Each check stays on screen for a moment so you can follow what E-TAP is doing.</span>
+        </button>
+        <button type="button" className={`choice-card ${speed === 'fast' ? 'selected' : ''}`} aria-pressed={speed === 'fast'} disabled={locked} onClick={() => choose('fast')}>
+          <strong>Fast</strong>
+          <span>Shows real progress with no added delay, so the report opens as soon as the analysis finishes.</span>
+        </button>
+      </div>
+      {locked && <p className="v2-empty-line">This copy of E-TAP was built with the animation turned off.</p>}
+    </section>
   );
 }

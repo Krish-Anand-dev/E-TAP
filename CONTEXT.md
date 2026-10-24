@@ -2,7 +2,7 @@
 
 This is the single technical reference for E-TAP. It is written so that a person or an LLM with no prior knowledge can understand the whole system: what it does, how every stage works, which file does what, which libraries are used and why, how data is shaped, how it is configured and deployed, and what is known to be incomplete.
 
-The short, user-facing overview lives in [README.md](README.md). When this document and the code disagree, the code wins — update this file. Last updated 2026-10-24 (deeper attachment analysis through a paired sandbox agent; before that the frontend revamp, live analysis jobs, verified trusted domains and Re-analyze).
+The short, user-facing overview lives in [README.md](README.md). When this document and the code disagree, the code wins — update this file. Last updated 2026-10-25 (standard analysis first: one-click extension, optional deeper analysis, animation setting, agent preflight; before that deeper attachment analysis through a paired sandbox agent, and the frontend revamp, live analysis jobs, verified trusted domains and Re-analyze).
 
 This is the only codebase. Dynamic attachment analysis (stage S) is part of it: attachments are opened in a VM the user owns, reached through the paired **E-TAP Sandbox Agent** (§4, Stage S). The older sibling folder E-TAP Local is kept only as the reference implementation the sandbox code came from. History and decisions: [`Development notes and iterations/`](Development%20notes%20and%20iterations/README.md).
 
@@ -130,16 +130,13 @@ E-TAP/
 │   │   ├── replay.py         recorded Sysmon traces (demos, rule tests)
 │   │   ├── policy.py, archives.py, ecs_convert.py, rule_engine.py, scoring.py, rules/ (164 TOML)
 │   ├── sandbox_agent/        the E-TAP Sandbox Agent (runs on the user's PC; stdlib only)
-│   │   ├── cli.py            start / setup / pair / run / test / status / forget
+│   │   ├── cli.py            start / setup / pair / run / check / test / status / forget
 │   │   ├── runner.py         one VM run: restore, open samples, export Sysmon + Defender, restore
 │   │   ├── vbox.py           VBoxManage wrapper; launchers.py file-type launchers
 │   │   ├── recon.py          read-only system checks; config.py + protect.py (DPAPI) settings
 │   │   └── start-agent.cmd, README.md
 │   ├── recovery.py           fixed "I clicked / I entered my password…" checklists
 │   ├── integrations.py       NOT LIVE: original-message provider + webhook contracts
-│   ├── security.py           NOT WIRED: bearer-key auth middleware (legacy)
-│   ├── provision_key.py      NOT USED: generates keys for security.py
-│   ├── migrate_workflow_c.py legacy owner_id migration
 │   ├── purge_retention.py    cron job: delete expired analyses
 │   ├── verify_all_models.py  utility: probe which Gemini model names work for a key
 │   ├── generate_*_eml.py     write synthetic test emails (geo, OCR, PII, safe)
@@ -193,10 +190,9 @@ E-TAP/
 │   │   ├── connection.py     get_db(): real Mongo, fake DB, or auto-fallback
 │   │   ├── fake_mongo.py     in-memory subset of pymongo
 │   │   ├── repository.py     every read/write
-│   │   ├── schema.py         collection names + indexes
-│   │   └── scoped.py         NOT USED: owner-scoped adapter (legacy auth)
+│   │   └── schema.py         collection names + indexes
 │   ├── eval/                 labelled-corpus evaluation harness (+ results/)
-│   └── tests/                ~30 pytest files, ~145 tests
+│   └── tests/                34 pytest files, 198 tests (all pass)
 ├── frontend/                 React 18 + Vite (see §11)
 ├── extension/                Gmail Manifest V3 extension (see §12)
 ├── docs/
@@ -302,7 +298,8 @@ Optional dynamic analysis: eligible attachments are opened inside an isolated Wi
 - **Security rules:**
   - Only SHA-256 hashes of tokens are stored.
   - Jobs are scoped to one agent.
-  - Samples are deleted when a job finishes or expires: 30 minutes queued, or 15 minutes running without a result.
+  - Samples are deleted when a job finishes or expires: 30 minutes queued, or 15 minutes running without a result. Expiry is also enforced without anyone polling: queuing a new job sweeps stale jobs and orphaned samples (`purge_orphan_samples`), and a daemon thread started at API startup (`start_housekeeping`, every 10 minutes, `agent` backend only) does the same.
+  - `sandbox_agent/recon.py` holds the agent's read-only preflight, run at the end of `setup` and by `check`: VirtualBox, snapshot, VM isolation from `showvminfo --machinereadable` (network adapter, shared clipboard, drag and drop, shared folders; an unreadable setting counts as not isolated) and a Hyper-V/WSL2 warning (`Win32_ComputerSystem.HypervisorPresent`). Warnings never block setup. Only `test` starts the VM (it checks the guest login, Sysmon and Defender).
   - The agent's item fields are cleaned and the issued file names and hashes win.
   - Sysmon uploads are size-capped (64 MB expanded), and any DTD is refused.
   - The agent only makes outbound requests. It stores its token and the guest password sealed with Windows DPAPI.
@@ -449,7 +446,7 @@ Collections:
 - `emails` — legacy RAG index collection, cleaned on delete.
 - `sandbox_agents` — `agent_id, agent_token_hash, client_token_hashes[], pairing_code, pairing_expires_ts, name, version, vm{name, snapshot, provider, provider_version}, created_ts, last_seen_ts, paired_ts`.
 - `sandbox_jobs` — `job_id, agent_id, email_id, status, samples[{index, filename, sha256, size_bytes, has_file, archive?, inspection_error?}], candidates, created_ts, expires_ts, claimed_ts, finished_ts, error`.
-- `sandbox_job_files` — `job_id, index, content_b64`; deleted when the job ends.
+- `sandbox_job_files` — `job_id, index, content_b64`; deleted when the job ends, and by the periodic sweep if it is ever orphaned.
 - `analyzed_emails.sandbox_analysis` — the live sandbox doc shown in the report (status, mode, items with matches/process tree/notes, coverage, agent name, times).
 
 All access goes through `db/repository.py`; every function takes `db` explicitly.
@@ -522,13 +519,13 @@ Status table from the original Workflow C record: C1 evidence v2 ✔, C2 recover
 
 ## 11. Frontend (React dashboard)
 
-Location `frontend/`. React 18, Vite 8 (`@vitejs/plugin-react`), Node >= 22.12. Light cream / navy / red theme: `styles/workspace.css` is the base layer and `styles/v2.css` (loaded last) styles every revamp component. Dev server bound to `127.0.0.1:5173` with a proxy for `/analyze /health /ready /chat /investigations /campaigns /preferences /recovery /analytics /baselines /me` to `127.0.0.1:5000`; production uses `VITE_API_BASE_URL`. Icons are line icons from `components/common/Icon.jsx` (no emojis).
+Location `frontend/`. React 18, Vite 8 (`@vitejs/plugin-react`), Node >= 22.12. Light cream / navy / red theme: `styles/workspace.css` is the base layer and `styles/v2.css` (loaded last) styles every revamp component. Dev server bound to `127.0.0.1:5173` with a proxy for `/analyze /health /ready /chat /investigations /sandbox /campaigns /preferences /recovery /analytics /baselines` to `127.0.0.1:5000`; production uses `VITE_API_BASE_URL`. Icons are line icons from `components/common/Icon.jsx` (no emojis).
 
 **Navigation** (`components/common/Header.jsx`): Dashboard, Analyze email, Reports, Current investigation (enabled once a report is open), Trusted domains. Top bar: engine status, an "Analyzing" pill while a run is active, **New analysis** (resets the investigation and remounts the Analyze page).
 
 **Pages**
 - **Dashboard** (`pages/OverviewPage.jsx`) — numbers from all stored investigations (`GET /investigations`, falling back to the browser session): emails analysed (and last 7 days), high risk, suspicious, low risk, average risk; risk-over-time area chart, verdict donut, top threat types, and a recent-investigations table whose rows open the report.
-- **Analyze email** (`pages/UploadPage.jsx`) — drag-and-drop or two sample emails. `startAnalysis` posts to `/analyze/jobs` and polls every 0.6 s; `PipelineTimeline` lights up the nine stages with their detail lines and a progress bar. `usePacedStages` shows each finished stage for a minimum, randomised time (`MIN_STAGE_MS`, 0.7–2.3 s) so fast local runs remain readable; real slow stages are never delayed further, and `VITE_TIMELINE_PACING=off` shows raw timing. The result card shows score and verdict with **Open full report**, **Re-analyze** and **Analyze another**.
+- **Analyze email** (`pages/UploadPage.jsx`) — drag-and-drop or two sample emails. `startAnalysis` posts to `/analyze/jobs` and polls every 0.6 s; `PipelineTimeline` lights up the stages with their detail lines and a progress bar; the *Dynamic attachment analysis* row is shown only for a deeper run (`showSandbox`), so a standard run has eight rows. `usePacedStages` shows each finished stage for a minimum, randomised time (`MIN_STAGE_MS`, 0.7–2.3 s, about 12 s in total) so fast local runs remain readable; real slow stages are never delayed further. That is the default **Full** animation. **Fast** (Settings → Analysis animation, saved per browser in `localStorage` key `etap.animationSpeed` by `utils/animationSpeed.js`, or forced by building with `VITE_TIMELINE_PACING=off`) shows the real backend progress with no added delay. Two cards are shown before a run, **Standard analysis** (selected by default) and **Deeper attachment analysis**, which carries a visible "Needs a Windows VM in VirtualBox…" line. If the sandbox status call fails, that card is greyed out ("Couldn't check right now") and Standard stays available; Analyze is never left disabled without a visible reason. The result card shows score and verdict with **Open full report**, **Re-analyze** and **Analyze another**.
 - **Current investigation** (`pages/DashboardPage.jsx`) — one sticky tab bar (Summary, Why it was flagged, Remediation, Sender route, Threat analysis, Technical details, Past emails, Analyst tools):
   - `VerdictHero` — animated score ring, canonical verdict, headline, "why it was risky" tags per category with counts, number tiles (same counts as the category cards), trusted-sender note, PDF/JSON export and **Re-analyze this email**.
   - `RiskBreakdown` — category bars and cards (Sender & headers, Attachments, Links, Reputation, Past emails, Message content) with serious findings first, "+N more", reassuring signs and "not checked" counts.
@@ -538,32 +535,32 @@ Location `frontend/`. React 18, Vite 8 (`@vitejs/plugin-react`), Node >= 22.12. 
   - Technical details — collapsible `HeaderAnalysis`, `AttachmentTable`, `ContentAnalysis`, `IocTable`.
   - Past emails — `HistoricalCorrelationCard` and `ThreatGraph`.
   - Analyst tools (collapsed, last) — `ResponseWorkflow` (review state, recovery checklists, related reports, plain-language summary EN/ES/HI) and `TrustControls` (share pack, retention, delete).
-- **Reports** (`pages/HistoryPage.jsx`) — searchable list with High risk / Suspicious / Low risk filters; the selected report shows a summary card and nine stage cards (status Clear / Check / Problem / Skipped / Not run, with numbers) from `stageSummaries`.
-- **Trusted domains** (`pages/SettingsPage.jsx`) — add/remove domains as chips (pasted URLs/addresses are reduced to the domain), report retention period, and an explanation of verified trust.
+- **Reports** (`pages/HistoryPage.jsx`) — searchable list with High risk / Suspicious / Low risk filters; the selected report shows a summary card and up to nine stage cards (status Clear / Check / Problem / Skipped / Not run, with numbers) from `stageSummaries`; the *Dynamic attachment analysis* card is left out of a standard run unless the email had attachments, in which case it says they were inspected without being opened.
+- **Trusted domains** (`pages/SettingsPage.jsx`) — add/remove domains as chips (pasted URLs/addresses are reduced to the domain), report retention period, an explanation of verified trust, the **Analysis animation** (Full / Fast) setting and the sandbox pairing card.
 - **Assistant** (`components/chat/SocChatDrawer.jsx`) — "Ask E-TAP" drawer, This email / All investigations scope, suggested questions, formatted answers (bold, lists), source chips.
 
 **State and helpers**
 - `context/InvestigationContext.jsx` — status, current report, job stages, backend health (`/ready` every 15 s), session history (`sessionStorage` key `E-TAP_investigations_history_v1`), `SAMPLE_REPORT`. `resetToken` remounts the Analyze page on New analysis. `sourceFiles` keeps each uploaded `File` by `email_id` in memory for **Re-analyze** (`requestReanalysis` → the Analyze page runs it again); after a reload the file is gone and the report's Re-analyze button is disabled with an explanation.
 - `utils/reportSummary.js` — the one place that turns a report into UI numbers: `riskCategories`/`riskTags` (from `evidence_report.evidence` ids: `hdr.*`, `att.*`/`qr.*`, `link.*`, `rep.*`, `corr.*`, `ai.content*`/`ai.finding*`; fallback to raw fields for older records), `keyStats`, `verdictOf`, `stageSummaries`.
 - `utils/verdict.js` (threshold mirror), `utils/geo.js`, `utils/pdfGenerator.js` (jsPDF report built from the same JSON), `utils/plainSummary.js`.
-- Tests: `tests/geo.test.mjs`, `tests/report.test.mjs` (`npm test`).
+- `utils/animationSpeed.js` — the Full / Fast preference (`getAnimationSpeed`, `setAnimationSpeed`; storage failures fall back to Full).
+- Tests: `tests/geo.test.mjs`, `tests/report.test.mjs`, `tests/standard-first.test.mjs` (animation setting, sandbox stage card) (`npm test`).
 
 ---
 
 ## 12. Gmail extension
 
-Location `extension/`, Manifest V3, version 1.6.0. Permissions: `activeTab`, `scripting`, `storage` (the sandbox token); hosts: `mail.google.com`, local backend, Render backend. Config in `config.js` (`apiBaseUrl`, `appBaseUrl`, `requestTimeoutMs` 90 s).
+Location `extension/`, Manifest V3, version 1.6.1. Permissions: `activeTab`, `scripting`, `storage` (the sandbox token); hosts: `mail.google.com`, local backend, Render backend. Config in `config.js` (`apiBaseUrl`, `appBaseUrl`, `requestTimeoutMs` 90 s).
 
 Flow:
 
-1. `content.js` watches Gmail's DOM (MutationObserver, debounced) and inserts an **Analyze in E-TAP** banner above each opened message body (`.ii.gt`). Nothing is read or sent until the click. The click first asks **Standard analysis** or **Deeper attachment analysis**; an info icon explains that deeper analysis needs a VirtualBox VM (Windows Sandbox on Windows Pro is planned), and a line shows *Your sandbox: online / offline / not paired*.
+1. `content.js` watches Gmail's DOM (MutationObserver, debounced) and inserts an **Analyze in E-TAP** banner above each opened message body (`.ii.gt`). Nothing is read or sent until the click. The banner shows two cards from the start, so the choice is visible before anything runs and costs no extra click: **Standard analysis** (primary, "Nothing to set up") and **Deeper attachment analysis**, whose card states what it needs (a Windows VM in VirtualBox and the free E-TAP Sandbox Agent, paired once; Windows Sandbox on Windows Pro is planned). The banner never queries sandbox status; that happens in the analysis tab, and only for a deeper request.
 2. On click: snapshot sender/subject/visible body; `gmail-original.js` builds a reference from Gmail's message IDs (`data-legacy-message-id` → `th=`, new `msg-f:` IDs → `permmsgid=`) preserving the account path (`/mail/u/N/`, delegated paths, `authuser`).
 3. `background.js` (service worker) validates the sender is a Gmail tab, creates a job in `handoff-store.js` (extension-origin IndexedDB, 1 h expiry) and opens `analysis.html?job=<uuid>`.
 4. The content script downloads the original message (`view=om`/attachment view, 30 s timeout, 25 MB cap), validates it looks like RFC 822 (`isOriginal`), and hands the base64 bytes to the job.
-5. `analysis.js` waits up to 35 s, then `analysis-core.js` uploads either the original (`gmail_original.eml`, `source=full_message`) or a reconstructed text-only message (`gmail_visible_content.eml`, `source=quick_content_check`) to `/analyze`, and redirects to `<appBaseUrl>?dossier=<email_id>`. The tab also offers retry, "continue with visible text", manual `.eml` upload and **Open E-TAP**. For a deeper analysis it first checks the pairing (`sandbox-pairing.js`): if unpaired it shows the three setup steps (download the agent, run `start-agent.cmd`, enter the code) or **Run standard analysis instead**; once paired it sends `deep_analysis=1` and the token header. Only original messages carry attachments, so a text-only fallback never asks for a sandbox run.
+5. `analysis.js` waits up to 35 s, then `analysis-core.js` uploads either the original (`gmail_original.eml`, `source=full_message`) or a reconstructed text-only message (`gmail_visible_content.eml`, `source=quick_content_check`) to `/analyze`, and redirects to `<appBaseUrl>?dossier=<email_id>`. The tab also offers retry, "continue with visible text", manual `.eml` upload (shown only when the original email could not be retrieved, or an error occurred) and **Open E-TAP**; network failures are shown as "Couldn't reach E-TAP. Check your connection and try again.". A deeper request is honoured only when the original message was retrieved, because only original messages carry attachments: otherwise the tab skips pairing, finishes as a standard analysis and says no attachments were opened. When the original exists it checks the pairing (`sandbox-pairing.js`): if unpaired it shows what deeper analysis needs, the three setup steps (download the agent, run `start-agent.cmd`, enter the code) and **I don't have a VirtualBox VM: run standard analysis**; once paired it sends `deep_analysis=1` and the token header.
 
-Tests: `extension/tests/original-message.test.mjs` (Node), `backend/tests/test_extension_original.py`. `options.html/options.js` are leftovers from the removed API-key auth.
-
+Tests: `extension/tests/original-message.test.mjs` (Node), `backend/tests/test_extension_original.py`.
 ---
 
 ## 13. Libraries and dependencies
@@ -645,7 +642,7 @@ Backend (`.env` at repo root locally; host settings in production — never in t
 | `SANDBOX_VM_NAME`, `SANDBOX_SNAPSHOT`, `SANDBOX_GUEST_USER`, `SANDBOX_GUEST_PASSWORD`, `VBOXMANAGE_PATH`, `SANDBOX_PDF_VIEWER` | — | VM settings for `virtualbox` mode (the agent keeps its own copy, sealed, in `%APPDATA%\E-TAP Sandbox Agent`) |
 | `SANDBOX_RULES_DIR`, `SANDBOX_WORK_DIR` | `sandbox/rules`, `sandbox/work` | rule and scratch folders |
 
-Frontend: `VITE_API_BASE_URL` (empty in dev to use the proxy; the Render URL on Vercel) and `VITE_TIMELINE_PACING` (`off` disables the timeline's minimum stage times).
+Frontend: `VITE_API_BASE_URL` (empty in dev to use the proxy; the Render URL on Vercel) and `VITE_TIMELINE_PACING` (`off` builds with the Fast animation and locks the Settings choice; otherwise each user picks Full or Fast in Settings, default Full).
 Extension: constants in `extension/config.js` and host permissions in `manifest.json`.
 
 ---
@@ -671,7 +668,7 @@ cd frontend && npm test && npm run build
 node --test --test-isolation=none extension/tests/*.test.mjs
 ```
 
-Test suites cover: parsing (`test_parse_any`, `test_single_email`), headers/origin (`test_received_chain_origin`, `test_hop_geo`), attachments/macros/images (`test_attachment_forensics`, `test_macro_behavior`, `test_image_forensics`), links/QR/privacy (`test_links_qr_privacy`), threat intel (`test_threat_intel`, live in `test_threat_intel_live`), triage/classifier, graph diffusion, correlation demo, evidence, verdicts (including frontend parity), provider status, truthfulness, RAG and chat API, the offline pipeline end-to-end, extension original-message parity, analysis jobs and verified trusted senders (`test_analysis_jobs`), and Workflow C (API, response, security, strategic, trust). Thirteen tests in `test_workflow_c_api.py`/`test_workflow_c_security.py` fail on a clean checkout: they were written for the removed authentication layer and expect files such as `security.py` to be gone. `tests/run_batch_test.py`, `run_full_pipeline_test.py`, `batch_ioc_test.py`, `generate_sample_outputs.py` are manual scripts.
+Test suites cover: parsing (`test_parse_any`, `test_single_email`), headers/origin (`test_received_chain_origin`, `test_hop_geo`), attachments/macros/images (`test_attachment_forensics`, `test_macro_behavior`, `test_image_forensics`), links/QR/privacy (`test_links_qr_privacy`), threat intel (`test_threat_intel`, live in `test_threat_intel_live`), triage/classifier, graph diffusion, correlation demo, evidence, verdicts (including frontend parity), provider status, truthfulness, RAG and chat API, the offline pipeline end-to-end, extension original-message parity, analysis jobs and verified trusted senders (`test_analysis_jobs`), and Workflow C (API, response, strategic, trust). The whole suite passes on a clean checkout (198 tests); the auth-era `test_workflow_c_security.py` was removed together with the authentication layer, and `test_auth_layer_is_gone` keeps that layer from coming back. `tests/run_batch_test.py`, `run_full_pipeline_test.py`, `batch_ioc_test.py`, `generate_sample_outputs.py` are manual scripts.
 
 **Evaluation** (`backend/eval/`): `python -m eval.run_eval ../docs/extracted [--use-gemini --live-threat-intel] [--out eval/results]` runs a labelled corpus through the real pipeline with a fresh fake DB per message and reports FPR/FNR with 95% Wilson intervals at three operating points (danger band, caution-or-worse, `high_risk_evidence`). The committed result (`eval/results/report.md`) is a 24-message, offline-only debugging run on 2002-era SpamAssassin mail — **not a benchmark**; it flags 1/15 ham and 0/9 spam at the danger band. No detection-rate claim should be made until a broader, authorised phishing corpus is evaluated with Gemini and live intel enabled.
 
@@ -689,10 +686,10 @@ Test suites cover: parsing (`test_parse_any`, `test_single_email`), headers/orig
 
 ## 17. Known gaps, quirks and future work
 
-- **Open API.** No authentication or multi-tenancy; anyone with the URL can analyse, read, share and delete (including `DELETE /investigations`). Per-IP limits see Render's proxy unless forwarded-for handling is added. The earlier bearer-key/role/owner-scoping implementation is still in the tree but **not wired**: `security.py` (`SecurityBoundary` middleware), `provision_key.py`, `db/scoped.py`, `migrate_workflow_c.py`, `extension/options.*`, the `/me` proxy entry and the `owner_id` index names. The original design is in git history (earlier notes cite a tag `pre-auth-removal`, which is not present in this clone). Future direction: OAuth/OIDC, `owner_id` scoping in one place, Atlas vector filter on `owner_id`, shared quota store.
+- **Open API.** No authentication or multi-tenancy; anyone with the URL can analyse, read, share and delete (including `DELETE /investigations`). Per-IP limits see Render's proxy unless forwarded-for handling is added. The earlier bearer-key/role/owner-scoping implementation (`security.py`, `provision_key.py`, `db/scoped.py`, `migrate_workflow_c.py` and their tests) was deleted on 2026-10-24; the extension's API-key options page and the `/me` dev-proxy entry were removed with it. Only the `owner_id` index names remain. The original design is in git history (earlier notes cite a tag `pre-auth-removal`, which is not present in this clone). Future direction: OAuth/OIDC, `owner_id` scoping in one place, Atlas vector filter on `owner_id`, shared quota store.
 - **`dnspython` not in requirements**, so the live-DNS auth tier is inactive in the Docker image unless added; header-reported results still work.
 - **sentence-transformers not in requirements**; hosted RAG uses lexical hash embeddings, not semantic ones.
-- **Dynamic analysis coverage.** Only 36 of 164 rule definitions are evaluable by the EQL subset (Sigma/YARA are the planned engine). Nothing clicks inside documents, so Office files and click-triggered PDFs usually come back inconclusive. Windows Sandbox support, a signed agent build and an agent auto-start are not built yet. Agent jobs are scoped by pairing token only, like the rest of the open API.
+- **Dynamic analysis coverage.** Only 36 of 164 rule definitions are evaluable by the EQL subset (Sigma/YARA are the planned engine). Nothing clicks inside documents, so Office files and click-triggered PDFs usually come back inconclusive. Windows Sandbox support, a signed agent build and an agent auto-start are not built yet. The agent has been run end to end on only one real VM (the author's, 2026-10-24); a first-time setup on a fresh machine following the README has not been tried, and VirtualBox on a Hyper-V host (the agent only warns about it) has not been tested. Agent jobs are scoped by pairing token only, like the rest of the open API.
 - **XGBoost model** lineage is undocumented; features are coarse (e.g. SPF pass is mostly unknown for text-only training data). Treat as a triage aid.
 - **Evaluation** is not yet meaningful (see §15).
 - **Gmail extension** relies on Gmail's private web endpoints (no Gmail API/OAuth) and can break when Gmail changes.

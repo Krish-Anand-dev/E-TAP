@@ -29,6 +29,7 @@ import logging
 import os
 import re
 import secrets
+import threading
 import time
 import uuid
 from datetime import datetime, timezone
@@ -228,6 +229,12 @@ def client_status(sandbox_token: str | None) -> dict:
 def enqueue(email_id: str, agent: dict, candidates: list[dict]) -> dict:
     """Queue an investigation's eligible attachments for one paired agent."""
     analysis.ensure_rules()
+    # New work is a natural moment to fail stale jobs and drop their sample bytes.
+    try:
+        _expire_jobs()
+        purge_orphan_samples()
+    except Exception:
+        logger.warning("Sandbox housekeeping failed (non-fatal)")
     now = _now()
     job_id = f"job_{uuid.uuid4().hex[:12]}"
     samples = [s for c in candidates for s in expand_candidate(c)]
@@ -305,6 +312,46 @@ def _expire_jobs() -> None:
             analysis.persist_status(job["email_id"], _sandbox_doc(job, None))
         except Exception:
             logger.warning("Could not mark expired sandbox job %s on its investigation", job["job_id"])
+
+
+def purge_orphan_samples() -> int:
+    """Delete stored sample bytes whose job is finished, failed or gone.
+
+    Samples normally go when a job ends or expires, but both happen lazily
+    (only when something polls). This runs whenever new work is queued, so
+    attachment bytes never outlive their job for long. Returns jobs swept."""
+    db = _db()
+    swept = 0
+    for job_id in db[FILES].distinct("job_id"):
+        job = db[JOBS].find_one({"job_id": job_id})
+        if job is None or job.get("status") not in analysis.ACTIVE_STATUSES:
+            db[FILES].delete_many({"job_id": job_id})
+            swept += 1
+    return swept
+
+
+_housekeeping_started = False
+
+
+def start_housekeeping(interval_seconds: int = 600) -> bool:
+    """Start (once per process) a background sweep of expired jobs and orphaned samples,
+    so uploaded attachments do not wait for somebody to poll before they are deleted."""
+    global _housekeeping_started
+    if _housekeeping_started:
+        return False
+    _housekeeping_started = True
+
+    def loop() -> None:
+        while True:
+            time.sleep(interval_seconds)
+            try:
+                _expire_jobs()
+                purge_orphan_samples()
+            except Exception:
+                logger.warning("Sandbox housekeeping failed (non-fatal)")
+
+    threading.Thread(target=loop, name="sandbox-housekeeping", daemon=True).start()
+    return True
 
 
 def next_job(agent: dict) -> Optional[dict]:

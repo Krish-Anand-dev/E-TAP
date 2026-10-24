@@ -4,6 +4,7 @@ import Icon from '../components/common/Icon';
 import TimelineCat from '../components/common/TimelineCat';
 import { verdictOf } from '../utils/reportSummary';
 import { getSandboxPairing, sandboxStateLabel } from '../api/sandbox';
+import { getAnimationSpeed } from '../utils/animationSpeed';
 import SandboxPairing from '../components/settings/SandboxPairing';
 
 const REAL_SAMPLE_PHISHING_EML = `From: IT Helpdesk <support@northfield-logisitcs-helpdesk.com>
@@ -74,13 +75,13 @@ const STATE_TEXT = { pending: 'Waiting', running: 'In progress', done: 'Done', s
 // happening. The timeline still shows the real backend state and order; it just
 // reveals each finished stage no faster than this. A stage that is genuinely
 // slower (live reputation lookups, Gemini) is never held back beyond its real
-// time. Set VITE_TIMELINE_PACING=off to show raw backend timing.
+// time. Settings -> Analysis animation (or VITE_TIMELINE_PACING=off for a build)
+// switches to "fast", which shows raw backend timing.
 const MIN_STAGE_MS = {
   parse: 700, headers: 1300, static_attachments: 1500, sandbox: 1100, indicators: 1000,
   reputation: 1700, history: 1200, ai: 2300, verdict: 900,
 };
 const FINAL_STATES = new Set(['done', 'skipped', 'not_available', 'error']);
-const PACING_ON = import.meta.env.VITE_TIMELINE_PACING !== 'off';
 
 function jitteredDwell() {
   // 70%-130% of each minimum, so stages do not tick at a fixed rhythm.
@@ -88,7 +89,7 @@ function jitteredDwell() {
 }
 
 /** Reveal real stage progress one stage at a time, each for at least its minimum time. */
-function usePacedStages(rawStages, runId) {
+function usePacedStages(rawStages, runId, pacingOn) {
   const [shown, setShown] = useState([]);
   const rawRef = useRef(rawStages);
   rawRef.current = rawStages;
@@ -100,7 +101,7 @@ function usePacedStages(rawStages, runId) {
     const tick = setInterval(() => {
       const raw = rawRef.current;
       if (!raw || !raw.length) return;
-      if (!PACING_ON) { setShown(raw); return; }
+      if (!pacingOn) { setShown(raw); return; }
       if (!state.list.length) state.list = raw.map((s) => ({ ...s, state: 'pending', detail: null }));
       if (state.index >= state.list.length) return;
 
@@ -123,7 +124,7 @@ function usePacedStages(rawStages, runId) {
       setShown([...state.list]);
     }, 110);
     return () => clearInterval(tick);
-  }, [runId]);
+  }, [runId]); // eslint-disable-line react-hooks/exhaustive-deps -- the speed is fixed for the life of the page
 
   return {
     shown,
@@ -155,8 +156,9 @@ function catIndex(list) {
   return waiting === 0 ? 0 : list.length - 1;
 }
 
-export function PipelineTimeline({ stages, finished, failed }) {
-  const list = stages && stages.length ? stages : DEFAULT_STAGES;
+// The sandbox row is only shown for deeper analyses; a standard run has nothing to say about it.
+export function PipelineTimeline({ stages, finished, failed, showSandbox = true }) {
+  const list = (stages && stages.length ? stages : DEFAULT_STAGES).filter((s) => showSandbox || s.key !== 'sandbox');
   const completed = list.filter((s) => ['done', 'skipped', 'not_available'].includes(s.state)).length;
   const pct = Math.round((completed / list.length) * 100);
   const rows = useRef([]);
@@ -204,9 +206,6 @@ export function PipelineTimeline({ stages, finished, failed }) {
   );
 }
 
-const DEEP_INFO = 'Opens the attachments inside your own sandbox VM and records what they do. '
-  + 'Requires a VirtualBox VM (Windows Sandbox on Windows Pro is planned) and the free E-TAP Sandbox Agent, paired once.';
-
 export function UploadPage({ onOpenReport, onOpenSettings }) {
   const { status, error, data, startAnalysis, loadDemoSample, backendOnline, jobStages, rerunRequest, consumeRerunRequest } = useInvestigation();
   const [dragActive, setDragActive] = useState(false);
@@ -215,38 +214,50 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
   const [runId, setRunId] = useState(0);
   const fileInputRef = useRef(null);
   const [deep, setDeep] = useState(false);
+  const [deepRun, setDeepRun] = useState(false);
+  const [fileError, setFileError] = useState(null);
   const [sandboxState, setSandboxState] = useState(null);
+  const [pacingOn] = useState(() => getAnimationSpeed() === 'full');
   const isBusy = status === 'uploading' || status === 'analyzing';
   const deepBlocked = deep && !sandboxState?.paired;
 
   // Whether this server offers deeper analysis, and the paired sandbox's state.
+  // If the check fails, deeper analysis is simply unavailable; Standard never waits on it.
   useEffect(() => {
     let cancelled = false;
-    getSandboxPairing().then((state) => { if (!cancelled) setSandboxState(state); }).catch(() => {});
+    getSandboxPairing()
+      .then((state) => { if (!cancelled) setSandboxState(state); })
+      .catch(() => { if (!cancelled) setSandboxState({ available: false, unreachable: true }); });
     return () => { cancelled = true; };
   }, []);
-  const paced = usePacedStages(jobStages, runId);
+  useEffect(() => {
+    if (deep && sandboxState && !sandboxState.available) setDeep(false);
+  }, [deep, sandboxState]);
+  const paced = usePacedStages(jobStages, runId, pacingOn);
   // Still "working" on screen until the paced timeline has shown every stage.
   const isWorking = isBusy || (runFinished && !paced.done);
   const elapsed = useElapsed(isWorking);
   const showTimeline = isWorking || runFinished || (status === 'error' && jobStages.length > 0);
-  const showError = Boolean(error) && !isBusy && (!jobStages.length || paced.stopped || !PACING_ON);
+  const showError = Boolean(error) && !isBusy && (!jobStages.length || paced.stopped || !pacingOn);
 
   const stage = (file) => {
     if (!file) return;
     const name = file.name.toLowerCase();
     if (!name.endsWith('.eml') && !name.endsWith('.msg')) {
-      alert('Please choose an email file (.eml or .msg).');
+      setFileError('Please choose an email file (.eml or .msg).');
       return;
     }
+    setFileError(null);
     setRunFinished(false);
     setSelectedFile(file);
   };
 
   const run = async (file) => {
+    const wantsDeep = deep && Boolean(sandboxState?.paired);
     setRunFinished(false);
+    setDeepRun(wantsDeep);
     setRunId((n) => n + 1);
-    const report = await startAnalysis(file, { deep: deep && Boolean(sandboxState?.paired) });
+    const report = await startAnalysis(file, { deep: wantsDeep });
     if (report) setRunFinished(true);
   };
 
@@ -297,6 +308,10 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
         </div>
       )}
 
+      {fileError && !showTimeline && (
+        <p className="choice-note" role="alert"><Icon name="alert" size={14} />{fileError}</p>
+      )}
+
       {selectedFile && !showTimeline && (
         <div className="staged-file-card">
           <div className="file-meta-left">
@@ -306,11 +321,15 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
           <div className="staged-actions">
             <button type="button" className="btn-ghost" onClick={() => setSelectedFile(null)}>Clear</button>
             <button type="button" id="execute-pipeline-btn" className="btn-primary-action" onClick={() => run(selectedFile)}
-              disabled={backendOnline === false || deepBlocked} title={deepBlocked ? 'Pair your sandbox first, or choose Standard analysis' : undefined}>
+              disabled={backendOnline === false || deepBlocked}>
               {deep ? 'Run deeper analysis' : 'Analyze email'}
             </button>
           </div>
         </div>
+      )}
+
+      {selectedFile && !showTimeline && backendOnline === false && (
+        <p className="choice-note" role="status"><Icon name="alert" size={14} />E-TAP's analysis engine can't be reached right now. Check your connection; Analyze turns back on by itself when it responds.</p>
       )}
 
       {selectedFile && !showTimeline && (
@@ -321,22 +340,30 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
               <span className="choice-icon"><Icon name="shield" size={20} /></span>
               <strong>Standard analysis</strong>
               <span>Sender, headers, links, reputation, history and AI. Attachments are inspected without being opened.</span>
+              <span className="choice-req ok">Nothing to set up.</span>
             </button>
             <button type="button" className={`choice-card ${deep ? 'selected' : ''}`} aria-pressed={deep}
               onClick={() => setDeep(true)} disabled={sandboxState ? !sandboxState.available : false}>
               <span className="choice-icon"><Icon name="box" size={20} /></span>
-              <strong>Deeper attachment analysis <span className="info-dot" role="img" aria-label={DEEP_INFO} title={DEEP_INFO}>i</span></strong>
+              <strong>Deeper attachment analysis</strong>
               <span>Also opens the attachments inside your own virtual machine and records what they do.</span>
+              <span className="choice-req">Needs a Windows VM in VirtualBox and the free E-TAP Sandbox Agent, paired once. Windows Sandbox (Windows Pro) is planned.</span>
               {sandboxState && (
                 <span className={`sandbox-pill ${sandboxState.paired ? (sandboxState.online ? 'online' : 'offline') : ''}`}>
                   <Icon name="box" size={13} />
-                  {!sandboxState.available ? 'Not set up on this server' : sandboxState.mode !== 'agent' && sandboxState.paired ? `This computer's VM${sandboxState.vm_name ? ` (${sandboxState.vm_name})` : ''}` : sandboxStateLabel(sandboxState)}
+                  {!sandboxState.available ? (sandboxState.unreachable ? "Couldn't check right now" : 'Not set up on this server') : sandboxState.mode !== 'agent' && sandboxState.paired ? `This computer's VM${sandboxState.vm_name ? ` (${sandboxState.vm_name})` : ''}` : sandboxStateLabel(sandboxState)}
                 </span>
               )}
             </button>
           </div>
+          {deep && !sandboxState && (
+            <p className="choice-note"><Icon name="clock" size={14} />Checking whether deeper analysis is available. You can switch to Standard analysis at any time.</p>
+          )}
           {deep && sandboxState?.available && !sandboxState.paired && (
-            <SandboxPairing compact onChange={setSandboxState} />
+            <>
+              <SandboxPairing compact onChange={setSandboxState} />
+              <p className="choice-note">No virtual machine? Choose Standard analysis; it covers everything except opening the attachments.</p>
+            </>
           )}
           {deep && sandboxState?.paired && !sandboxState.online && (
             <p className="choice-note"><Icon name="alert" size={14} />Your sandbox is offline. The attachments wait for it: start the E-TAP Sandbox Agent on the PC with your VM and the report updates by itself.</p>
@@ -353,7 +380,7 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
             </div>
             {isWorking && <span className="elapsed"><Icon name="clock" size={16} />{elapsed}s</span>}
           </div>
-          <PipelineTimeline stages={paced.shown.length ? paced.shown : (PACING_ON ? [] : jobStages)} finished={Boolean(result)} failed={paced.stopped} />
+          <PipelineTimeline stages={paced.shown.length ? paced.shown : (pacingOn ? [] : jobStages)} finished={Boolean(result)} failed={paced.stopped} showSandbox={deepRun} />
           {result && (
             <div className={`run-result band-${result.band}`}>
               <div className="run-score"><strong>{result.score}</strong><span>/100</span></div>

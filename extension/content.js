@@ -51,42 +51,32 @@ function banner(container, existing, key, state, title, description) {
     replaceBanner(container, existing, node);
     return node;
 }
-const ETAP_DEEP_INFO = 'Opens the attachments inside your own sandbox VM and records what they do. '
-    + 'Requires a VirtualBox VM (Windows Sandbox on Windows Pro is planned) and the free E-TAP Sandbox Agent, paired once.';
+// Both choices are on the banner from the start, each with what it needs written
+// out, so nobody has to run one analysis to discover the other. Nothing is sent
+// or fetched until a card is clicked; sandbox status is checked in the analysis
+// tab, and only for a deeper request.
+function choiceCard(choice, title, description, requirement, onClick) {
+    const card = el('button', `etap-card etap-card-${choice}`);
+    card.type = 'button';
+    card.dataset.choice = choice;
+    card.append(el('strong', 'etap-card-title', title), el('span', 'etap-card-desc', description));
+    card.append(el('span', 'etap-card-req', requirement));
+    card.addEventListener('click', onClick);
+    return card;
+}
 function renderIdle(container, existing, key) {
     const node = banner(container, existing, key, 'banner-idle', 'E-TAP Email Analysis',
-        'Opens a report in a new tab. Tries the original email first; if unavailable, runs a clearly labeled content-only check. Email contents are sent to E-TAP only after you click.');
-    const button = el('button', 'etap-btn etap-btn-primary', 'Analyze in E-TAP');
-    button.type = 'button';
-    button.addEventListener('click', () => renderChoice(container, node, key));
-    node.append(button);
-}
-// Before the check runs: standard analysis, or also open the attachments in the user's sandbox.
-function renderChoice(container, existing, key) {
-    const node = banner(container, existing, key, 'banner-idle', 'How should E-TAP check this email?',
-        'Standard analysis covers sender, links, attachments (without opening them), reputation and AI. Deeper analysis also opens the attachments in your sandbox.');
-    const row = el('div', 'etap-row etap-choice');
-    const standard = el('button', 'etap-btn etap-btn-primary', 'Standard analysis');
-    standard.type = 'button';
-    standard.addEventListener('click', () => runAnalysis(container, node, key, false));
-    const deepGroup = el('span', 'etap-deep');
-    const deep = el('button', 'etap-btn', 'Deeper attachment analysis');
-    deep.type = 'button';
-    deep.addEventListener('click', () => runAnalysis(container, node, key, true));
-    const info = el('span', 'etap-info', 'i');
-    info.title = ETAP_DEEP_INFO;
-    info.setAttribute?.('aria-label', ETAP_DEEP_INFO);
-    info.setAttribute?.('role', 'img');
-    info.tabIndex = 0;
-    deepGroup.append(deep, info);
-    row.append(standard, deepGroup);
-    const sandboxLine = el('span', 'etap-sub etap-sandbox-line', '');
-    node.append(row, sandboxLine);
-    send({ action: 'sandboxStatus' }).then(({ state }) => {
-        if (!state.available) sandboxLine.textContent = 'Deeper analysis is not offered by this E-TAP server.';
-        else if (!state.paired) sandboxLine.textContent = 'Your sandbox: not paired. Choosing deeper analysis walks you through pairing once.';
-        else sandboxLine.textContent = state.online ? 'Your sandbox: online' : 'Your sandbox: offline (start the E-TAP Sandbox Agent)';
-    }).catch(() => {});
+        'Choose how E-TAP should check this email. It opens a report in a new tab, and the email is sent to E-TAP only after you choose.');
+    const cards = el('div', 'etap-cards');
+    cards.append(
+        choiceCard('standard', 'Standard analysis',
+            'Sender and headers, links, reputation, history and AI. Attachments are inspected without being opened.',
+            'Nothing to set up.', () => runAnalysis(container, node, key, false)),
+        choiceCard('deep', 'Deeper attachment analysis',
+            'Everything in Standard, plus the attachments are opened in your own virtual machine and what they do is recorded.',
+            'Needs a Windows VM in VirtualBox and the free E-TAP Sandbox Agent, paired once. Windows Sandbox (Windows Pro) is planned.',
+            () => runAnalysis(container, node, key, true)));
+    node.append(cards);
 }
 function send(request) {
     return new Promise((resolve, reject) => chrome.runtime.sendMessage(request, (response) => {
@@ -117,7 +107,7 @@ async function runAnalysis(container, existing, key, deep = false) {
         }
     } catch (error) {
         banner(container, current, key, 'banner-error', 'Open E-TAP to continue',
-            error.message === 'too_large' ? 'This email exceeds the upload limit. Use Open E-TAP to choose a different file.' : 'The extension could not create an analysis tab. Use Open E-TAP above; refresh Gmail to retry the handoff.');
+            error.message === 'too_large' ? 'This email exceeds the upload limit. Use Open E-TAP to choose a different file.' : 'We could not open the analysis tab. Refresh Gmail and try again, or use Open E-TAP.');
         return;
     }
     try {

@@ -104,22 +104,22 @@ One function reconciles the label and the 0–100 score (the more severe wins) i
 ## What you get in the dashboard
 
 - **Dashboard** — emails analysed, high risk / suspicious / low risk counts, average risk, risk-over-time chart, verdict breakdown, top threat types and recent investigations, from everything stored
-- **Analyze email** — a live timeline that lights up each stage as it runs (reading the email, sender & headers, static attachments, dynamic attachments, links & indicators, reputation, past emails, AI assessment, verdict), then the score, the verdict and **Re-analyze**; before running it asks for a **Standard** or a **Deeper attachment analysis**, and pairs your sandbox right there the first time
+- **Analyze email** — a live timeline that lights up each stage as it runs (reading the email, sender & headers, static attachments, dynamic attachments, links & indicators, reputation, past emails, AI assessment, verdict), then the score, the verdict and **Re-analyze**. It shows two cards before anything runs: **Standard analysis** (selected by default, nothing to set up) and **Deeper attachment analysis** (says on the card that it needs a VirtualBox VM, and pairs your sandbox right there the first time). The timeline plays in full by default; **Settings → Analysis animation → Fast** removes the added delay so the report opens as soon as the analysis finishes
 - **Investigation report** — a big score ring and verdict, "why it was risky" tags (Header issues, Attachment issues, Suspicious links, Bad reputation, Seen before, Suspicious wording), category cards with the serious findings first, **Remediation**, the sender-route map, multi-vector analysis and MITRE ATT&CK, collapsible technical details, past emails and the threat graph, and analyst tools (review, case, sharing, retention) at the end
 - **Reports** — every analysed email broken down stage by stage, searchable and filterable by risk
 - **Sandbox behaviour** — for deeper analyses, what each attachment did in your VM (rules matched, Defender blocks, processes), updating live while it runs
-- **Trusted domains** — senders you trust lower the risk only when SPF, DKIM and DMARC prove the email is genuine; the same page pairs your sandbox
+- **Trusted domains** — senders you trust lower the risk only when SPF, DKIM and DMARC prove the email is genuine; the same page holds the analysis-animation setting and pairs your sandbox
 - **Ask E-TAP** — the SOC Assistant for the open report or all past investigations, plus **PDF/JSON export**
 
 ## Gmail extension
 
-A Manifest V3 extension adds **Analyze in E-TAP** above an opened Gmail message. On click it asks for a **Standard analysis** or a **Deeper attachment analysis** (an info icon explains that the deeper option needs a VirtualBox VM; Windows Sandbox on Windows Pro is planned). The first deeper analysis walks you through downloading the agent and entering its pairing code, after which the extension shows *Your sandbox: online*. It then downloads the original RFC 822 message through the signed-in Gmail session (full headers and attachments) and submits it as `full_message`. If Gmail does not provide the original, it submits the visible sender/subject/body as a clearly labelled `quick_content_check`, where header checks are reported as unavailable. The report then opens in the web dashboard.
+A Manifest V3 extension adds **Analyze in E-TAP** above an opened Gmail message. The banner shows two cards from the start: **Standard analysis** (nothing to set up) and **Deeper attachment analysis**, with what it needs written on the card (a Windows VM in VirtualBox and the free agent; Windows Sandbox on Windows Pro is planned). One click on a card starts that analysis. Choosing Deeper walks you through downloading the agent and entering its pairing code the first time, and only once the original email, with its attachments, has been retrieved. Nothing is sent, and no sandbox status is requested, until you click a card. The extension downloads the original RFC 822 message through the signed-in Gmail session (full headers and attachments) and submits it as `full_message`. If Gmail does not provide the original, it submits the visible sender/subject/body as a clearly labelled `quick_content_check`, where header checks are reported as unavailable. The report then opens in the web dashboard.
 
 ---
 
 ## Using deeper attachment analysis, step by step
 
-Standard analysis never opens an attachment. **Deeper attachment analysis** opens it inside a virtual machine **you own**, watches what it does and adds that to the report. This is the whole journey for someone using the hosted E-TAP with a Windows VM in VirtualBox.
+Standard analysis never opens an attachment, and it is all most people need. **Deeper attachment analysis** is optional and opens attachments inside a virtual machine **you own**, watches what it does and adds that to the report. If you have no VM, skip this whole section: nothing else in E-TAP depends on it. This is the whole journey for someone using the hosted E-TAP with a Windows VM in VirtualBox.
 
 ### What runs where
 | On your PC | On the E-TAP server |
@@ -144,7 +144,7 @@ On your PC you also need **Python 3.10 or newer** (from python.org, with "Add to
 
 ### 1. Choose Deeper
 - **On the website:** open **Analyze email** and drop the email file. Two cards appear: **Standard analysis** and **Deeper attachment analysis** (its *i* icon explains what it needs). Pick Deeper.
-- **In Gmail:** click **Analyze in E-TAP**, then **Deeper attachment analysis**.
+- **In Gmail:** click the **Deeper attachment analysis** card on the E-TAP banner. If you have no VM, click **Standard analysis** instead (or *I don't have a VirtualBox VM* on the pairing screen).
 
 The first time, it says **Your sandbox: not paired** and shows three steps.
 
@@ -154,13 +154,17 @@ The first time, it says **Your sandbox: not paired** and shows three steps.
    - Windows and Python;
    - VirtualBox and its version;
    - the VMs it finds and their snapshots;
+   - whether the VM is cut off from your PC and the network (network adapter, clipboard, drag and drop and shared folders all off), with a one-line fix for each that is not;
+   - whether Windows is running its hypervisor (Hyper-V, WSL2, Windows Sandbox), which can make VirtualBox slow;
    - whether Windows Sandbox exists (optional).
-   Nothing in the VM is changed during setup.
+   Nothing in the VM is changed during setup, and the VM is not started. A warning does not stop setup.
 3. Choose your VM, type the clean snapshot name, the guest Windows user and its password (hidden while typing).
 4. Answer whether attachments should open automatically when you ask for a deeper analysis. Answering *no* means the agent asks you each time.
 5. The agent shows a **pairing code** such as `K7QM-4XPN`. It works once and expires in 10 minutes.
 
-Optional check: `start-agent.cmd test` restores the VM once and confirms that the guest login, Sysmon and the Defender log all work.
+Optional checks:
+- `start-agent.cmd check` repeats the read-only checks above at any time without starting the VM.
+- `start-agent.cmd test` restores the VM once and confirms that the guest login, Sysmon and the Defender log all work. The two checks are separate because only `test` starts the VM.
 
 ### 3. Pair (once)
 Type the code into the box on the website (or the extension's tab) and click **Pair**. The page shows **Your sandbox: online**, and the agent window says *Paired*. Keep the agent window open: it is your sandbox. The pairing is remembered, so you never enter a code again in that browser.
@@ -196,6 +200,7 @@ Double-click `start-agent.cmd`; it goes straight to *Your sandbox: online*. Then
 - **Rule coverage:** 36 of the 164 bundled behaviour rules can be evaluated today.
 - **Agent window:** the agent runs only while its window is open. There is no background service or Windows auto-start yet.
 - **Problems:**
+  - Run `start-agent.cmd check` to see whether the VM is isolated and set up, and what to fix.
   - Run `start-agent.cmd status` to see the saved settings and pairing.
   - Run `start-agent.cmd setup` to change the VM.
   - Run `start-agent.cmd forget` to remove everything the agent saved.

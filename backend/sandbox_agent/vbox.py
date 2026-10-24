@@ -260,6 +260,18 @@ def list_snapshots(vm: str, exe: str | None = None) -> list[str]:
     return re.findall(r'^SnapshotName(?:-[\d-]+)?="(.*)"$', p.stdout, re.M)
 
 
+def show_vm_info(vm: str, exe: str | None = None) -> str:
+    """`VBoxManage showvminfo --machinereadable` for one VM (read-only; never starts it)."""
+    try:
+        p = subprocess.run([exe or default_vboxmanage(), "showvminfo", vm, "--machinereadable"],
+                           capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise VBoxError(f"VBoxManage could not read the VM: {exc}")
+    if p.returncode != 0:
+        raise VBoxError((p.stderr or p.stdout or "VM not found").strip()[:300])
+    return p.stdout
+
+
 def vboxmanage_version(exe: str | None = None) -> str | None:
     """VirtualBox version, or None when VBoxManage cannot be run."""
     try:

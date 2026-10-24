@@ -13,6 +13,21 @@ let useVisibleText = false;
 let manualOverride = false;
 let controller = null;
 
+// Plain wording for the failures a non-technical user can actually hit.
+function friendlyError(error) {
+    if (error?.name === 'AbortError') return 'The service did not answer in time. It may be waking up. Retry here or open E-TAP.';
+    const message = error?.message || '';
+    if (!message || error instanceof TypeError || /failed to fetch|networkerror|load failed/i.test(message)) {
+        return "Couldn't reach E-TAP. Check your connection and try again.";
+    }
+    return message;
+}
+// The manual .eml import is only worth showing when the original was not retrieved.
+function showOriginalHelp(visible) {
+    const help = document.getElementById('original-help');
+    if (help) help.hidden = !visible;
+}
+
 async function run(job) {
     if (busy) return;
     busy = true;
@@ -26,11 +41,8 @@ async function run(job) {
     coverage.textContent = original
         ? 'The original .eml is included. Available headers and MIME attachments go through the full forensic pipeline.'
         : 'Gmail did not provide the original message. This report will clearly mark sender authentication, routing and attachment contents as unavailable. Upload the original .eml for those checks.';
-    if (job.deep) {
-        coverage.textContent += original
-            ? ' Eligible attachments are also opened in your sandbox; the report updates when it finishes.'
-            : ' Deeper analysis needs the original attachments, so none were opened this time.';
-    }
+    if (job.deep) coverage.textContent += ' Eligible attachments are also opened in your sandbox; the report updates when it finishes.';
+    else if (job.deepSkipped) coverage.textContent += ' Deeper analysis needs the original attachments, so none were opened this time.';
     controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), ETAP_CONFIG.requestTimeoutMs);
     try {
@@ -44,10 +56,9 @@ async function run(job) {
         location.replace(destination);
     } catch (error) {
         heading.textContent = 'Your analysis needs another try';
-        statusText.textContent = error.name === 'AbortError'
-            ? 'The service did not answer in time. It may be waking up. Retry here or open E-TAP.'
-            : error.message || 'Analysis could not complete. Retry here or open E-TAP.';
+        statusText.textContent = friendlyError(error);
         retry.hidden = false;
+        showOriginalHelp(true);
     } finally {
         clearTimeout(timer);
         busy = false;
@@ -62,18 +73,25 @@ async function initialize() {
         selectedJob = job;
         document.getElementById('subject').textContent = job.data?.subject || 'Selected Gmail message';
         limited.hidden = false;
-        const deadline = Date.now() + 35000;
+        const started = Date.now();
+        const deadline = started + 35000;
         while (job.state === 'retrieving' && Date.now() < deadline && !useVisibleText) {
             await new Promise((resolve) => setTimeout(resolve, 250));
+            if (Date.now() - started > 5000) statusText.textContent = 'Still retrieving the original email. Gmail can take up to 35 seconds.';
             job = await EtapHandoffStore.get(jobId);
             if (!job) throw new Error('This email handoff expired. Select an original .eml below or open E-TAP.');
         }
+        showOriginalHelp(!job.rawEmailBase64);
+        // Deeper analysis opens the original attachments, so only ask the user to
+        // pair a sandbox once those exist; otherwise finish as a standard analysis.
+        if (job.deep && !job.rawEmailBase64) job = { ...job, deep: false, deepSkipped: true };
         if (job.deep && !manualOverride) job = await prepareDeep(job);
         if (job && !manualOverride) await run(job);
     } catch (error) {
-        heading.textContent = 'Open your email in E-TAP';
-        statusText.textContent = error.message;
+        heading.textContent = "We couldn't open this email";
+        statusText.textContent = friendlyError(error);
         limited.hidden = true;
+        showOriginalHelp(true);
     }
 }
 
