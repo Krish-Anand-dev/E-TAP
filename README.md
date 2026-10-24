@@ -298,9 +298,6 @@ Development notes and iterations/   Research, decisions and the history of how t
 
 ## Limitations
 
-- The API is open (no sign-in or per-user isolation); do not upload sensitive real mail to a public instance.
-- Live lookups and Gemini receive indicators and privacy-reduced email content.
-- The bundled XGBoost model is an initial triage aid, not a calibrated production detector, and no benchmark accuracy is claimed yet.
 - Dynamic analysis needs your own VirtualBox VM and the agent; nothing clicks inside documents yet, so Office files and click-triggered PDFs are often inconclusive, and only 36 of the 164 bundled behaviour rules can be evaluated so far.
 - The Gmail extension uses Gmail's web endpoints, not the official Gmail API.
 
