@@ -2,7 +2,7 @@
 
 **One tap from a suspicious email to an evidence-backed verdict.**
 
-E-TAP takes a raw email (`.eml` / `.msg`, or a message opened in Gmail through the browser extension) and runs it through a multi-stage forensic pipeline: header and authentication forensics, sender-origin tracing with IP geolocation, static attachment forensics (file signatures, macros, QR codes, OCR), IOC extraction, live threat-intelligence lookups, historical campaign correlation, graph-based risk propagation, an XGBoost pre-filter and a Gemini-backed final assessment with MITRE ATT&CK mapping.
+E-TAP takes a raw email (`.eml` / `.msg`, or a message opened in Gmail through the browser extension) and runs it through a multi-stage forensic pipeline: header and authentication forensics, sender-origin tracing with IP geolocation, static attachment forensics (file signatures, macros, QR codes, OCR), IOC extraction, live threat-intelligence lookups, historical campaign correlation, graph-based risk propagation, an XGBoost pre-filter and a Gemini-backed final assessment with MITRE ATT&CK mapping. For people who own a VirtualBox VM there is an optional **deeper attachment analysis** that opens the attachments in that VM and adds what they actually did to the report.
 
 The result is one report that says **how risky the email is, why, and what to do**, written so a non-expert can act on it, with the full technical detail kept for security analysts.
 
@@ -25,6 +25,8 @@ For the deep technical reference (every module, library, environment variable, d
                                 │        true-origin resolution, lookalike & homograph domains
                                 ├─► B2  Attachment forensics: SHA-256, magic bytes, macros (oletools),
                                 │        QR decoding (pyzbar/OpenCV), OCR (Tesseract)
+                                ├─► S   Plan the optional deeper analysis: which attachments the
+                                │        sandbox would open (only if you chose "Deeper")
                                 ├─► B5  Link analysis: visible text vs real href destination
                                 ├─► B6  QR trace: where each decoded QR code points
                                 ▼
@@ -44,7 +46,27 @@ For the deep technical reference (every module, library, environment variable, d
                            H  Verdict reconciliation, evidence report, ◄───┘
                               privacy report, provider status, persistence
                                 ▼
+                           S  Hand the chosen attachments to your sandbox (runs in the
+                              background, see below); the report is already usable
+                                ▼
                       React dashboard · PDF export · SOC Assistant (RAG chat)
+```
+
+### The optional deeper analysis (stage S) in one picture
+
+```text
+  E-TAP server (hosted)                                   Your PC (nothing connects in to it)
+  ─────────────────────                                   ───────────────────────────────────
+  report saved, attachments queued ◄── agent asks every ── E-TAP Sandbox Agent
+  for your paired agent                 5 s for work         1. restore the VM's clean snapshot
+                                                             2. open the attachment in the VM
+                                                             3. record Sysmon + Windows Defender events
+                                                             4. keep only the file's own events
+                                                             5. restore the clean snapshot
+  behaviour rules (MITRE-mapped) ◄──── upload the events ─── (never the whole log)
+        │
+        ▼
+  rule match → risk score raised (never lowered) → the open report updates by itself
 ```
 
 ### Stage A — Parsing and normalisation
@@ -65,7 +87,7 @@ When you choose **Deeper attachment analysis**, eligible attachments (scripts, e
 2. opens the files;
 3. records what happens with Sysmon and Windows Defender;
 4. restores the snapshot again;
-5. uploads only the recorded events.
+5. uploads only the events of that file's own processes, never the whole Sysmon log.
 
 E-TAP checks them against behavioural detection rules (MITRE-mapped). A match raises the risk score, and "nothing observed" never lowers it. The agent only makes outbound requests. See [`backend/sandbox_agent/README.md`](backend/sandbox_agent/README.md).
 
@@ -221,6 +243,7 @@ Double-click `start-agent.cmd`; it goes straight to *Your sandbox: online*. Then
 | Database | MongoDB / MongoDB Atlas (pymongo), in-memory fake DB for tests |
 | Frontend | React 18, Vite, axios, Leaflet / react-leaflet, react-force-graph-2d, Recharts, jsPDF |
 | Extension | Chrome Manifest V3, IndexedDB handoff store |
+| Dynamic analysis | VirtualBox (`VBoxManage`), Sysmon and Windows Defender events, an EQL-subset behaviour-rule engine (Sigma and YARA planned), a standard-library-only Python agent with Windows-protected settings |
 | Hosting | Render (Docker backend), Vercel (frontend), MongoDB Atlas |
 
 ## Quick start (local)
@@ -256,16 +279,21 @@ cd backend && python -m pytest tests -q --ignore=tests/test_threat_intel_live.py
 cd ../frontend && npm test
 ```
 
-Deployment (Render + Vercel + Atlas), every environment variable and the full API route list are documented in [CONTEXT.md](CONTEXT.md).
+Optional, to try deeper analysis against your local backend: start `python -m sandbox_agent start --server http://127.0.0.1:5000` from `backend/` (see the step-by-step section above). `SANDBOX_BACKEND` defaults to `agent`; use `none` to switch the feature off, or `virtualbox` when the VM is on the same computer as the server.
+
+Deployment (Render + Vercel + Atlas), every environment variable and the full API route list are documented in [CONTEXT.md](CONTEXT.md). How the project got here, including the sandbox iterations, is in [Development notes and iterations](Development%20notes%20and%20iterations/README.md).
 
 ## Repository layout
 
 ```text
-backend/     FastAPI app, pipeline and all analysis stages
-frontend/    React/Vite dashboard
-extension/   Gmail browser extension (Manifest V3)
-docs/        Workflow diagram, parser fixtures, small evaluation corpus
-samples/     Dataset manifests (raw emails are not committed)
+backend/                 FastAPI app, pipeline and all analysis stages
+backend/sandbox/         Deeper analysis on the server: attachment selection, behaviour rules, scoring, job queue
+backend/sandbox_agent/   The E-TAP Sandbox Agent that runs on the user's PC next to their VM
+frontend/                React/Vite dashboard
+extension/               Gmail browser extension (Manifest V3)
+docs/                    Workflow diagram, parser fixtures, small evaluation corpus
+samples/                 Dataset manifests (raw emails are not committed)
+Development notes and iterations/   Research, decisions and the history of how the project evolved
 ```
 
 ## Limitations
