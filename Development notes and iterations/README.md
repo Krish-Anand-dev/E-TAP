@@ -9,6 +9,7 @@ How E-TAP got to where it is: the main iterations, the research behind the bigge
 | 2026-10-23 | [Hosted dynamic attachment analysis](2026-10-23%20Hosted%20dynamic%20attachment%20analysis/report.md) (with [research notes](2026-10-23%20Hosted%20dynamic%20attachment%20analysis/research%20notes/)) | Research |
 | 2026-10-24 | [Sandbox agent direction](2026-10-24%20Sandbox%20agent%20direction.md) | Decision |
 | 2026-10-25 | [Standard analysis first](2026-10-25%20Standard%20analysis%20first.md) | Decision and implementation |
+| 2026-10-25 | [Getting the sandbox working: the iterations](2026-10-25%20Getting%20the%20sandbox%20working.md) | Implementation log |
 
 ## Project timeline
 
@@ -56,3 +57,6 @@ Verified end to end, first with a simulated VM and then live on a real VirtualBo
 
 ### 11. Standard analysis first (2026-10-25)
 The principle that nothing we build may hinder a normal user. The extension banner shows Standard and Deeper cards up front (with what Deeper needs written out), the dashboard gained a Full / Fast animation setting and stopped showing sandbox UI on standard runs, and the agent gained a read-only `check` preflight and automatic cleanup of expired jobs and sample bytes. See [the entry](2026-10-25%20Standard%20analysis%20first.md).
+
+### 12. Getting the sandbox working (2026-10-24 to 2026-10-25)
+About a dozen rounds of testing as a normal user turned a sandbox that worked on one machine into one that works through the hosted site and a paired agent. Each round started with something that went wrong: a silent Defender timeout, a launcher run from inside a zip, a wrong password that was accepted, an "online" label that was not true, a deeper run that quietly opened nothing, and a result that was too big to upload. The sequence, the causes and the lessons are in [the iterations log](2026-10-25%20Getting%20the%20sandbox%20working.md).

@@ -276,6 +276,10 @@ samples/     Dataset manifests (raw emails are not committed)
 - Dynamic analysis needs your own VirtualBox VM and the agent; nothing clicks inside documents yet, so Office files and click-triggered PDFs are often inconclusive, and only 36 of the 164 bundled behaviour rules can be evaluated so far.
 - The Gmail extension uses Gmail's web endpoints, not the official Gmail API.
 
+## License
+
+E-TAP is open source under the [MIT License](LICENSE). The libraries it uses keep their own licenses.
+
 ## Team Members
 
 - Bhavit Anand
