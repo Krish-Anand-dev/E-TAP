@@ -594,3 +594,16 @@ button.risk-tag:hover { transform: translateY(-1px); }
 
 .animation-setting { margin-top: 16px; }
 .sandbox-pill.attention { background: #fde4e1; color: #a2281f; }
+
+/* Before a deeper run: what the sandbox would open, and the pre-run check */
+.attach-preview { margin-top: 12px; padding: 12px 14px; border-radius: 11px; background: #f5f4ec; border: 1px solid #deddd5; font-size: 12px; color: #3c4559; }
+.attach-preview strong { font-size: 13px; color: #29334c; }
+.attach-preview p { margin: 6px 0 0; color: #61697a; }
+.attach-preview ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 5px; }
+.attach-preview li { display: flex; align-items: center; gap: 7px; }
+.attach-preview li b { font-family: ui-monospace, Consolas, monospace; font-weight: 600; word-break: break-all; }
+.attach-preview .not-opened li { color: #8a5a08; }
+.preflight-card { margin-top: 14px; padding: 14px 16px; border-radius: 12px; background: #fff8ec; border: 1.5px solid #efd3a0; color: #4a3410; }
+.preflight-card strong { display: flex; align-items: center; gap: 7px; font-size: 13px; }
+.preflight-card ul { margin: 8px 0 0 18px; padding: 0; font-size: 12.5px; line-height: 1.6; }
+.preflight-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }

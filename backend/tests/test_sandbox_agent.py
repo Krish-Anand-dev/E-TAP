@@ -225,6 +225,24 @@ class SandboxAgentTests(unittest.TestCase):
         self.assertEqual(report["sandbox"]["status"], "queued")
         self.assertFalse(report["sandbox"]["agent_ready"])
 
+    def test_timeline_explains_why_nothing_was_opened(self):
+        from pipeline import _sandbox_plan
+        auth, client = self.pair()
+        request = {"requested": True, "token": client["X-ETAP-Sandbox-Token"]}
+        data_file = [{"filename": "vk_swiftshader_icd.json", "size_bytes": 106, "actual_type": "application/octet-stream"}]
+        _, candidates, _, state, detail = _sandbox_plan(data_file, request)
+        self.assertEqual((candidates, state), ([], "skipped"))
+        self.assertIn("vk_swiftshader_icd.json", detail)
+        self.assertIn("not a type the sandbox runs", detail)
+        _, _, _, state, detail = _sandbox_plan([], request)
+        self.assertEqual(state, "skipped")
+        self.assertIn("no attachments", detail)
+        # A script is opened.
+        script = [{"filename": "invoice.js", "size_bytes": 50, "actual_type": "text/plain"}]
+        _, candidates, _, state, detail = _sandbox_plan(script, request)
+        self.assertEqual((len(candidates), state), (1, "done"))
+        self.assertIn("sent to your sandbox", detail)
+
     def test_dtd_in_telemetry_is_refused(self):
         auth, client = self.pair()
         self.analyze(client)
