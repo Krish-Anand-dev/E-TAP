@@ -582,6 +582,8 @@ button.risk-tag:hover { transform: translateY(-1px); }
 .choice-card:disabled { opacity: .6; cursor: not-allowed; }
 .choice-card strong { font-size: 14px; display: inline-flex; align-items: center; gap: 7px; }
 .choice-card > span:not(.choice-icon):not(.sandbox-pill) { font-size: 12px; color: #61697a; line-height: 1.6; }
+.choice-card > .choice-req { font-weight: 600; color: #8a4b00; margin-top: 2px; }
+.choice-card > .choice-req.ok { color: #1f6b43; }
 .choice-card .sandbox-pill { margin-top: 4px; }
 .choice-icon { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: #ffe5dc; color: #bd3e49; }
 .choice-note { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #8a5a08; margin: 10px 0 0; }

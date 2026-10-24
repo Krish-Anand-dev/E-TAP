@@ -206,9 +206,6 @@ export function PipelineTimeline({ stages, finished, failed, showSandbox = true 
   );
 }
 
-const DEEP_INFO = 'Opens the attachments inside your own sandbox VM and records what they do. '
-  + 'Requires a VirtualBox VM (Windows Sandbox on Windows Pro is planned) and the free E-TAP Sandbox Agent, paired once.';
-
 export function UploadPage({ onOpenReport, onOpenSettings }) {
   const { status, error, data, startAnalysis, loadDemoSample, backendOnline, jobStages, rerunRequest, consumeRerunRequest } = useInvestigation();
   const [dragActive, setDragActive] = useState(false);
@@ -343,12 +340,14 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
               <span className="choice-icon"><Icon name="shield" size={20} /></span>
               <strong>Standard analysis</strong>
               <span>Sender, headers, links, reputation, history and AI. Attachments are inspected without being opened.</span>
+              <span className="choice-req ok">Nothing to set up.</span>
             </button>
             <button type="button" className={`choice-card ${deep ? 'selected' : ''}`} aria-pressed={deep}
               onClick={() => setDeep(true)} disabled={sandboxState ? !sandboxState.available : false}>
               <span className="choice-icon"><Icon name="box" size={20} /></span>
-              <strong>Deeper attachment analysis <span className="info-dot" role="img" aria-label={DEEP_INFO} title={DEEP_INFO}>i</span></strong>
+              <strong>Deeper attachment analysis</strong>
               <span>Also opens the attachments inside your own virtual machine and records what they do.</span>
+              <span className="choice-req">Needs a Windows VM in VirtualBox and the free E-TAP Sandbox Agent, paired once. Windows Sandbox (Windows Pro) is planned.</span>
               {sandboxState && (
                 <span className={`sandbox-pill ${sandboxState.paired ? (sandboxState.online ? 'online' : 'offline') : ''}`}>
                   <Icon name="box" size={13} />

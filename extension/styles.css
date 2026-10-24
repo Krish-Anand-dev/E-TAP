@@ -164,42 +164,68 @@ button.etap-btn {
     text-decoration: none;
 }
 
-/* Standard / deeper analysis choice */
-.etap-choice {
-    justify-content: flex-start;
+/* Standard / deeper analysis choice: two cards side by side */
+.etap-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 10px;
 }
 
-.etap-choice .etap-btn {
-    margin-left: 0;
-    padding: 6px 12px;
-    font-size: 13px;
+.etap-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 12px 14px;
+    text-align: left;
+    font: inherit;
+    color: #1f2937;
+    background: #fff;
+    border: 1.5px solid #d1d5db;
+    border-radius: 10px;
     cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
 }
 
-.etap-choice .etap-btn-link {
-    background: none;
-    border-color: transparent;
-    color: inherit;
-    text-decoration: underline;
+.etap-card:hover,
+.etap-card:focus-visible {
+    border-color: #1a73e8;
+    box-shadow: 0 2px 8px rgba(26, 115, 232, 0.2);
+    transform: translateY(-1px);
+    outline: none;
 }
 
-.etap-deep {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
+.etap-card-standard {
+    border-color: #1a73e8;
 }
 
-.etap-info {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    border: 1.5px solid currentColor;
-    font: italic 700 11px Georgia, serif;
-    cursor: help;
-    opacity: 0.8;
+.etap-card-title {
+    font-size: 14px;
+    color: #111827;
+}
+
+.etap-card-desc {
+    font-size: 12px;
+    line-height: 1.45;
+    color: #4b5563;
+}
+
+.etap-card-req {
+    margin-top: auto;
+    padding-top: 6px;
+    font-size: 11px;
+    line-height: 1.4;
+    font-weight: 600;
+    color: #1558b0;
+}
+
+.etap-card-deep .etap-card-req {
+    color: #8a4b00;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .etap-card { transition: none; }
+    .etap-card:hover, .etap-card:focus-visible { transform: none; }
 }
 
 .etap-info:focus {

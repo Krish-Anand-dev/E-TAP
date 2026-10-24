@@ -55,4 +55,4 @@ The sandbox moved into the main codebase as stage S, with one VM-run implementat
 Verified end to end, first with a simulated VM and then live on a real VirtualBox Windows 11 VM: a harmless script attachment matched rule etap-004 and raised the score from 73 to 85. Sigma/YARA rules are next.
 
 ### 11. Standard analysis first (2026-10-25)
-The principle that nothing we build may hinder a normal user. The extension became one-click Standard with an optional Deeper link, the dashboard gained a Full / Fast animation setting and stopped showing sandbox UI on standard runs, and the agent gained a read-only `check` preflight and automatic cleanup of expired jobs and sample bytes. See [the entry](2026-10-25%20Standard%20analysis%20first.md).
+The principle that nothing we build may hinder a normal user. The extension banner shows Standard and Deeper cards up front (with what Deeper needs written out), the dashboard gained a Full / Fast animation setting and stopped showing sandbox UI on standard runs, and the agent gained a read-only `check` preflight and automatic cleanup of expired jobs and sample bytes. See [the entry](2026-10-25%20Standard%20analysis%20first.md).

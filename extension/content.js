@@ -51,30 +51,32 @@ function banner(container, existing, key, state, title, description) {
     replaceBanner(container, existing, node);
     return node;
 }
-const ETAP_DEEP_INFO = 'Optional. Opens the attachments inside your own sandbox VM and records what they do. '
-    + 'Needs a VirtualBox VM (Windows Sandbox on Windows Pro is planned) and the free E-TAP Sandbox Agent, paired once. '
-    + 'If you do not have these, use Analyze in E-TAP.';
-// One click runs the standard analysis. Deeper analysis is a separate, optional
-// link; nothing about the sandbox is fetched or shown unless it is clicked.
+// Both choices are on the banner from the start, each with what it needs written
+// out, so nobody has to run one analysis to discover the other. Nothing is sent
+// or fetched until a card is clicked; sandbox status is checked in the analysis
+// tab, and only for a deeper request.
+function choiceCard(choice, title, description, requirement, onClick) {
+    const card = el('button', `etap-card etap-card-${choice}`);
+    card.type = 'button';
+    card.dataset.choice = choice;
+    card.append(el('strong', 'etap-card-title', title), el('span', 'etap-card-desc', description));
+    card.append(el('span', 'etap-card-req', requirement));
+    card.addEventListener('click', onClick);
+    return card;
+}
 function renderIdle(container, existing, key) {
     const node = banner(container, existing, key, 'banner-idle', 'E-TAP Email Analysis',
-        'Opens a report in a new tab. Uses the original email when Gmail provides it. Email contents are sent to E-TAP only after you click.');
-    const row = el('div', 'etap-row etap-choice');
-    const standard = el('button', 'etap-btn etap-btn-primary', 'Analyze in E-TAP');
-    standard.type = 'button';
-    standard.addEventListener('click', () => runAnalysis(container, node, key, false));
-    const deepGroup = el('span', 'etap-deep');
-    const deep = el('button', 'etap-btn etap-btn-link', 'Deeper analysis');
-    deep.type = 'button';
-    deep.addEventListener('click', () => runAnalysis(container, node, key, true));
-    const info = el('span', 'etap-info', 'i');
-    info.title = ETAP_DEEP_INFO;
-    info.setAttribute?.('aria-label', ETAP_DEEP_INFO);
-    info.setAttribute?.('role', 'img');
-    info.tabIndex = 0;
-    deepGroup.append(deep, info);
-    row.append(standard, deepGroup);
-    node.append(row);
+        'Choose how E-TAP should check this email. It opens a report in a new tab, and the email is sent to E-TAP only after you choose.');
+    const cards = el('div', 'etap-cards');
+    cards.append(
+        choiceCard('standard', 'Standard analysis',
+            'Sender and headers, links, reputation, history and AI. Attachments are inspected without being opened.',
+            'Nothing to set up.', () => runAnalysis(container, node, key, false)),
+        choiceCard('deep', 'Deeper attachment analysis',
+            'Everything in Standard, plus the attachments are opened in your own virtual machine and what they do is recorded.',
+            'Needs a Windows VM in VirtualBox and the free E-TAP Sandbox Agent, paired once. Windows Sandbox (Windows Pro) is planned.',
+            () => runAnalysis(container, node, key, true)));
+    node.append(cards);
 }
 function send(request) {
     return new Promise((resolve, reject) => chrome.runtime.sendMessage(request, (response) => {

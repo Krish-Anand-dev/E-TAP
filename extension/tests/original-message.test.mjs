@@ -349,43 +349,49 @@ test('worker records the deeper-analysis choice on the handoff', async () => {
     assert.equal(jobs.get(second.jobId).deep, false);
 });
 
-function findByText(node, text) {
-    if (node.textContent === text) return node;
+function findChoice(node, choice) {
+    if (node.dataset?.choice === choice) return node;
     for (const child of node.children || []) {
-        const found = findByText(child, text);
+        const found = findChoice(child, choice);
         if (found) return found;
     }
     return null;
 }
 
-test('Analyze in E-TAP runs a standard analysis in one click and never touches the sandbox', async () => {
+test('the banner offers Standard and Deeper up front, with what Deeper needs written out', async () => {
+    const calls = [];
+    const sandbox = content((request, callback) => { calls.push(request); callback({ success: true, jobId: 'job1' }); });
+    vm.runInContext('renderIdle(container, null, emailKey(extractEmailData()))', sandbox);
+    const text = allText(sandbox.rendered);
+    assert.match(text, /Standard analysis/);
+    assert.match(text, /Deeper attachment analysis/);
+    assert.match(text, /Needs a Windows VM in VirtualBox/);
+    assert.match(text, /Windows Sandbox \(Windows Pro\) is planned/);
+    assert.ok(findChoice(sandbox.rendered, 'standard') && findChoice(sandbox.rendered, 'deep'));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(calls.length, 0, 'showing the choice sends and fetches nothing, not even the sandbox status');
+});
+
+test('choosing Standard runs a standard analysis and never touches the sandbox', async () => {
     const calls = [];
     const sandbox = content((request, callback) => { calls.push(request); callback({ success: true, jobId: 'job1' }); });
     sandbox.api.referenceFor = () => ({});
     sandbox.api.fetchOriginal = async () => raw.toString('base64');
     vm.runInContext('renderIdle(container, null, emailKey(extractEmailData()))', sandbox);
-    const idle = sandbox.rendered;
-    assert.doesNotMatch(allText(idle), /How should E-TAP check/);
-    findByText(idle, 'Analyze in E-TAP').listeners.click();
+    findChoice(sandbox.rendered, 'standard').listeners.click();
     await new Promise((resolve) => setTimeout(resolve, 0));
     assert.equal(calls[0].action, 'startEmailAnalysis');
     assert.equal(calls[0].deep, false);
     assert.ok(calls.every((call) => call.action !== 'sandboxStatus'), 'Standard must not ask about the sandbox');
 });
 
-test('Deeper analysis is a separate optional link that explains what it needs', async () => {
+test('choosing Deeper starts a deeper request', async () => {
     const calls = [];
     const sandbox = content((request, callback) => { calls.push(request); callback({ success: true, jobId: 'job1' }); });
     sandbox.api.referenceFor = () => ({});
     sandbox.api.fetchOriginal = async () => raw.toString('base64');
     vm.runInContext('renderIdle(container, null, emailKey(extractEmailData()))', sandbox);
-    const idle = sandbox.rendered;
-    assert.equal(calls.length, 0, 'rendering the banner sends nothing');
-    const info = idle.children[2].children[1].children[1];
-    assert.match(info.title, /VirtualBox VM/);
-    assert.match(info.title, /Windows Pro/);
-    assert.match(info.title, /Optional/);
-    findByText(idle, 'Deeper analysis').listeners.click();
+    findChoice(sandbox.rendered, 'deep').listeners.click();
     await new Promise((resolve) => setTimeout(resolve, 0));
     assert.equal(calls[0].action, 'startEmailAnalysis');
     assert.equal(calls[0].deep, true);
