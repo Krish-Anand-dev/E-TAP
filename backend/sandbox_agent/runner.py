@@ -20,7 +20,7 @@ import uuid
 from pathlib import Path
 from typing import Callable
 
-from .vbox import VBox, VBoxError, GuestProcessTimeout
+from .vbox import VBox, VBoxError, GuestLoginError, GuestProcessTimeout
 from .launchers import launcher_for
 
 logger = logging.getLogger("E-TAP.sandbox.runner")
@@ -44,7 +44,7 @@ def run_job(job_id: str, samples: list[dict], work_dir: Path, *, vbox: VBox | No
     work_dir.mkdir(parents=True, exist_ok=True)
     vbox = vbox or VBox()
     record = {"items": [], "sysmon_xml": "", "security_events": [], "error": None, "cleanup_error": None,
-              "defender_checkpoint_error": None}
+              "defender_checkpoint_error": None, "login_error": False}
 
     on_status("starting")
     try:
@@ -69,6 +69,7 @@ def run_job(job_id: str, samples: list[dict], work_dir: Path, *, vbox: VBox | No
     except Exception as exc:
         logger.exception("Job %s failed: %s", job_id, exc)
         record["error"] = str(exc)[:500]
+        record["login_error"] = isinstance(exc, GuestLoginError)
     finally:
         on_status("restoring")
         try:

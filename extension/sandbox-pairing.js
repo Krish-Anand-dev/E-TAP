@@ -43,10 +43,17 @@ const EtapSandbox = (() => {
         if (value) await fetch(`${api()}/sandbox/pairing`, { method: 'DELETE', headers: headers(value) }).catch(() => {});
         await chrome.storage.local.remove(KEY);
     }
+    // online = the agent runs AND reports a usable VM; online with a problem is "needs attention".
     function label(state) {
         if (!state?.paired) return 'Your sandbox: not paired';
-        return state.online ? 'Your sandbox: online' : 'Your sandbox: offline';
+        if (!state.online) return 'Your sandbox: offline';
+        return state.problem ? 'Your sandbox: needs attention' : 'Your sandbox: online';
+    }
+    function tone(state) {
+        if (!state?.paired) return '';
+        if (!state.online) return 'offline';
+        return state.problem ? 'attention' : 'online';
     }
     const downloadUrl = () => `${api()}/sandbox/agent/download`;
-    return { token, status, pair, unpair, label, downloadUrl };
+    return { token, status, pair, unpair, label, tone, downloadUrl };
 })();

@@ -99,7 +99,7 @@ async function initialize() {
 function showSandboxState(state) {
     const pill = document.getElementById('sandbox-state');
     pill.textContent = EtapSandbox.label(state);
-    pill.className = `pill ${state?.paired ? (state.online ? 'online' : 'offline') : ''}`;
+    pill.className = `pill ${EtapSandbox.tone(state)}`;
 }
 async function prepareDeep(job) {
     const section = document.getElementById('sandbox');
@@ -112,6 +112,7 @@ async function prepareDeep(job) {
     showSandboxState(state);
     if (state.paired) {
         if (!state.online) statusText.textContent = 'Your sandbox is offline. The attachments wait for it; start the E-TAP Sandbox Agent and the report updates by itself.';
+        else if (state.problem) statusText.textContent = `The agent is running but cannot use your VM: ${state.problem} The attachments wait until this is fixed.`;
         return job;
     }
     heading.textContent = 'Pair your sandbox';

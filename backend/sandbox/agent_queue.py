@@ -142,10 +142,21 @@ def authenticate_agent(token: str | None) -> dict:
     return agent
 
 
-def touch_agent(agent: dict, vm: dict | None = None) -> None:
+def _clean_health(health: Any) -> dict | None:
+    """The agent's own report on whether its VM is usable: {"ok": bool, "reason": str | None}."""
+    if not isinstance(health, dict) or not isinstance(health.get("ok"), bool):
+        return None
+    return {"ok": health["ok"], "reason": None if health["ok"] else (_clean(health.get("reason"), 200) or "The VM is not usable."),
+            "checked_ts": _now()}
+
+
+def touch_agent(agent: dict, vm: dict | None = None, health: Any = None) -> None:
     fields: dict = {"last_seen_ts": _now()}
     if vm:
         fields["vm"] = _vm_info(vm)
+    cleaned = _clean_health(health)
+    if cleaned:
+        fields["health"] = cleaned
     _db()[AGENTS].update_one({"agent_id": agent["agent_id"]}, {"$set": fields})
 
 
@@ -202,12 +213,39 @@ def is_online(agent: dict) -> bool:
     return _now() - (agent.get("last_seen_ts") or 0) <= ONLINE_WINDOW
 
 
+def has_active_run(agent: dict) -> bool:
+    """A job is running on this agent. The agent is busy inside the VM and polls less often then."""
+    db = _db()
+    now = _now()
+    return any((job.get("claimed_ts") or now) + _running_ttl() > now
+               for job in db[JOBS].find({"agent_id": agent["agent_id"],
+                                         "status": {"$in": ["starting", "interacting", "collecting", "restoring"]}}))
+
+
+def problem_of(agent: dict) -> str | None:
+    """Why the VM is not usable, as the agent last reported it; None when fine or not reported."""
+    health = agent.get("health") or {}
+    return None if health.get("ok", True) else (health.get("reason") or "The VM is not usable.")
+
+
+def is_ready(agent: dict) -> bool:
+    """Online AND the agent reports a usable VM. This, not is_online, is what 'online' means to users."""
+    return is_online(agent) and problem_of(agent) is None
+
+
 def public_agent(agent: dict) -> dict:
     vm = agent.get("vm") or {}
     last = agent.get("last_seen_ts")
+    # While a run is in progress the agent is busy in the VM and may not poll for a while.
+    busy = has_active_run(agent)
+    online = is_online(agent) or busy
+    problem = problem_of(agent) if online else None
     return {
         "name": agent.get("name"),
-        "online": is_online(agent),
+        "online": online,
+        "ready": online and problem is None,
+        "problem": problem,
+        "busy": busy,
         "last_seen_at": _iso(last),
         "last_seen_seconds": int(_now() - last) if last else None,
         "vm_name": vm.get("name"),
@@ -269,7 +307,7 @@ def enqueue(email_id: str, agent: dict, candidates: list[dict]) -> dict:
     analysis.persist_status(email_id, _sandbox_doc(job, agent))
     logger.info("Queued agent job %s for email %s (%d samples)", job_id, email_id, len(public_samples))
     return {"status": "queued", "email_id": email_id, "job_id": job_id, "mode": "agent",
-            "candidates": len(candidates), "agent_online": is_online(agent)}
+            "candidates": len(candidates), "agent_online": is_online(agent), "agent_ready": is_ready(agent)}
 
 
 def _sandbox_doc(job: dict, agent: dict | None, **extra) -> dict:
@@ -354,9 +392,10 @@ def start_housekeeping(interval_seconds: int = 600) -> bool:
     return True
 
 
-def next_job(agent: dict) -> Optional[dict]:
-    """Claim the agent's oldest queued job (also its heartbeat)."""
-    touch_agent(agent)
+def next_job(agent: dict, health: Any = None) -> Optional[dict]:
+    """Claim the agent's oldest queued job. This is also the agent's heartbeat, carrying its VM health."""
+    touch_agent(agent, health=health)
+    agent = {**agent, **({"health": _clean_health(health)} if _clean_health(health) else {})}
     _expire_jobs()
     db = _db()
     for job in db[JOBS].find({"agent_id": agent["agent_id"], "status": "queued"}).sort("created_ts", 1).limit(3):

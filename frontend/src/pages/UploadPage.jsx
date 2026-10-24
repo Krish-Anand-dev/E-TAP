@@ -3,7 +3,7 @@ import { useInvestigation } from '../context/InvestigationContext';
 import Icon from '../components/common/Icon';
 import TimelineCat from '../components/common/TimelineCat';
 import { verdictOf } from '../utils/reportSummary';
-import { getSandboxPairing, sandboxStateLabel } from '../api/sandbox';
+import { getSandboxPairing, sandboxStateLabel, sandboxStateTone } from '../api/sandbox';
 import { getAnimationSpeed } from '../utils/animationSpeed';
 import SandboxPairing from '../components/settings/SandboxPairing';
 
@@ -223,12 +223,15 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
 
   // Whether this server offers deeper analysis, and the paired sandbox's state.
   // If the check fails, deeper analysis is simply unavailable; Standard never waits on it.
+  // It is re-read every 10 s while this page is open, so "online" never goes stale.
   useEffect(() => {
     let cancelled = false;
-    getSandboxPairing()
+    const read = () => getSandboxPairing()
       .then((state) => { if (!cancelled) setSandboxState(state); })
       .catch(() => { if (!cancelled) setSandboxState({ available: false, unreachable: true }); });
-    return () => { cancelled = true; };
+    read();
+    const timer = setInterval(read, 10000);
+    return () => { cancelled = true; clearInterval(timer); };
   }, []);
   useEffect(() => {
     if (deep && sandboxState && !sandboxState.available) setDeep(false);
@@ -349,7 +352,7 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
               <span>Also opens the attachments inside your own virtual machine and records what they do.</span>
               <span className="choice-req">Needs a Windows VM in VirtualBox and the free E-TAP Sandbox Agent, paired once. Windows Sandbox (Windows Pro) is planned.</span>
               {sandboxState && (
-                <span className={`sandbox-pill ${sandboxState.paired ? (sandboxState.online ? 'online' : 'offline') : ''}`}>
+                <span className={`sandbox-pill ${sandboxStateTone(sandboxState)}`}>
                   <Icon name="box" size={13} />
                   {!sandboxState.available ? (sandboxState.unreachable ? "Couldn't check right now" : 'Not set up on this server') : sandboxState.mode !== 'agent' && sandboxState.paired ? `This computer's VM${sandboxState.vm_name ? ` (${sandboxState.vm_name})` : ''}` : sandboxStateLabel(sandboxState)}
                 </span>
@@ -367,6 +370,9 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
           )}
           {deep && sandboxState?.paired && !sandboxState.online && (
             <p className="choice-note"><Icon name="alert" size={14} />Your sandbox is offline. The attachments wait for it: start the E-TAP Sandbox Agent on the PC with your VM and the report updates by itself.</p>
+          )}
+          {deep && sandboxState?.paired && sandboxState.online && sandboxState.problem && (
+            <p className="choice-note"><Icon name="alert" size={14} />The agent is running but cannot use your VM: {sandboxState.problem} The attachments wait until this is fixed.</p>
           )}
         </section>
       )}

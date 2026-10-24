@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Icon from '../common/Icon';
-import { agentDownloadUrl, getSandboxPairing, pairSandbox, sandboxStateLabel, unpairSandbox } from '../../api/sandbox';
+import { agentDownloadUrl, getSandboxPairing, pairSandbox, sandboxStateLabel, sandboxStateTone, unpairSandbox } from '../../api/sandbox';
 
 /**
  * Pair this browser with the user's E-TAP Sandbox Agent (once).
@@ -51,7 +51,7 @@ export default function SandboxPairing({ compact = false, onChange }) {
     setBusy(true);
     try { await unpairSandbox(); await refresh(); setMessage({ tone: 'ok', text: 'This browser is no longer paired.' }); } finally { setBusy(false); }
   };
-  const tone = state.paired ? (state.online ? 'online' : 'offline') : '';
+  const tone = sandboxStateTone(state);
 
   return (
     <section className={`v2-card sandbox-pairing ${compact ? 'compact' : ''}`}>
@@ -67,7 +67,9 @@ export default function SandboxPairing({ compact = false, onChange }) {
         <div className="sandbox-paired">
           <p>
             Paired with <b>{state.name || 'your sandbox'}</b>{state.vm_name ? <> (VM <b>{state.vm_name}</b>)</> : null}.
-            {' '}{state.online ? 'It is ready for deeper analyses.' : 'Start the E-TAP Sandbox Agent on that PC to bring it online; queued attachments wait for it.'}
+            {' '}{!state.online ? 'Start the E-TAP Sandbox Agent on that PC to bring it online; queued attachments wait for it.'
+              : state.problem ? `The agent is running but cannot use the VM: ${state.problem}`
+              : 'It is ready for deeper analyses.'}
             {state.queued_jobs ? <> {state.queued_jobs} waiting.</> : null}
           </p>
           <button type="button" className="btn-ghost" onClick={unpair} disabled={busy}>Unpair this browser</button>
@@ -75,7 +77,7 @@ export default function SandboxPairing({ compact = false, onChange }) {
       ) : (
         <>
           <ol className="pair-steps">
-            <li><span>1</span><div><a href={agentDownloadUrl()} target="_blank" rel="noopener noreferrer">Download the E-TAP Sandbox Agent</a> and unzip it on the PC that has your VirtualBox VM.</div></li>
+            <li><span>1</span><div><a href={agentDownloadUrl()} target="_blank" rel="noopener noreferrer">Download the E-TAP Sandbox Agent</a> and extract it (right-click the zip, <b>Extract All</b>) on the PC that has your VirtualBox VM.</div></li>
             <li><span>2</span><div>Double-click <b>start-agent.cmd</b>. It checks your computer, asks before each step and shows a pairing code.</div></li>
             <li><span>3</span><div>Enter the code below. You only do this once.</div></li>
           </ol>
