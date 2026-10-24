@@ -132,7 +132,7 @@ def _sandbox_plan(attachments: list, sandbox: dict | None) -> tuple[str, list, d
         if backend == "none":
             return backend, [], None, "not_available", "Deeper attachment analysis is not set up on this server"
         if not attachments:
-            return backend, [], None, "skipped", "No attachments to open in the sandbox"
+            return backend, [], None, "skipped", "This email has no attachments, so there is nothing to open"
         agent = None
         online = False
         problem = None
@@ -148,7 +148,11 @@ def _sandbox_plan(attachments: list, sandbox: dict | None) -> tuple[str, list, d
             problem = problem_of(agent) if online else None
         candidates = get_detonation_candidates(attachments)
         if not candidates:
-            return backend, [], agent, "skipped", "No attachment type that needs dynamic analysis"
+            names = ", ".join(str(a.get("filename") or "attachment") for a in attachments[:3])
+            more = f" and {len(attachments) - 3} more" if len(attachments) > 3 else ""
+            return backend, [], agent, "skipped", (
+                f"Nothing to open: {names}{more} {'is' if len(attachments) == 1 else 'are'} not "
+                "a type the sandbox runs (data files, text and images are not opened)")
         where = {
             "agent": "sent to your sandbox" + (
                 "" if online and not problem else

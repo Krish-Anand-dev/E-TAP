@@ -172,7 +172,7 @@ Optional checks:
 Type the code into the box on the website (or the extension's tab) and click **Pair**. The page shows **Your sandbox: online**, and the agent window says *Paired*. Keep the agent window open: it is your sandbox. The pairing is remembered, so you never enter a code again in that browser.
 
 ### 4. Run it
-1. Click **Run deeper analysis**. In Gmail it continues by itself after pairing.
+1. As soon as you choose Deeper, E-TAP lists the email's attachments and which of them the sandbox would open (scripts, programs, shortcuts, documents, PDFs, web pages and ZIPs are opened; data files such as JSON, text and images are not). Click **Run deeper analysis**: it first checks your sandbox right then and, if it is offline or cannot use its VM, or the email has nothing the sandbox opens, tells you before anything starts and offers **Run standard analysis** or **Run deeper anyway**. In Gmail it continues by itself after pairing.
 2. The standard checks finish in seconds. The timeline's *Dynamic attachment analysis* step says the attachments were sent to your sandbox.
 3. The report opens with a **Sandbox behaviour** section showing *Waiting*, then *Running*. A *Sandbox running* pill sits in the top bar.
 4. The agent window shows each step while the VM runs in the background for about a minute:

@@ -5,6 +5,7 @@ import TimelineCat from '../components/common/TimelineCat';
 import { verdictOf } from '../utils/reportSummary';
 import { getSandboxPairing, sandboxStateLabel, sandboxStateTone } from '../api/sandbox';
 import { getAnimationSpeed } from '../utils/animationSpeed';
+import { previewEmailFile, whyNotOpened } from '../utils/attachmentPreview';
 import SandboxPairing from '../components/settings/SandboxPairing';
 
 const REAL_SAMPLE_PHISHING_EML = `From: IT Helpdesk <support@northfield-logisitcs-helpdesk.com>
@@ -217,6 +218,11 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
   const [deepRun, setDeepRun] = useState(false);
   const [fileError, setFileError] = useState(null);
   const [sandboxState, setSandboxState] = useState(null);
+  // What the sandbox would open in the staged email, read from its headers in the browser.
+  const [preview, setPreview] = useState(null);
+  // "Checking your sandbox" while Analyze is clicked on a deeper run, and what it found.
+  const [checking, setChecking] = useState(false);
+  const [preflight, setPreflight] = useState(null);
   const [pacingOn] = useState(() => getAnimationSpeed() === 'full');
   const isBusy = status === 'uploading' || status === 'analyzing';
   const deepBlocked = deep && !sandboxState?.paired;
@@ -253,10 +259,47 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
     setFileError(null);
     setRunFinished(false);
     setSelectedFile(file);
+    setPreflight(null);
+    setPreview(null);
+    previewEmailFile(file).then((found) => setPreview(found));
   };
 
-  const run = async (file) => {
-    const wantsDeep = deep && Boolean(sandboxState?.paired);
+  // Clicking Analyze on a deeper run first asks the server, right now, whether the sandbox
+  // is usable and whether this email has anything it can open, and says so before any
+  // analysis starts. Standard analysis never waits on any of this.
+  const analyze = async (file) => {
+    setPreflight(null);
+    if (!deep) { run(file, false); return; }
+    setChecking(true);
+    let fresh;
+    try { fresh = await getSandboxPairing(); } catch { fresh = { available: false, unreachable: true }; }
+    setChecking(false);
+    setSandboxState(fresh);
+    if (!fresh.available) {
+      setPreflight({ blocking: true, issues: [fresh.unreachable
+        ? "Couldn't reach E-TAP to check your sandbox. Try again in a moment, or run a standard analysis."
+        : 'Deeper analysis is not set up on this E-TAP server. Run a standard analysis instead.'] });
+      return;
+    }
+    if (!fresh.paired) {
+      setPreflight({ blocking: true, issues: ['Your sandbox is not paired yet. Pair it below, or run a standard analysis.'] });
+      return;
+    }
+    const issues = [];
+    if (!fresh.online) issues.push('Your sandbox is offline, so nothing would open the attachments right now. Start the E-TAP Sandbox Agent on the PC with your VM; a request waits up to 30 minutes.');
+    else if (fresh.problem) issues.push(`Your sandbox is running but cannot use its VM: ${fresh.problem}`);
+    if (preview && preview.opened.length === 0) {
+      issues.push(preview.total
+        ? `Nothing in this email can be opened in the sandbox (${preview.skipped.join(', ')}). The sandbox does not run data files or images.`
+        : 'This email has no attachments, so the sandbox has nothing to open.');
+    }
+    if (issues.length) { setPreflight({ blocking: false, issues }); return; }
+    run(file, true);
+  };
+
+  const run = async (file, forceDeep) => {
+    const wantsDeep = (forceDeep ?? deep) && Boolean(sandboxState?.paired);
+    setPreflight(null);
     setRunFinished(false);
     setDeepRun(wantsDeep);
     setRunId((n) => n + 1);
@@ -322,13 +365,25 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
             <div><div className="file-name">{selectedFile.name}</div><div className="file-size">{(selectedFile.size / 1024).toFixed(1)} KB</div></div>
           </div>
           <div className="staged-actions">
-            <button type="button" className="btn-ghost" onClick={() => setSelectedFile(null)}>Clear</button>
-            <button type="button" id="execute-pipeline-btn" className="btn-primary-action" onClick={() => run(selectedFile)}
-              disabled={backendOnline === false || deepBlocked}>
-              {deep ? 'Run deeper analysis' : 'Analyze email'}
+            <button type="button" className="btn-ghost" onClick={() => { setSelectedFile(null); setPreflight(null); setPreview(null); }}>Clear</button>
+            <button type="button" id="execute-pipeline-btn" className="btn-primary-action" onClick={() => analyze(selectedFile)}
+              disabled={backendOnline === false || deepBlocked || checking}>
+              {checking ? 'Checking your sandbox…' : deep ? 'Run deeper analysis' : 'Analyze email'}
             </button>
           </div>
         </div>
+      )}
+
+      {selectedFile && !showTimeline && preflight && (
+        <section className="preflight-card" role="alert" aria-label="Before the deeper analysis starts">
+          <strong><Icon name="alert" size={15} />Before the deeper analysis starts</strong>
+          <ul>{preflight.issues.map((text) => <li key={text}>{text}</li>)}</ul>
+          <div className="preflight-actions">
+            <button type="button" className="btn-primary-action" onClick={() => { setDeep(false); run(selectedFile, false); }}>Run standard analysis</button>
+            {!preflight.blocking && <button type="button" className="btn-ghost" onClick={() => run(selectedFile, true)}>Run deeper anyway</button>}
+            <button type="button" className="btn-ghost" onClick={() => setPreflight(null)}>Cancel</button>
+          </div>
+        </section>
       )}
 
       {selectedFile && !showTimeline && backendOnline === false && (
@@ -373,6 +428,18 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
           )}
           {deep && sandboxState?.paired && sandboxState.online && sandboxState.problem && (
             <p className="choice-note"><Icon name="alert" size={14} />The agent is running but cannot use your VM: {sandboxState.problem} The attachments wait until this is fixed.</p>
+          )}
+          {deep && preview && (
+            <div className="attach-preview" role="status">
+              <strong>{preview.total ? `${preview.total} attachment${preview.total === 1 ? '' : 's'} in this email` : 'This email has no attachments'}</strong>
+              {preview.total === 0 && <p>There is nothing for the sandbox to open. A standard analysis covers everything else.</p>}
+              {preview.opened.length > 0 && (
+                <ul>{preview.opened.map((name) => <li key={name}><Icon name="check" size={13} /><b>{name}</b> will be opened in your sandbox</li>)}</ul>
+              )}
+              {preview.skipped.length > 0 && (
+                <ul className="not-opened">{preview.skipped.map((name) => <li key={name}><Icon name="x" size={13} /><b>{name}</b> will not be opened: {whyNotOpened(name)}</li>)}</ul>
+              )}
+            </div>
           )}
         </section>
       )}
