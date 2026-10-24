@@ -3,7 +3,7 @@ import { useInvestigation } from '../context/InvestigationContext';
 import Icon from '../components/common/Icon';
 import TimelineCat from '../components/common/TimelineCat';
 import { verdictOf } from '../utils/reportSummary';
-import { getSandboxPairing, sandboxStateLabel, sandboxStateTone } from '../api/sandbox';
+import { agentDownloadUrl, getSandboxPairing, sandboxStateLabel, sandboxStateTone, unpairSandbox } from '../api/sandbox';
 import { getAnimationSpeed } from '../utils/animationSpeed';
 import { previewEmailFile, whyNotOpened } from '../utils/attachmentPreview';
 import SandboxPairing from '../components/settings/SandboxPairing';
@@ -207,6 +207,16 @@ export function PipelineTimeline({ stages, finished, failed, showSandbox = true 
   );
 }
 
+/** How to get a sandbox online: the download, the steps and a way to pair a different one. */
+function AgentHelp({ onPairAgain }) {
+  return (
+    <div className="agent-help">
+      <p>No agent on this PC yet? <a href={agentDownloadUrl()} target="_blank" rel="noopener noreferrer">Download the E-TAP Sandbox Agent</a>, right-click the zip and choose <b>Extract All</b>, then double-click <b>start-agent.cmd</b> in the extracted folder. It checks your VirtualBox VM and shows a pairing code.</p>
+      <p>Installed it before, on a different PC or after a reinstall? <button type="button" className="link-button" onClick={onPairAgain}>Pair a different sandbox</button> to enter a new code.</p>
+    </div>
+  );
+}
+
 export function UploadPage({ onOpenReport, onOpenSettings }) {
   const { status, error, data, startAnalysis, loadDemoSample, backendOnline, jobStages, rerunRequest, consumeRerunRequest } = useInvestigation();
   const [dragActive, setDragActive] = useState(false);
@@ -286,15 +296,23 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
       return;
     }
     const issues = [];
-    if (!fresh.online) issues.push('Your sandbox is offline, so nothing would open the attachments right now. Start the E-TAP Sandbox Agent on the PC with your VM; a request waits up to 30 minutes.');
-    else if (fresh.problem) issues.push(`Your sandbox is running but cannot use its VM: ${fresh.problem}`);
+    let needsAgent = false;
+    if (!fresh.online) { needsAgent = true; issues.push('Your sandbox is offline, so nothing would open the attachments right now. Start the E-TAP Sandbox Agent on the PC with your VM; a request waits up to 30 minutes.'); }
+    else if (fresh.problem) { needsAgent = true; issues.push(`Your sandbox is running but cannot use its VM: ${fresh.problem}`); }
     if (preview && preview.opened.length === 0) {
       issues.push(preview.total
         ? `Nothing in this email can be opened in the sandbox (${preview.skipped.join(', ')}). The sandbox does not run data files or images.`
         : 'This email has no attachments, so the sandbox has nothing to open.');
     }
-    if (issues.length) { setPreflight({ blocking: false, issues }); return; }
+    if (issues.length) { setPreflight({ blocking: false, issues, needsAgent }); return; }
     run(file, true);
+  };
+
+  // Forget the old pairing so a new agent (or a re-installed one) can be paired with a fresh code.
+  const pairAgain = async () => {
+    try { await unpairSandbox(); } catch { /* the local pairing is cleared either way */ }
+    setPreflight(null);
+    try { setSandboxState(await getSandboxPairing()); } catch { setSandboxState({ available: true, paired: false, online: false }); }
   };
 
   const run = async (file, forceDeep) => {
@@ -378,6 +396,7 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
         <section className="preflight-card" role="alert" aria-label="Before the deeper analysis starts">
           <strong><Icon name="alert" size={15} />Before the deeper analysis starts</strong>
           <ul>{preflight.issues.map((text) => <li key={text}>{text}</li>)}</ul>
+          {preflight.needsAgent && <AgentHelp onPairAgain={pairAgain} />}
           <div className="preflight-actions">
             <button type="button" className="btn-primary-action" onClick={() => { setDeep(false); run(selectedFile, false); }}>Run standard analysis</button>
             {!preflight.blocking && <button type="button" className="btn-ghost" onClick={() => run(selectedFile, true)}>Run deeper anyway</button>}
@@ -424,7 +443,7 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
             </>
           )}
           {deep && sandboxState?.paired && !sandboxState.online && (
-            <p className="choice-note"><Icon name="alert" size={14} />Your sandbox is offline. The attachments wait for it: start the E-TAP Sandbox Agent on the PC with your VM and the report updates by itself.</p>
+            <div className="choice-note stacked"><span><Icon name="alert" size={14} />Your sandbox is offline. The attachments wait for it: start the E-TAP Sandbox Agent on the PC with your VM and the report updates by itself.</span><AgentHelp onPairAgain={pairAgain} /></div>
           )}
           {deep && sandboxState?.paired && sandboxState.online && sandboxState.problem && (
             <p className="choice-note"><Icon name="alert" size={14} />The agent is running but cannot use your VM: {sandboxState.problem} The attachments wait until this is fixed.</p>

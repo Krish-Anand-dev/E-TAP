@@ -607,3 +607,8 @@ button.risk-tag:hover { transform: translateY(-1px); }
 .preflight-card strong { display: flex; align-items: center; gap: 7px; font-size: 13px; }
 .preflight-card ul { margin: 8px 0 0 18px; padding: 0; font-size: 12.5px; line-height: 1.6; }
 .preflight-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.agent-help { margin-top: 10px; padding: 10px 12px; border-radius: 9px; background: #fffdf6; border: 1px dashed #e2c58f; font-size: 12.5px; line-height: 1.6; }
+.agent-help p { margin: 0 0 4px; }
+.agent-help a, .link-button { color: #ad3845; font-weight: 600; text-decoration: underline; background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
+.choice-note.stacked { display: grid; gap: 4px; }
+.choice-note.stacked > span { display: inline-flex; align-items: center; gap: 7px; }

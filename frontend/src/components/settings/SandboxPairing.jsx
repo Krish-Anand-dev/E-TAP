@@ -72,6 +72,9 @@ export default function SandboxPairing({ compact = false, onChange }) {
               : 'It is ready for deeper analyses.'}
             {state.queued_jobs ? <> {state.queued_jobs} waiting.</> : null}
           </p>
+          {!state.online && (
+            <p className="agent-help">No agent on this PC yet? <a href={agentDownloadUrl()} target="_blank" rel="noopener noreferrer">Download the E-TAP Sandbox Agent</a>, right-click the zip, choose <b>Extract All</b> and double-click <b>start-agent.cmd</b>. Using a new PC or a re-installed agent? Unpair this browser and pair again with the new code.</p>
+          )}
           <button type="button" className="btn-ghost" onClick={unpair} disabled={busy}>Unpair this browser</button>
         </div>
       ) : (
