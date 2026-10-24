@@ -39,6 +39,8 @@ class VMSettings:
     vboxmanage: str = ""
     dwell_seconds: int = 30
     pdf_viewer: str = ""
+    # True only after the VM was started once and Windows accepted this user and password.
+    login_verified: bool = False
 
     @property
     def guest_password(self) -> str:
@@ -46,6 +48,7 @@ class VMSettings:
 
     def set_guest_password(self, password: str) -> None:
         self.guest_password_sealed = seal(password)
+        self.login_verified = False  # a new password has not been checked yet
 
 
 @dataclass
@@ -65,7 +68,7 @@ class AgentConfig:
 
     @property
     def is_set_up(self) -> bool:
-        return bool(self.vm.name and self.vm.guest_user and self.vm.guest_password_sealed)
+        return bool(self.vm.name and self.vm.guest_user and self.vm.guest_password_sealed and self.vm.login_verified)
 
     @property
     def is_registered(self) -> bool:

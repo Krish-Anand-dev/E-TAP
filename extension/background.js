@@ -14,7 +14,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     (async () => {
         if (request.action === 'sandboxStatus') {
             const state = await EtapSandbox.status();
-            return { success: true, state: { available: Boolean(state.available), paired: Boolean(state.paired), online: Boolean(state.online) } };
+            return { success: true, state: { available: Boolean(state.available), paired: Boolean(state.paired), online: Boolean(state.online), problem: state.problem || null } };
         }
         if (request.action === 'startEmailAnalysis') {
             const id = crypto.randomUUID();

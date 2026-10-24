@@ -16,13 +16,13 @@ The agent only makes outbound HTTPS requests to the E-TAP server. Nothing connec
 - Windows Sandbox (Windows Pro) support is planned. It is not needed today.
 
 ## Start
-1. Unzip the download and double-click `start-agent.cmd`. You can also run it from a terminal:
+1. Right-click the downloaded zip and choose **Extract All** (running `start-agent.cmd` from inside the zip viewer does not work: it needs the `sandbox_agent` folder next to it). Then open the extracted folder and double-click `start-agent.cmd`. You can also run it from a terminal:
    ```
    python -m sandbox_agent
    ```
-2. The agent checks the computer for VirtualBox and your VMs. It asks before each step, then asks which VM, snapshot and guest login to use, and shows a read-only checklist of the VM's isolation settings with a fix for anything that is not right (warnings never stop setup; run `check` to see it again). The password is stored protected by Windows for your user only.
+2. The agent checks the computer for VirtualBox and your VMs. It asks before each step, then asks which VM, snapshot and guest login to use, starts the VM once to confirm Windows accepts the login (a wrong password is refused and asked again, up to three tries), and shows a read-only checklist of the VM's isolation settings with a fix for anything that is not right (warnings never stop setup; run `check` to see it again). The password is stored protected by Windows for your user only.
 3. It shows a pairing code such as `K7QM-4XPN`. In the Gmail extension choose **Deeper attachment analysis → Pair your sandbox** and enter the code. You can also enter it on the dashboard's **Settings** page. The extension then shows **Your sandbox: online**.
-4. Leave the agent window open. When you ask for a deeper analysis, it collects the job, runs it and uploads the result, and the report updates by itself.
+4. Leave the agent window open. While it runs it re-checks every 20 seconds that VirtualBox, the VM, the clean snapshot and the login are still fine and reports that, so the dashboard shows *online*, *needs attention* (with the reason) or *offline* truthfully. When you ask for a deeper analysis, it collects the job, runs it and uploads the result, and the report updates by itself.
 
 Pairing happens once. Next time, `start-agent.cmd` goes straight to waiting for jobs.
 

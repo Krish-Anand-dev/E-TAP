@@ -593,3 +593,4 @@ button.risk-tag:hover { transform: translateY(-1px); }
 .pair-inline-head span { font-size: 12px; color: #61697a; }
 
 .animation-setting { margin-top: 16px; }
+.sandbox-pill.attention { background: #fde4e1; color: #a2281f; }

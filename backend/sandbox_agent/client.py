@@ -63,8 +63,9 @@ class Client:
     def new_pairing_code(self) -> dict:
         return self._request("POST", "/sandbox/agent/pairing-code", {})
 
-    def next_job(self) -> dict | None:
-        return self._request("POST", "/sandbox/agent/jobs/next", {}).get("job")
+    def next_job(self, health: dict | None = None) -> dict | None:
+        """Ask for work. The VM's health rides along so the dashboard can tell the truth."""
+        return self._request("POST", "/sandbox/agent/jobs/next", {"health": health} if health else {}).get("job")
 
     def sample(self, job_id: str, index: int) -> bytes:
         return self._request("GET", f"/sandbox/agent/jobs/{job_id}/samples/{index}", raw=True, timeout=180)

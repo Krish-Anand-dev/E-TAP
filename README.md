@@ -149,7 +149,7 @@ On your PC you also need **Python 3.10 or newer** (from python.org, with "Add to
 The first time, it says **Your sandbox: not paired** and shows three steps.
 
 ### 2. Download and start the agent
-1. Click **Download the E-TAP Sandbox Agent**, unzip `etap-sandbox-agent.zip` and double-click **`start-agent.cmd`**.
+1. Click **Download the E-TAP Sandbox Agent**, right-click the zip and choose **Extract All** (do not run it from inside the zip), then open the extracted folder and double-click **`start-agent.cmd`**.
 2. The agent asks permission, then checks your computer:
    - Windows and Python;
    - VirtualBox and its version;
@@ -158,13 +158,15 @@ The first time, it says **Your sandbox: not paired** and shows three steps.
    - whether Windows is running its hypervisor (Hyper-V, WSL2, Windows Sandbox), which can make VirtualBox slow;
    - whether Windows Sandbox exists (optional).
    Nothing in the VM is changed during setup, and the VM is not started. A warning does not stop setup.
-3. Choose your VM, type the clean snapshot name, the guest Windows user and its password (hidden while typing).
+3. Choose your VM, type the clean snapshot name, the guest Windows user and its password (hidden while typing). **The agent then starts the VM once and checks that Windows really accepts that login.** A wrong user or password is refused (it asks again, three tries) and is never saved as set up. The VM is restored to its clean snapshot afterwards.
 4. Answer whether attachments should open automatically when you ask for a deeper analysis. Answering *no* means the agent asks you each time.
 5. The agent shows a **pairing code** such as `K7QM-4XPN`. It works once and expires in 10 minutes.
 
 Optional checks:
 - `start-agent.cmd check` repeats the read-only checks above at any time without starting the VM.
-- `start-agent.cmd test` restores the VM once and confirms that the guest login, Sysmon and the Defender log all work. The two checks are separate because only `test` starts the VM.
+- `start-agent.cmd test` restores the VM once and confirms that the guest login, Sysmon and the Defender log all work. The two checks are separate because only `test` starts the VM (setup also starts it once, to verify the login).
+
+**What "online" means.** While it runs, the agent re-checks every 20 seconds that VirtualBox answers, the VM still exists, the clean snapshot still exists and the login was verified, and tells E-TAP. The page shows **Your sandbox: online** only when all of that is true, **needs attention** (with the reason) when the agent runs but the VM is not usable, and **offline** within about 30 seconds of the agent window closing. The page refreshes this by itself. A VM that is merely powered off or aborted is fine: every run starts from the clean snapshot.
 
 ### 3. Pair (once)
 Type the code into the box on the website (or the extension's tab) and click **Pair**. The page shows **Your sandbox: online**, and the agent window says *Paired*. Keep the agent window open: it is your sandbox. The pairing is remembered, so you never enter a code again in that browser.

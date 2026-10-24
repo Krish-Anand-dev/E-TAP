@@ -40,3 +40,10 @@ In Fast mode a standard analysis took about 7 seconds on the development machine
 - A fresh-machine run of the agent by someone other than the author, following the README. This is the real proof that deeper analysis works for another user.
 - VirtualBox on a Hyper-V host: the agent only warns.
 - The agent zip is unsigned (SmartScreen will likely warn) and attachments pass through the hosted server's database on the way to the user's VM.
+
+## Follow-up (2026-10-25): honest sandbox status and a verified login
+Found while testing as a user: a wrong guest password was accepted, and the dashboard kept saying *online* when the VM was not usable.
+- **Why:** setup never started the VM, so the login was never checked; a wrong password later looked like a slow boot (four minutes of retries). "Online" only meant that the agent program was polling.
+- **Login:** setup now starts the VM once and confirms Windows accepts the login before anything counts as set up. A rejected login fails in about 30 seconds, is refused (three tries) and is not saved as working. A login rejected during a run clears the verified flag.
+- **Status:** the agent re-reads its VM health every 20 seconds (VirtualBox answers, VM and clean snapshot exist, login verified) and sends it with each poll. The server exposes `online`, `ready` and `problem`; the dashboard and extension show *online*, *needs attention* (with the reason) or *offline*. The Analyze page refreshes it every 10 seconds, so it cannot go stale.
+- **Checked live on a real VM:** a deliberately wrong password was refused in 27 seconds, the right one accepted, a deleted snapshot showed as *needs attention*, and closing the agent turned the dashboard to *offline* within about 40 seconds without a reload.

@@ -177,6 +177,54 @@ class SandboxAgentTests(unittest.TestCase):
         self.assertIs(sandbox["defender_checked"], False)
         self.assertIn("not checked", sandbox["defender_note"])
 
+    def test_online_means_the_vm_is_usable_not_just_that_the_agent_runs(self):
+        auth, client = self.pair()
+
+        def poll(health=None):
+            return self.client.post("/sandbox/agent/jobs/next", headers=auth, json={"health": health} if health else {})
+
+        poll({"ok": True, "reason": None})
+        state = self.client.get("/sandbox/pairing", headers=client).json()
+        self.assertEqual((state["online"], state["ready"], state["problem"]), (True, True, None))
+
+        # The VM was deleted or the login stopped working: still polling, but not usable.
+        poll({"ok": False, "reason": "The VM 'win 11' was not found in VirtualBox."})
+        state = self.client.get("/sandbox/pairing", headers=client).json()
+        self.assertEqual((state["online"], state["ready"]), (True, False))
+        self.assertIn("not found", state["problem"])
+
+        # Fixed again.
+        poll({"ok": True})
+        self.assertTrue(self.client.get("/sandbox/pairing", headers=client).json()["ready"])
+
+        # Malformed health is ignored, never trusted.
+        poll({"ok": "yes", "reason": "x" * 5000})
+        self.assertTrue(self.client.get("/sandbox/pairing", headers=client).json()["ready"])
+
+    def test_agent_that_stops_polling_goes_offline(self):
+        auth, client = self.pair()
+        self.client.post("/sandbox/agent/jobs/next", headers=auth, json={"health": {"ok": True}})
+        with patch.object(agent_queue, "_now", return_value=time.time() + 120):
+            state = self.client.get("/sandbox/pairing", headers=client).json()
+        self.assertEqual((state["online"], state["ready"]), (False, False))
+
+    def test_agent_busy_in_a_run_still_counts_as_online(self):
+        auth, client = self.pair()
+        self.analyze(client)
+        job = self.client.post("/sandbox/agent/jobs/next", headers=auth).json()["job"]
+        self.client.post(f"/sandbox/agent/jobs/{job['job_id']}/progress", headers=auth, json={"status": "interacting"})
+        with patch.object(agent_queue, "_now", return_value=time.time() + 120):
+            state = self.client.get("/sandbox/pairing", headers=client).json()
+        self.assertTrue(state["online"] and state["busy"])
+
+    def test_timeline_says_when_the_agent_reports_a_problem(self):
+        auth, client = self.pair()
+        reason = "The clean snapshot 'clean' no longer exists on 'win 11'."
+        self.client.post("/sandbox/agent/jobs/next", headers=auth, json={"health": {"ok": False, "reason": reason}})
+        report = self.analyze(client)
+        self.assertEqual(report["sandbox"]["status"], "queued")
+        self.assertFalse(report["sandbox"]["agent_ready"])
+
     def test_dtd_in_telemetry_is_refused(self):
         auth, client = self.pair()
         self.analyze(client)

@@ -151,7 +151,12 @@ async def agent_pairing_code(request: Request) -> dict:
 @limiter.limit("60/minute")
 async def agent_next_job(request: Request) -> dict:
     queue, agent = _agent(request)
-    return {"job": _call(queue, queue.next_job, agent)}
+    try:
+        body = await request.json()
+    except ValueError:
+        body = {}
+    health = body.get("health") if isinstance(body, dict) else None
+    return {"job": _call(queue, queue.next_job, agent, health)}
 
 
 @router.get("/sandbox/agent/jobs/{job_id}/samples/{index}")

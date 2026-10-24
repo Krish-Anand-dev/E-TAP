@@ -135,20 +135,25 @@ def _sandbox_plan(attachments: list, sandbox: dict | None) -> tuple[str, list, d
             return backend, [], None, "skipped", "No attachments to open in the sandbox"
         agent = None
         online = False
+        problem = None
         # Every backend runs only when the caller chose a deeper analysis.
         if not (sandbox or {}).get("requested"):
             return backend, [], None, "skipped", "Standard analysis: attachments were not opened"
         if backend == "agent":
-            from sandbox.agent_queue import agent_for_client, is_online
+            from sandbox.agent_queue import agent_for_client, is_online, problem_of
             agent = agent_for_client((sandbox or {}).get("token"))
             if agent is None:
                 return backend, [], None, "not_available", "Deeper analysis needs your sandbox to be paired first"
             online = is_online(agent)
+            problem = problem_of(agent) if online else None
         candidates = get_detonation_candidates(attachments)
         if not candidates:
             return backend, [], agent, "skipped", "No attachment type that needs dynamic analysis"
         where = {
-            "agent": "sent to your sandbox" + ("" if online else " (offline now; it runs when the agent reconnects)"),
+            "agent": "sent to your sandbox" + (
+                "" if online and not problem else
+                f" (it reports a problem: {problem})" if online else
+                " (offline now; it runs when the agent reconnects)"),
             "virtualbox": "queued for the Windows 11 VM",
             "replay": "checked against a recorded trace",
         }[backend]

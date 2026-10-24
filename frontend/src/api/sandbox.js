@@ -47,7 +47,16 @@ export function sandboxRequestHeaders() {
   return headers();
 }
 
+/** online = the agent runs AND reports a usable VM; online with a problem is "needs attention". */
 export function sandboxStateLabel(state) {
   if (!state?.paired) return 'Your sandbox: not paired';
-  return state.online ? 'Your sandbox: online' : 'Your sandbox: offline';
+  if (!state.online) return 'Your sandbox: offline';
+  return state.problem ? 'Your sandbox: needs attention' : 'Your sandbox: online';
+}
+
+/** CSS tone for the status pill: '' | 'online' | 'attention' | 'offline'. */
+export function sandboxStateTone(state) {
+  if (!state?.paired) return '';
+  if (!state.online) return 'offline';
+  return state.problem ? 'attention' : 'online';
 }

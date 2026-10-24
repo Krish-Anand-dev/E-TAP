@@ -26,9 +26,11 @@ from pathlib import Path
 
 from . import __version__, config as cfgmod
 from .client import Client, ServerError
-from .recon import hypervisor_present, preflight_checks, read_env_file, system_checks
+from .recon import hypervisor_present, preflight_checks, read_env_file, system_checks, vm_health
 
 POLL_SECONDS = 5
+HEALTH_SECONDS = 20   # how often the VM's health is re-read and reported to the server
+MAX_LOGIN_TRIES = 3
 
 logger = logging.getLogger("E-TAP.agent")
 
@@ -74,6 +76,32 @@ def print_checks(checks) -> None:
 
 # -- setup ----------------------------------------------------------------------
 
+def verify_guest(config: cfgmod.AgentConfig) -> tuple[bool, str]:
+    """Start the VM from its clean snapshot and confirm Windows accepts the saved login.
+
+    Always restores the snapshot afterwards. Returns (ok, plain-language message)."""
+    from .vbox import GuestLoginError, VBoxError
+    vbox = _vbox(config)
+    try:
+        vbox.restore()
+        vbox.start()
+        vbox.wait_ready()
+        return True, ""
+    except GuestLoginError:
+        return False, (f"Windows in the VM rejected the user '{config.vm.guest_user}' or its password. "
+                       "Use the Windows account you sign in with inside the VM (not your PC's account).")
+    except TimeoutError:
+        return False, ("The VM started but Windows did not answer within 4 minutes. Check that VirtualBox Guest "
+                       "Additions are installed in the VM and that the snapshot was taken after signing in.")
+    except VBoxError as exc:
+        return False, f"VirtualBox reported a problem: {exc}"
+    finally:
+        try:
+            vbox.restore()
+        except Exception as exc:  # never leave the VM running silently
+            logger.warning("Could not restore the snapshot after the login check: %s", exc)
+
+
 def cmd_setup(args, config: cfgmod.AgentConfig) -> cfgmod.AgentConfig:
     say("E-TAP Sandbox Agent setup")
     say("This will:")
@@ -81,7 +109,8 @@ def cmd_setup(args, config: cfgmod.AgentConfig) -> cfgmod.AgentConfig:
     say("  - save the VM you choose and its guest login in your user profile,")
     say(f"    protected by Windows ({cfgmod.config_path()})")
     say(f"  - connect to the E-TAP server at {args.server or config.server_url}")
-    say("Nothing is changed in your VM during setup.")
+    say("Setup starts the VM once in the background to confirm the guest login works,")
+    say("then restores its clean snapshot. Nothing is kept from that run.")
     if not ask_yes("Continue?", True, args.yes):
         raise SystemExit("Setup cancelled.")
     if args.server:
@@ -113,20 +142,45 @@ def cmd_setup(args, config: cfgmod.AgentConfig) -> cfgmod.AgentConfig:
     say("\nChecking the VM (read-only; it is not started):")
     print_checks(preflight_checks(vm.name, vm.snapshot, vm.vboxmanage or None, hypervisor_present()))
     say("A '--' above is a warning, not a stop. Run `check` any time to see this list again.")
-    vm.guest_user = imported.get("guest_user") or input(
-        f"Guest Windows user{f' [{vm.guest_user}]' if vm.guest_user else ''}: ").strip() or vm.guest_user
-    password = imported.get("guest_password")
-    if password is None and (not vm.guest_password_sealed or not args.yes):
-        typed = getpass.getpass("Guest Windows password (hidden; Enter keeps the saved one): ")
-        password = typed or None
-    if password is not None:
-        vm.set_guest_password(password)
     if imported.get("dwell_seconds"):
         vm.dwell_seconds = int(imported["dwell_seconds"])
     if "pdf_viewer" in imported:
         vm.pdf_viewer = imported["pdf_viewer"]
-    if not (vm.guest_user and vm.guest_password_sealed):
-        raise SystemExit("A guest user and password are needed to open files inside the VM.")
+
+    # The login is checked against the real VM before anything is saved as "set up":
+    # a wrong password must never look like a working sandbox.
+    typed_user = imported.get("guest_user")
+    typed_password = imported.get("guest_password")
+    for attempt in range(1, MAX_LOGIN_TRIES + 1):
+        previous_user = vm.guest_user
+        vm.guest_user = typed_user or input(
+            f"Guest Windows user{f' [{vm.guest_user}]' if vm.guest_user else ''}: ").strip() or vm.guest_user
+        if vm.guest_user != previous_user:
+            vm.login_verified = False
+        if typed_password is None and (not vm.guest_password_sealed or not args.yes):
+            typed = getpass.getpass("Guest Windows password (hidden; Enter keeps the saved one): ")
+            typed_password = typed or None
+        if typed_password is not None:
+            vm.set_guest_password(typed_password)
+        if not (vm.guest_user and vm.guest_password_sealed):
+            raise SystemExit("A guest user and password are needed to open files inside the VM.")
+        say("\nChecking the login in the VM (starts it once; about a minute)...")
+        ok, message = verify_guest(config)
+        if ok:
+            vm.login_verified = True
+            say("  The VM accepted the login.")
+            break
+        vm.login_verified = False
+        cfgmod.save(config)
+        say(f"  {message}")
+        if args.yes or not sys.stdin.isatty():
+            raise SystemExit("\nSetup stopped: the VM login was not accepted, so nothing is set up. "
+                             "Fix the user or password and run setup again.")
+        if attempt == MAX_LOGIN_TRIES:
+            raise SystemExit("\nSetup stopped after 3 tries. The login is not saved as working; run setup again "
+                             "when you know the VM's Windows user and password.")
+        say(f"  Try again ({attempt}/{MAX_LOGIN_TRIES}).")
+        typed_user, typed_password = None, None
 
     config.auto_run = ask_yes("\nWhen you ask E-TAP for a deeper analysis, open the attachments in this VM "
                               "automatically? (No = ask here each time)", True, args.yes)
@@ -236,6 +290,11 @@ def handle_job(client: Client, config: cfgmod.AgentConfig, job: dict, assume_yes
 
     work_dir = cfgmod.config_dir() / "work" / job_id
     record = runner.run_job(job_id, samples, work_dir, vbox=_vbox(config), on_status=on_status)
+    if record.get("login_error"):
+        config.vm.login_verified = False
+        cfgmod.save(config)
+        say("  Windows in the VM rejected the saved login. Run `setup` to enter it again; "
+            "the dashboard shows 'needs attention' until then.")
     for item, sample in zip(record["items"], samples):
         item["index"] = sample["index"]
     payload = {
@@ -271,12 +330,26 @@ def cmd_run(args, config: cfgmod.AgentConfig) -> None:
             raise SystemExit("This agent has no paired E-TAP client yet. Run `pair` first.")
     except ServerError as exc:
         raise SystemExit(f"Cannot use this agent: {exc}")
-    say(f"\nYour sandbox: online ({config.vm.name}, snapshot '{config.vm.snapshot}').")
-    say(f"Waiting for deeper-analysis requests from {config.server_url}. Press Ctrl+C to stop.")
+    if not config.is_set_up:
+        raise SystemExit("The VM login has not been verified yet. Run `setup` first.")
+    say(f"\nWaiting for deeper-analysis requests from {config.server_url}. Press Ctrl+C to stop.")
     offline_since = None
+    health, health_at, last_reason = None, 0.0, object()
     while True:
+        # "Online" on the dashboard must mean the VM is usable, not just that this window
+        # is open, so the VM's health is re-read every few seconds and sent with each poll.
+        if health is None or time.time() - health_at >= HEALTH_SECONDS:
+            health = vm_health(config.vm.name, config.vm.snapshot, config.vm.vboxmanage or None, config.vm.login_verified)
+            health_at = time.time()
+            if health["reason"] != last_reason:
+                last_reason = health["reason"]
+                if health["ok"]:
+                    say(f"Your sandbox: online ({config.vm.name}, snapshot '{config.vm.snapshot}').")
+                else:
+                    say(f"Your sandbox needs attention: {health['reason']}")
+                    say("The dashboard shows this too, and shows 'online' again once it is fixed.")
         try:
-            job = client.next_job()
+            job = client.next_job(health)
             if offline_since:
                 say("Connection restored. Your sandbox: online.")
                 offline_since = None
@@ -290,6 +363,7 @@ def cmd_run(args, config: cfgmod.AgentConfig) -> None:
             continue
         if job:
             handle_job(client, config, job, args.yes)
+            health = None  # re-read right away: the run may have found a problem
             if args.once:
                 return
             continue
@@ -339,7 +413,13 @@ def cmd_test(args, config: cfgmod.AgentConfig) -> None:
         else:
             say(f"  Windows Defender log NOT readable after {took:.0f} s: {reason}")
     except Exception as exc:
-        say(f"  Test failed: {exc}")
+        from .vbox import GuestLoginError
+        if isinstance(exc, GuestLoginError):
+            config.vm.login_verified = False
+            cfgmod.save(config)
+            say("  Windows in the VM rejected the saved login. Run `setup` to enter it again.")
+        else:
+            say(f"  Test failed: {exc}")
     finally:
         say("  Restoring the clean snapshot...")
         try:
@@ -353,6 +433,7 @@ def cmd_status(args, config: cfgmod.AgentConfig) -> None:
     say(f"Settings file: {cfgmod.config_path()}")
     say(f"Server: {config.server_url}")
     say(f"VM: {config.vm.name or '(not set)'} / snapshot '{config.vm.snapshot}' / user {config.vm.guest_user or '(not set)'}")
+    say(f"VM login: {'verified' if config.vm.login_verified else 'NOT verified (run setup)'}")
     say(f"Open attachments automatically: {'yes' if config.auto_run else 'ask each time'}")
     if not config.is_registered:
         say("Pairing: not registered with the server yet.")

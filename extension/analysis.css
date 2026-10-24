@@ -21,6 +21,7 @@ input { max-width: 100%; }
 .pill { display: inline-block; border-radius: 999px; padding: 4px 12px; font-size: 13px; font-weight: 700; background: #eef1f5; color: #52677c; }
 .pill.online { background: #e3f6ea; color: #17663a; }
 .pill.offline { background: #fff4e5; color: #7a3e00; }
+.pill.attention { background: #fde4e1; color: #a2281f; }
 ol { padding-left: 20px; line-height: 1.7; font-size: 14px; }
 .pair-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .pair-row input { font: 600 18px/1 ui-monospace, Consolas, monospace; letter-spacing: .12em; text-transform: uppercase; padding: 9px 12px; border: 1px solid #b9c5d1; border-radius: 7px; width: 12ch; }

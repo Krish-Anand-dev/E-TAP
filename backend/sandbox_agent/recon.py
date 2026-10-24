@@ -135,6 +135,33 @@ def preflight_checks(vm: str, snapshot: str, vboxmanage: str | None = None,
     return checks
 
 
+def vm_health(vm: str, snapshot: str, vboxmanage: str | None = None, login_verified: bool = True) -> dict:
+    """Is this sandbox actually usable right now? Read-only; never starts the VM.
+
+    {"ok": bool, "reason": str | None}. The agent reports this with every poll, so the
+    dashboard's "online" means more than "the agent program is running": VirtualBox
+    answers, the VM exists and is readable, the clean snapshot exists and the guest
+    login was verified. A VM that is merely powered off or aborted is fine: every run
+    restores the snapshot first.
+    """
+    exe = vboxmanage or os.getenv("VBOXMANAGE_PATH") or default_vboxmanage()
+    if not vboxmanage_version(exe):
+        return {"ok": False, "reason": "VirtualBox is not responding on this PC."}
+    try:
+        if vm not in list_vms(exe):
+            return {"ok": False, "reason": f"The VM '{vm}' was not found in VirtualBox (renamed or deleted?)."}
+        values = _vm_values(show_vm_info(vm, exe))
+    except VBoxError as exc:
+        return {"ok": False, "reason": f"VirtualBox could not read the VM: {str(exc)[:120]}"}
+    if values.get("VMState") == "inaccessible":
+        return {"ok": False, "reason": f"The VM '{vm}' is inaccessible (its files are missing or locked)."}
+    if snapshot not in list_snapshots(vm, exe):
+        return {"ok": False, "reason": f"The clean snapshot '{snapshot}' no longer exists on '{vm}'."}
+    if not login_verified:
+        return {"ok": False, "reason": "The VM login has not been verified. Run setup again."}
+    return {"ok": True, "reason": None}
+
+
 ENV_KEYS = {
     "SANDBOX_VM_NAME": "name",
     "SANDBOX_SNAPSHOT": "snapshot",

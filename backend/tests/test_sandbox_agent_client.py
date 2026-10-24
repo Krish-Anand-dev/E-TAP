@@ -34,6 +34,7 @@ class AgentConfigTests(unittest.TestCase):
         config = cfgmod.AgentConfig(server_url="http://127.0.0.1:5010")
         config.vm.name, config.vm.guest_user = "Win11-Sandbox", "sandbox"
         config.vm.set_guest_password("pw")
+        config.vm.login_verified = True
         config.agent_id = "agt_1"
         config.set_agent_token("eta_secret")
         path = cfgmod.save(config)
@@ -96,6 +97,86 @@ class HandleJobTests(unittest.TestCase):
             cli.handle_job(client, self.config, {"job_id": "job_2", "samples": []})
         run.assert_not_called()
         self.assertIn("Declined", client.result.call_args.args[1]["error"])
+
+
+class LoginVerificationTests(unittest.TestCase):
+    """A wrong guest password must never count as a working sandbox."""
+
+    def setUp(self):
+        self.home = tempfile.TemporaryDirectory()
+        self.addCleanup(self.home.cleanup)
+        env = patch.dict(os.environ, {"ETAP_AGENT_HOME": self.home.name})
+        env.start()
+        self.addCleanup(env.stop)
+
+    def test_rejected_password_fails_fast_not_after_four_minutes(self):
+        import subprocess
+        from sandbox_agent.vbox import GuestLoginError, VBox, VBoxError
+        vbox = VBox(vm="v", snapshot="clean", user="sandbox", password="wrong", exe="x")
+        denied = VBoxError("VBoxManage guestcontrol failed: VERR_AUTHENTICATION_FAILURE: The specified user was not able to logon on guest")
+        with patch.object(vbox, "_gc", side_effect=denied), patch("sandbox_agent.vbox.time.sleep"):
+            with self.assertRaises(GuestLoginError):
+                vbox.wait_ready(limit=240)
+        # A single early rejection while Windows is still starting is tolerated.
+        ready = subprocess.CompletedProcess([], 0, "ready", "")
+        with patch.object(vbox, "_gc", side_effect=[denied, ready]), patch("sandbox_agent.vbox.time.sleep"):
+            self.assertTrue(vbox.wait_ready())
+
+    def test_config_is_not_set_up_until_the_login_was_verified(self):
+        config = cfgmod.AgentConfig()
+        config.vm.name, config.vm.guest_user = "win 11", "sandbox"
+        config.vm.set_guest_password("pw")
+        self.assertFalse(config.is_set_up)
+        config.vm.login_verified = True
+        self.assertTrue(config.is_set_up)
+        config.vm.set_guest_password("other")  # a new password has not been checked
+        self.assertFalse(config.is_set_up)
+
+    def test_verify_guest_reports_rejection_and_always_restores(self):
+        from sandbox_agent.vbox import GuestLoginError
+        config = cfgmod.AgentConfig()
+        config.vm.name, config.vm.guest_user = "win 11", "sandbox"
+        config.vm.set_guest_password("wrong")
+        vbox = MagicMock()
+        vbox.wait_ready.side_effect = GuestLoginError("rejected")
+        with patch.object(cli, "_vbox", return_value=vbox):
+            ok, message = cli.verify_guest(config)
+        self.assertFalse(ok)
+        self.assertIn("rejected the user 'sandbox'", message)
+        self.assertEqual(vbox.restore.call_count, 2)  # before starting and after the check
+
+    def test_setup_stops_without_a_working_login_when_the_vm_says_no(self):
+        config = cfgmod.AgentConfig()
+        args = MagicMock(yes=True, server=None, from_env=None)
+        virtualbox_ok = MagicMock(ok=True)
+        virtualbox_ok.name = "VirtualBox"
+        with patch.object(cli, "system_checks", return_value=([virtualbox_ok], ["win 11"])), \
+             patch.object(cli, "preflight_checks", return_value=[]), patch.object(cli, "hypervisor_present", return_value=False), \
+             patch.object(cli, "verify_guest", return_value=(False, "rejected")), patch.object(cli, "choose", return_value="win 11"), \
+             patch("builtins.input", return_value="sandbox"), patch("getpass.getpass", return_value="wrong"):
+            with self.assertRaises(SystemExit) as stop:
+                cli.cmd_setup(args, config)
+        self.assertIn("nothing is set up", str(stop.exception))
+        self.assertFalse(cfgmod.load().is_set_up)
+
+
+class HealthTests(unittest.TestCase):
+    def test_vm_health_names_what_is_wrong(self):
+        from sandbox_agent import recon
+        with patch.object(recon, "vboxmanage_version", return_value=None):
+            self.assertIn("VirtualBox is not responding", recon.vm_health("v", "clean")["reason"])
+        with patch.object(recon, "vboxmanage_version", return_value="7.2"), patch.object(recon, "list_vms", return_value=["other"]):
+            self.assertIn("not found", recon.vm_health("v", "clean")["reason"])
+        ok_env = dict(vboxmanage_version=MagicMock(return_value="7.2"), list_vms=MagicMock(return_value=["v"]),
+                      show_vm_info=MagicMock(return_value='VMState="poweroff"'))
+        with patch.multiple(recon, **ok_env), patch.object(recon, "list_snapshots", return_value=[]):
+            self.assertIn("no longer exists", recon.vm_health("v", "clean")["reason"])
+        with patch.multiple(recon, **ok_env), patch.object(recon, "list_snapshots", return_value=["clean"]):
+            self.assertEqual(recon.vm_health("v", "clean"), {"ok": True, "reason": None})  # powered off is fine
+            self.assertIn("not been verified", recon.vm_health("v", "clean", login_verified=False)["reason"])
+        inaccessible = dict(ok_env, show_vm_info=MagicMock(return_value='VMState="inaccessible"'))
+        with patch.multiple(recon, **inaccessible):
+            self.assertIn("inaccessible", recon.vm_health("v", "clean")["reason"])
 
 
 class DefenderCheckpointTests(unittest.TestCase):

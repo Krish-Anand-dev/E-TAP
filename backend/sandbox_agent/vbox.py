@@ -32,6 +32,18 @@ class VBoxError(Exception):
     pass
 
 
+class GuestLoginError(VBoxError):
+    """The guest rejected the Windows user name or password."""
+
+
+_LOGIN_FAILURE = ("VERR_AUTHENTICATION_FAILURE", "not able to logon", "user name or password", "logon failure")
+
+
+def is_login_failure(message: str) -> bool:
+    text = (message or "").lower()
+    return any(marker.lower() in text for marker in _LOGIN_FAILURE)
+
+
 class GuestProcessTimeout(VBoxError):
     """A started guest process reached its observation limit."""
 
@@ -126,6 +138,7 @@ class VBox:
         """
         logger.info("Waiting for guest to become ready (limit: %ds)", limit)
         t = time.time()
+        rejected = 0
         while time.time() - t < limit:
             try:
                 result = self._gc(
@@ -137,12 +150,17 @@ class VBox:
                 if "ready" in (result.stdout or ""):
                     logger.info("Guest ready after %.1fs", time.time() - t)
                     return True
-            except (VBoxError, subprocess.TimeoutExpired):
-                pass
+            except (VBoxError, subprocess.TimeoutExpired) as exc:
+                # A wrong password must not look like a slow boot: two rejections in a
+                # row (one can happen while Windows is still starting) end the wait.
+                rejected = rejected + 1 if is_login_failure(str(exc)) else 0
+                if rejected >= 2:
+                    raise GuestLoginError(
+                        f"Windows in the VM rejected the user name or password for '{self.user}'.") from None
             except Exception:
                 # Catch "terminated" guest session and other transient errors
-                pass
-            time.sleep(5)
+                rejected = 0
+            time.sleep(3 if rejected else 5)
         raise TimeoutError(f"Guest did not become ready within {limit}s")
 
     def copy_to(self, host_file: str, guest_dir: str):
