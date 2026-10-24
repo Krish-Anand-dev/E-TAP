@@ -349,22 +349,58 @@ test('worker records the deeper-analysis choice on the handoff', async () => {
     assert.equal(jobs.get(second.jobId).deep, false);
 });
 
-test('Analyze asks standard or deeper first, with the requirement explained', async () => {
+function findByText(node, text) {
+    if (node.textContent === text) return node;
+    for (const child of node.children || []) {
+        const found = findByText(child, text);
+        if (found) return found;
+    }
+    return null;
+}
+
+test('Analyze in E-TAP runs a standard analysis in one click and never touches the sandbox', async () => {
     const calls = [];
-    const sandbox = content((request, callback) => {
-        calls.push(request);
-        callback(request.action === 'sandboxStatus'
-            ? { success: true, state: { available: true, paired: true, online: true } }
-            : { success: true, jobId: 'job1' });
-    });
-    vm.runInContext('renderChoice(container, null, emailKey(extractEmailData()))', sandbox);
-    const text = allText(sandbox.rendered);
-    assert.match(text, /Standard analysis/);
-    assert.match(text, /Deeper attachment analysis/);
-    const info = sandbox.rendered.children[2].children[1].children[1];
+    const sandbox = content((request, callback) => { calls.push(request); callback({ success: true, jobId: 'job1' }); });
+    sandbox.api.referenceFor = () => ({});
+    sandbox.api.fetchOriginal = async () => raw.toString('base64');
+    vm.runInContext('renderIdle(container, null, emailKey(extractEmailData()))', sandbox);
+    const idle = sandbox.rendered;
+    assert.doesNotMatch(allText(idle), /How should E-TAP check/);
+    findByText(idle, 'Analyze in E-TAP').listeners.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(calls[0].action, 'startEmailAnalysis');
+    assert.equal(calls[0].deep, false);
+    assert.ok(calls.every((call) => call.action !== 'sandboxStatus'), 'Standard must not ask about the sandbox');
+});
+
+test('Deeper analysis is a separate optional link that explains what it needs', async () => {
+    const calls = [];
+    const sandbox = content((request, callback) => { calls.push(request); callback({ success: true, jobId: 'job1' }); });
+    sandbox.api.referenceFor = () => ({});
+    sandbox.api.fetchOriginal = async () => raw.toString('base64');
+    vm.runInContext('renderIdle(container, null, emailKey(extractEmailData()))', sandbox);
+    const idle = sandbox.rendered;
+    assert.equal(calls.length, 0, 'rendering the banner sends nothing');
+    const info = idle.children[2].children[1].children[1];
     assert.match(info.title, /VirtualBox VM/);
     assert.match(info.title, /Windows Pro/);
+    assert.match(info.title, /Optional/);
+    findByText(idle, 'Deeper analysis').listeners.click();
     await new Promise((resolve) => setTimeout(resolve, 0));
-    assert.match(allText(sandbox.rendered), /Your sandbox: online/);
-    assert.equal(calls[0].action, 'sandboxStatus');
+    assert.equal(calls[0].action, 'startEmailAnalysis');
+    assert.equal(calls[0].deep, true);
+});
+
+test('deeper analysis without the original email falls back to standard and says why', async () => {
+    const result = await page({ id: 'job1', state: 'ready', rawEmailBase64: null, deep: true, data: { body: 'Visible' } },
+        async () => Response.json({ email_id: 'report1' }));
+    assert.equal(new URL(result.destination).searchParams.get('dossier'), 'report1');
+    assert.match(result.nodes.coverage.textContent, /none were opened/);
+});
+
+test('network failures are shown in plain words', async () => {
+    const result = await page({ state: 'ready', data: { body: 'Visible' } }, async () => { throw new TypeError('Failed to fetch'); });
+    assert.equal(result.destination, undefined);
+    assert.match(result.nodes.status.textContent, /Couldn't reach E-TAP/);
+    assert.equal(result.nodes.retry.hidden, false);
 });

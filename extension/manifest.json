@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "E-TAP — Email Threat Analysis",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "Open a Gmail email in E-TAP for analysis, with optional deeper attachment analysis in your own paired sandbox.",
   "permissions": [
     "activeTab",

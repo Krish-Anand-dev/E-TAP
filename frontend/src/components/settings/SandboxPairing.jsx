@@ -83,7 +83,7 @@ export default function SandboxPairing({ compact = false, onChange }) {
             <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="ABCD-1234" aria-label="Pairing code" maxLength={12} spellCheck={false} autoComplete="off" />
             <button type="submit" className="btn-primary-action" disabled={busy || code.replace(/[^a-z0-9]/gi, '').length !== 8}>Pair</button>
           </form>
-          <p className="pair-req"><Icon name="alert" size={14} />Requires a VirtualBox VM with Sysmon and a clean snapshot. Windows Sandbox (Windows Pro) support is planned.</p>
+          <p className="pair-req"><Icon name="alert" size={14} />Optional. You need Python 3.10 or newer and a Windows virtual machine in VirtualBox, set up with the agent's guide. Windows Sandbox (Windows Pro) support is planned. Without these, Standard analysis still checks everything except opening the attachments.</p>
         </>
       )}
       {message && <p className={`settings-msg ${message.tone}`} role="status">{message.text}</p>}

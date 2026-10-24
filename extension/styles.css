@@ -176,6 +176,13 @@ button.etap-btn {
     cursor: pointer;
 }
 
+.etap-choice .etap-btn-link {
+    background: none;
+    border-color: transparent;
+    color: inherit;
+    text-decoration: underline;
+}
+
 .etap-deep {
     display: inline-flex;
     align-items: center;

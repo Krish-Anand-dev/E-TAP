@@ -20,7 +20,7 @@ The agent only makes outbound HTTPS requests to the E-TAP server. Nothing connec
    ```
    python -m sandbox_agent
    ```
-2. The agent checks the computer for VirtualBox and your VMs. It asks before each step, then asks which VM, snapshot and guest login to use. The password is stored protected by Windows for your user only.
+2. The agent checks the computer for VirtualBox and your VMs. It asks before each step, then asks which VM, snapshot and guest login to use, and shows a read-only checklist of the VM's isolation settings with a fix for anything that is not right (warnings never stop setup; run `check` to see it again). The password is stored protected by Windows for your user only.
 3. It shows a pairing code such as `K7QM-4XPN`. In the Gmail extension choose **Deeper attachment analysis → Pair your sandbox** and enter the code. You can also enter it on the dashboard's **Settings** page. The extension then shows **Your sandbox: online**.
 4. Leave the agent window open. When you ask for a deeper analysis, it collects the job, runs it and uploads the result, and the report updates by itself.
 
@@ -33,6 +33,7 @@ Pairing happens once. Next time, `start-agent.cmd` goes straight to waiting for 
 | `setup` | Check this computer and choose the VM again |
 | `pair` | Show a new pairing code (for example to pair the dashboard too) |
 | `run` | Wait for jobs |
+| `check` | Read-only preflight, VM not started: VirtualBox, snapshot, VM isolation (network, clipboard, drag and drop, shared folders), Hyper-V warning, each with a one-line fix |
 | `test` | Restore the VM once, check the guest login and Sysmon, and restore it again |
 | `status` | Show the saved settings and pairing state |
 | `forget` | Delete the saved settings |

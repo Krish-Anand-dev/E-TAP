@@ -8,6 +8,7 @@ How E-TAP got to where it is: the main iterations, the research behind the bigge
 |---|---|---|
 | 2026-10-23 | [Hosted dynamic attachment analysis](2026-10-23%20Hosted%20dynamic%20attachment%20analysis/report.md) (with [research notes](2026-10-23%20Hosted%20dynamic%20attachment%20analysis/research%20notes/)) | Research |
 | 2026-10-24 | [Sandbox agent direction](2026-10-24%20Sandbox%20agent%20direction.md) | Decision |
+| 2026-10-25 | [Standard analysis first](2026-10-25%20Standard%20analysis%20first.md) | Decision and implementation |
 
 ## Project timeline
 
@@ -20,7 +21,7 @@ The first version parsed `.eml`/`.msg` files and ran a fixed chain of checks: he
 - Link text versus real destination (B5), QR-code destinations (B6), a privacy policy for what may be sent to external services (B10), and per-provider status and timeouts (B11).
 
 ### 3. Workflow C: trust and response (C1–C14)
-Retention and deletion, a review workflow, recovery checklists, a redacted share pack, case marking, trusted-domain context, analytics, and scaffolds for webhooks and original-message retrieval. An API-key authentication layer was built and then removed to keep the demo zero-configuration; restoring proper sign-in is future work.
+Retention and deletion, a review workflow, recovery checklists, a redacted share pack, case marking, trusted-domain context, analytics, and scaffolds for webhooks and original-message retrieval. An API-key authentication layer was built and then removed to keep the demo zero-configuration (its dead code and obsolete tests were deleted on 2026-10-24); restoring proper sign-in is future work.
 
 ### 4. Sender origin and the Gmail extension
 Received-chain hops are classified (provider relay, anonymiser, private, relay) so a Gmail or Outlook relay is not mistaken for the attacker, and each hop is geolocated for the sender map. The extension now downloads the original Gmail message (headers and attachments) when it can, and labels a text-only fallback honestly.
@@ -52,3 +53,6 @@ The sandbox moved into the main codebase as stage S, with one VM-run implementat
 - Hosted E-TAP queues the attachments, the agent runs them in the user's clean VM snapshot and uploads the Sysmon record, and the report's score and *Sandbox behaviour* section update by themselves.
 
 Verified end to end, first with a simulated VM and then live on a real VirtualBox Windows 11 VM: a harmless script attachment matched rule etap-004 and raised the score from 73 to 85. Sigma/YARA rules are next.
+
+### 11. Standard analysis first (2026-10-25)
+The principle that nothing we build may hinder a normal user. The extension became one-click Standard with an optional Deeper link, the dashboard gained a Full / Fast animation setting and stopped showing sandbox UI on standard runs, and the agent gained a read-only `check` preflight and automatic cleanup of expired jobs and sample bytes. See [the entry](2026-10-25%20Standard%20analysis%20first.md).

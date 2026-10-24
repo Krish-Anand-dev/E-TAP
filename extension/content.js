@@ -51,26 +51,20 @@ function banner(container, existing, key, state, title, description) {
     replaceBanner(container, existing, node);
     return node;
 }
-const ETAP_DEEP_INFO = 'Opens the attachments inside your own sandbox VM and records what they do. '
-    + 'Requires a VirtualBox VM (Windows Sandbox on Windows Pro is planned) and the free E-TAP Sandbox Agent, paired once.';
+const ETAP_DEEP_INFO = 'Optional. Opens the attachments inside your own sandbox VM and records what they do. '
+    + 'Needs a VirtualBox VM (Windows Sandbox on Windows Pro is planned) and the free E-TAP Sandbox Agent, paired once. '
+    + 'If you do not have these, use Analyze in E-TAP.';
+// One click runs the standard analysis. Deeper analysis is a separate, optional
+// link; nothing about the sandbox is fetched or shown unless it is clicked.
 function renderIdle(container, existing, key) {
     const node = banner(container, existing, key, 'banner-idle', 'E-TAP Email Analysis',
-        'Opens a report in a new tab. Tries the original email first; if unavailable, runs a clearly labeled content-only check. Email contents are sent to E-TAP only after you click.');
-    const button = el('button', 'etap-btn etap-btn-primary', 'Analyze in E-TAP');
-    button.type = 'button';
-    button.addEventListener('click', () => renderChoice(container, node, key));
-    node.append(button);
-}
-// Before the check runs: standard analysis, or also open the attachments in the user's sandbox.
-function renderChoice(container, existing, key) {
-    const node = banner(container, existing, key, 'banner-idle', 'How should E-TAP check this email?',
-        'Standard analysis covers sender, links, attachments (without opening them), reputation and AI. Deeper analysis also opens the attachments in your sandbox.');
+        'Opens a report in a new tab. Uses the original email when Gmail provides it. Email contents are sent to E-TAP only after you click.');
     const row = el('div', 'etap-row etap-choice');
-    const standard = el('button', 'etap-btn etap-btn-primary', 'Standard analysis');
+    const standard = el('button', 'etap-btn etap-btn-primary', 'Analyze in E-TAP');
     standard.type = 'button';
     standard.addEventListener('click', () => runAnalysis(container, node, key, false));
     const deepGroup = el('span', 'etap-deep');
-    const deep = el('button', 'etap-btn', 'Deeper attachment analysis');
+    const deep = el('button', 'etap-btn etap-btn-link', 'Deeper analysis');
     deep.type = 'button';
     deep.addEventListener('click', () => runAnalysis(container, node, key, true));
     const info = el('span', 'etap-info', 'i');
@@ -80,13 +74,7 @@ function renderChoice(container, existing, key) {
     info.tabIndex = 0;
     deepGroup.append(deep, info);
     row.append(standard, deepGroup);
-    const sandboxLine = el('span', 'etap-sub etap-sandbox-line', '');
-    node.append(row, sandboxLine);
-    send({ action: 'sandboxStatus' }).then(({ state }) => {
-        if (!state.available) sandboxLine.textContent = 'Deeper analysis is not offered by this E-TAP server.';
-        else if (!state.paired) sandboxLine.textContent = 'Your sandbox: not paired. Choosing deeper analysis walks you through pairing once.';
-        else sandboxLine.textContent = state.online ? 'Your sandbox: online' : 'Your sandbox: offline (start the E-TAP Sandbox Agent)';
-    }).catch(() => {});
+    node.append(row);
 }
 function send(request) {
     return new Promise((resolve, reject) => chrome.runtime.sendMessage(request, (response) => {
@@ -117,7 +105,7 @@ async function runAnalysis(container, existing, key, deep = false) {
         }
     } catch (error) {
         banner(container, current, key, 'banner-error', 'Open E-TAP to continue',
-            error.message === 'too_large' ? 'This email exceeds the upload limit. Use Open E-TAP to choose a different file.' : 'The extension could not create an analysis tab. Use Open E-TAP above; refresh Gmail to retry the handoff.');
+            error.message === 'too_large' ? 'This email exceeds the upload limit. Use Open E-TAP to choose a different file.' : 'We could not open the analysis tab. Refresh Gmail and try again, or use Open E-TAP.');
         return;
     }
     try {

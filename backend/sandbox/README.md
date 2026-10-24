@@ -268,7 +268,7 @@ backend/sandbox/
 ├── scoring.py           Risk scoring (never lowers)
 ├── replay.py            Recorded-trace fallback
 ├── README.md            This file
-├── rules/               36 detection rules (.toml)
+├── rules/               164 detection rules (.toml); 36 are evaluable today
 ├── replays/             Recorded Sysmon traces (empty)
 └── work/                Temp job files (git-ignored)
 ```

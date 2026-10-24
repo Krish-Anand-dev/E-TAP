@@ -5,6 +5,7 @@ sandbox_agent.cli -- `python -m sandbox_agent [command]`.
   setup   check this computer and choose the VM to use
   pair    show a pairing code to enter in the E-TAP extension or dashboard
   run     wait for deeper-analysis jobs (the agent must be paired)
+  check   read-only preflight: VirtualBox, snapshot, VM isolation, Hyper-V (VM is not started)
   test    restore the VM once and confirm the guest and Sysmon answer
   status  show the saved settings and whether the server sees this agent
   forget  delete this agent's saved settings
@@ -25,7 +26,7 @@ from pathlib import Path
 
 from . import __version__, config as cfgmod
 from .client import Client, ServerError
-from .recon import read_env_file, system_checks, vm_checks
+from .recon import hypervisor_present, preflight_checks, read_env_file, system_checks
 
 POLL_SECONDS = 5
 
@@ -67,6 +68,8 @@ def choose(question: str, options: list[str], default: str | None = None) -> str
 def print_checks(checks) -> None:
     for check in checks:
         say(f"  [{'ok' if check.ok else '--'}] {check.name}: {check.detail}")
+        if not check.ok and check.fix:
+            say(f"        Fix: {check.fix}")
 
 
 # -- setup ----------------------------------------------------------------------
@@ -107,7 +110,9 @@ def cmd_setup(args, config: cfgmod.AgentConfig) -> cfgmod.AgentConfig:
         vm.name = choose("VM", vms, vm.name if vm.name in vms else None)
     vm.snapshot = imported.get("snapshot") or (
         args.yes and vm.snapshot) or input(f"Clean snapshot name [{vm.snapshot}]: ").strip() or vm.snapshot
-    print_checks(vm_checks(vm.name, vm.snapshot, vm.vboxmanage or None))
+    say("\nChecking the VM (read-only; it is not started):")
+    print_checks(preflight_checks(vm.name, vm.snapshot, vm.vboxmanage or None, hypervisor_present()))
+    say("A '--' above is a warning, not a stop. Run `check` any time to see this list again.")
     vm.guest_user = imported.get("guest_user") or input(
         f"Guest Windows user{f' [{vm.guest_user}]' if vm.guest_user else ''}: ").strip() or vm.guest_user
     password = imported.get("guest_password")
@@ -293,6 +298,22 @@ def cmd_run(args, config: cfgmod.AgentConfig) -> None:
 
 # -- diagnostics ---------------------------------------------------------------------
 
+def cmd_check(args, config: cfgmod.AgentConfig) -> None:
+    """Read-only preflight: nothing is started, restored or changed."""
+    if not config.is_set_up:
+        raise SystemExit("Run `setup` first.")
+    say(f"Checking this computer and VM '{config.vm.name}' (read-only; the VM is not started):")
+    checks, _vms = system_checks(config.vm.vboxmanage or None)
+    checks = [c for c in checks if not c.name.startswith("Windows Sandbox")]
+    checks += preflight_checks(config.vm.name, config.vm.snapshot, config.vm.vboxmanage or None, hypervisor_present())
+    print_checks(checks)
+    needs_attention = [c for c in checks if not c.ok]
+    say(f"\n{len(checks) - len(needs_attention)} of {len(checks)} checks passed."
+        + (f" {len(needs_attention)} need attention (see 'Fix' above)." if needs_attention else ""))
+    say("These checks cannot see inside the VM. To confirm the guest login, Sysmon and Windows Defender,")
+    say("run `test`; it restores the snapshot and starts the VM briefly.")
+
+
 def cmd_test(args, config: cfgmod.AgentConfig) -> None:
     if not config.is_set_up:
         raise SystemExit("Run `setup` first.")
@@ -365,7 +386,7 @@ def cmd_start(args, config: cfgmod.AgentConfig) -> None:
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="python -m sandbox_agent", description=f"E-TAP Sandbox Agent {__version__}")
     parser.add_argument("command", nargs="?", default="start",
-                        choices=["start", "setup", "pair", "run", "test", "status", "forget"])
+                        choices=["start", "setup", "pair", "run", "check", "test", "status", "forget"])
     parser.add_argument("--server", help=f"E-TAP server URL (default {cfgmod.DEFAULT_SERVER})")
     parser.add_argument("--from-env", metavar="PATH", help="read the VM settings from an E-TAP .env file")
     parser.add_argument("--yes", action="store_true", help="answer yes to every question")
@@ -385,6 +406,8 @@ def main(argv: list[str] | None = None) -> None:
             cmd_pair(args, config)
         elif args.command == "run":
             cmd_run(args, config)
+        elif args.command == "check":
+            cmd_check(args, config)
         elif args.command == "test":
             cmd_test(args, config)
         elif args.command == "status":

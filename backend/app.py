@@ -82,6 +82,14 @@ def startup_event():
         print(f"  [DB ERROR]  Connection failed ({type(exc).__name__})")
     print("=" * 68 + "\n")
 
+    # Paired-agent sandbox: sweep expired jobs and their sample bytes in the background.
+    if os.environ.get("SANDBOX_BACKEND", "agent").strip().lower() == "agent":
+        try:
+            from sandbox.agent_queue import start_housekeeping
+            start_housekeeping()
+        except Exception as exc:
+            print(f"  [SANDBOX]   Housekeeping not started ({type(exc).__name__})")
+
 
 @app.api_route("/", methods=["GET", "HEAD"])
 @limiter.exempt
