@@ -641,6 +641,9 @@ Backend (`.env` at repo root locally; host settings in production — never in t
 | `SANDBOX_DWELL_SECONDS` | `30` | observation time per sample (local worker; the agent has its own setting) |
 | `SANDBOX_VM_NAME`, `SANDBOX_SNAPSHOT`, `SANDBOX_GUEST_USER`, `SANDBOX_GUEST_PASSWORD`, `VBOXMANAGE_PATH`, `SANDBOX_PDF_VIEWER` | — | VM settings for `virtualbox` mode (the agent keeps its own copy, sealed, in `%APPDATA%\E-TAP Sandbox Agent`) |
 | `SANDBOX_RULES_DIR`, `SANDBOX_WORK_DIR` | `sandbox/rules`, `sandbox/work` | rule and scratch folders |
+| `CLOUDINARY_URL` (or `CLOUDINARY_CLOUD_NAME` + `CLOUDINARY_API_KEY` + `CLOUDINARY_API_SECRET`) | — | enables `backend/cloudinary_store.py`: image attachments (max 3 per email) are uploaded under a random public id; the report shows blurred previews; images are deleted with the report (`workflow_c.delete_record`). Failures never break an analysis |
+| `CLOUDINARY_ENABLED` | `1` | `0` switches the store off even when credentials exist |
+| `CLOUDINARY_OCR`, `CLOUDINARY_MODERATION` | `0` | request the `adv_ocr` / `aws_rek` add-ons on upload; leave off unless installed in the Cloudinary console (an add-on error retries the upload without add-ons) |
 
 Frontend: `VITE_API_BASE_URL` (empty in dev to use the proxy; the Render URL on Vercel) and `VITE_TIMELINE_PACING` (`off` builds with the Fast animation and locks the Settings choice; otherwise each user picks Full or Fast in Settings, default Full).
 Extension: constants in `extension/config.js` and host permissions in `manifest.json`.

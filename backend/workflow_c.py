@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 import re
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
+import cloudinary_store
 from db.connection import get_db
 from db.repository import get_analysis, update_analysis_fields
 
@@ -20,6 +21,7 @@ def owned(email_id):
 def delete_record(db, doc):
     """Embedded RAG vectors are removed with their analysis. Rebuild campaign references."""
     eid = str(doc['_id'])
+    cloudinary_store.delete_assets(cloudinary_store.public_ids_of(doc))
     db['analyzed_emails'].delete_many({'_id': doc['_id']})
     db['emails'].delete_many({'email_id': eid})
     for campaign in db['campaigns'].find({}):
@@ -143,6 +145,7 @@ def delete_investigation(email_id: str):
 @router.delete('/investigations')
 def delete_all():
     db = get_db()
+    cloudinary_store.delete_assets([i for d in db['analyzed_emails'].find({}) for i in cloudinary_store.public_ids_of(d)])
     count = db['analyzed_emails'].delete_many({}).deleted_count
     db['emails'].delete_many({})
     db['campaigns'].delete_many({})

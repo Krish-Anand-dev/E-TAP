@@ -16,6 +16,7 @@ from typing import Any
 
 from email_parser import parse_email, parse_email_from_upload
 from forensics.header_forensics import analyze_headers
+from cloudinary_store import upload_attachment_images
 from forensics.attachment_forensics import analyze_attachments
 from forensics.ioc_extraction import extract_iocs
 from forensics.link_analysis import analyze_links
@@ -209,12 +210,14 @@ def _run_parsed_pipeline(parsed_email, source: str | None = None, progress=None,
     progress("static_attachments", "running")
     attachment_analysis = analyze_attachments(data.get("attachments") or [])
     _atts = attachment_analysis.get("attachments") or []
+    cloud_media = upload_attachment_images(data.get("attachments") or [], _atts)
     _sus = sum(1 for a in _atts if a.get("suspicious"))
     if not _atts:
         progress("static_attachments", "done", "No attachments")
     else:
+        _saved = f", {_plural(cloud_media['uploaded'], 'image')} saved to Cloudinary" if cloud_media["uploaded"] else ""
         progress("static_attachments", "done",
-                 f"{_plural(len(_atts), 'file')} checked" + (f", {_sus} suspicious" if _sus else ", none suspicious"))
+                 f"{_plural(len(_atts), 'file')} checked" + (f", {_sus} suspicious" if _sus else ", none suspicious") + _saved)
 
     # Stage S planning: which attachments the sandbox will open. The run
     # itself starts after the record is stored (it needs the email id) and
@@ -520,6 +523,7 @@ def _run_parsed_pipeline(parsed_email, source: str | None = None, progress=None,
         iocs=ioc_analysis,
         threat_intel=threat_intel_analysis,
         provenance=analysis_provenance,
+        attachments=attachment_analysis.get("attachments") or [],
     )
     analysis_duration_ms = round((time.perf_counter() - started_at) * 1000)
     analysis_provenance["analysis_duration_ms"] = analysis_duration_ms
