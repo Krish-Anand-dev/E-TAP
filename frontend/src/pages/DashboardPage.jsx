@@ -6,6 +6,7 @@ import RiskBreakdown from '../components/report/RiskBreakdown';
 import Remediation from '../components/report/Remediation';
 import HeaderAnalysis from '../components/report/HeaderAnalysis';
 import AttachmentTable from '../components/report/AttachmentTable';
+import ImageEvidence, { hasImageEvidence } from '../components/report/ImageEvidence';
 import ContentAnalysis from '../components/report/ContentAnalysis';
 import IocTable from '../components/report/IocTable';
 import ThreatGraph from '../components/report/ThreatGraph';
@@ -26,6 +27,7 @@ const SECTIONS = [
   ['sec-summary', 'Summary'],
   ['sec-why', 'Why it was flagged'],
   ['sec-remediation', 'Remediation'],
+  ['sec-images', 'Image evidence'],
   ['sec-sandbox', 'Sandbox'],
   ['sec-map', 'Sender route'],
   ['sec-analysis', 'Threat analysis'],
@@ -119,7 +121,7 @@ export function DashboardPage({ navigate }) {
   return (
     <div className="v2-page report-page">
       <nav className="report-tabs" aria-label="Report sections">
-        {SECTIONS.filter(([id]) => id !== 'sec-sandbox' || hasSandbox(data)).map(([id, label]) => (
+        {SECTIONS.filter(([id]) => (id !== 'sec-sandbox' || hasSandbox(data)) && (id !== 'sec-images' || hasImageEvidence(attachments))).map(([id, label]) => (
           <button key={id} type="button" className={active === id ? 'active' : ''} onClick={() => jump(id)}>{label}</button>
         ))}
       </nav>
@@ -128,6 +130,7 @@ export function DashboardPage({ navigate }) {
         onReanalyze={() => { const file = getSourceFile(data.email_id); if (file) { requestReanalysis(file); navigate('upload'); } }} />
       <RiskBreakdown data={data} />
       <Remediation data={data} />
+      <ImageEvidence attachments={attachments} />
 
       {hasSandbox(data) && (
         <section id="sec-sandbox" className="report-section">

@@ -2,7 +2,7 @@
 
 This is the single technical reference for E-TAP. It is written so that a person or an LLM with no prior knowledge can understand the whole system: what it does, how every stage works, which file does what, which libraries are used and why, how data is shaped, how it is configured and deployed, and what is known to be incomplete.
 
-The short, user-facing overview lives in [README.md](README.md). When this document and the code disagree, the code wins — update this file. Last updated 2026-10-25 (standard analysis first: one-click extension, optional deeper analysis, animation setting, agent preflight; before that deeper attachment analysis through a paired sandbox agent, and the frontend revamp, live analysis jobs, verified trusted domains and Re-analyze).
+The short, user-facing overview lives in [README.md](README.md). When this document and the code disagree, the code wins — update this file. Last updated 2026-10-25 (Cloudinary image evidence and the move to the Hacktober HackDays deployment; before that standard analysis first: one-click extension, optional deeper analysis, animation setting, agent preflight; before that deeper attachment analysis through a paired sandbox agent, and the frontend revamp, live analysis jobs, verified trusted domains and Re-analyze).
 
 This is the only codebase. Dynamic attachment analysis (stage S) is part of it: attachments are opened in a VM the user owns, reached through the paired **E-TAP Sandbox Agent** (§4, Stage S). The older sibling folder E-TAP Local is kept only as the reference implementation the sandbox code came from. History and decisions: [`Development notes and iterations/`](Development%20notes%20and%20iterations/README.md).
 
@@ -119,6 +119,7 @@ E-TAP/
 │   ├── verdicts.py           canonical labels, thresholds, bands, finalize_verdict()
 │   ├── evidence.py           evidence ledger + evidence_report (schema v2)
 │   ├── privacy.py            URL lookup policy, Gemini sanitizer, privacy report
+│   ├── cloudinary_store.py   optional Cloudinary image evidence store: upload, blurred previews, optional OCR/moderation add-ons, delete
 │   ├── provider_status.py    per-provider coverage object
 │   ├── workflow_c.py         APIRouter: review, retention, share, analytics, baselines…
 │   ├── sandbox_api.py        APIRouter: per-email sandbox status, pairing, agent job endpoints
@@ -262,7 +263,7 @@ Red flags: `spf_fail|softfail`, `dkim_fail|key_not_found|misaligned`, `dmarc_fai
 
 ### Stage B2 — Attachment forensics (`forensics/attachment_forensics.py`)
 
-`analyze_attachment` per file, result fields: `filename, declared_type, sha256, size_bytes, actual_type, type_mismatch, has_macro, macro_behavior, suspicious, flags, ocr_text, qr_urls, qr_payloads, qr_status, is_image`.
+`analyze_attachment` per file, result fields: `filename, declared_type, sha256, size_bytes, actual_type, type_mismatch, has_macro, macro_behavior, suspicious, flags, ocr_text, qr_urls, qr_payloads, qr_status, is_image`, plus `cloudinary` (added by `cloudinary_store.upload_attachment_images` right after this stage when Cloudinary is configured).
 
 - **Type detection** (`file_signatures.detect_actual_type`): `MZ` is always `application/x-msdownload`; then libmagic (`python-magic`, if installed and not `octet-stream`); then a hand-rolled table (PDF, ZIP, OLE, JPEG, PNG, GIF, PostScript, ELF, gzip, RAR, 7z, RTF). ZIPs are refined to docx/xlsx/pptx by looking for `word/`, `xl/`, `ppt/` in the first 4 KB.
 - **Mismatch** (`types_conflict`): lenient — `octet-stream` declarations and the whole Office family (legacy, OOXML, OLE, zip) are treated as equivalent.
@@ -271,6 +272,7 @@ Red flags: `spf_fail|softfail`, `dkim_fail|key_not_found|misaligned`, `dmarc_fai
 - **Macros** (`macro_scan.analyze_macro_behavior`, oletools `VBA_Parser`): only for Office names/types. Never executes. Categories from `analyze_macros()`: `AutoExec` → `autoexec_triggers`, `Suspicious` → `suspicious_actions`, `IOC` → `referenced_iocs`. Parse failure (password-protected/corrupt) → suspicious.
 - **Images** (`image_forensics.scan_image_attachment`): decode with OpenCV and PIL; QR via pyzbar, then OpenCV `QRCodeDetector` (multi then single); `qr_status` ∈ `decoded | no_qr_found | decoder_unavailable | image_unreadable | scan_failed`; QR payloads kept (URL or other), URLs extracted. OCR via pytesseract on the grayscale image (hard-coded Windows path `C:\Program Files\Tesseract-OCR\tesseract.exe` is used if it exists).
 - `suspicious = mismatch or has_macro or double_ext or disguised_exe or qr_urls`.
+- **Cloudinary image evidence** (`cloudinary_store.py`, called from `pipeline.py` straight after `analyze_attachments`): off unless `CLOUDINARY_URL` (or the three `CLOUDINARY_*` values) is set. Image attachments whose real type is `image/*` (at most 3 per email, at most 8 MB each; never other file types) are uploaded in parallel with a signed request and a random public id (`etap/<20 hex>`). The stored `cloudinary` object holds `public_id, url, preview_url, blurred_url, width, height, bytes, format` and, when the add-ons are on, `ocr_text` and `moderation`. `preview_url` and `blurred_url` are Cloudinary transformations of the same asset (`c_fill,w_360,h_240`, plus `e_blur:1500`). Cloudinary OCR text fills `ocr_text` only when the local Tesseract found none. A failed or slow upload (8 s timeout) is ignored and never stops the analysis. `CLOUDINARY_OCR=1` and `CLOUDINARY_MODERATION=1` request the `adv_ocr` and `aws_rek` add-ons; an add-on error retries the upload without them. Images are deleted with the report (`workflow_c.delete_record`, `delete_all`, retention purge) via `delete_assets` and `public_ids_of`.
 
 ### Stage S — Deeper attachment analysis (`sandbox/`, `sandbox_agent/`, `sandbox_api.py`)
 
@@ -426,7 +428,7 @@ Produces the response (also persisted): `email_id, risk_score, verdict, verdict_
 - **At parse time:** PII masking (§4 A).
 - **VirusTotal URL policy** (`privacy.plan_url_lookup`): `skip` if the URL has credentials, a private/internal host (`.local`, `.internal`, `.corp`, RFC1918…), an email address, a sensitive parameter name (`token, sid, code, otp, email, user, reset, session, jwt…`, matched as whole camel/snake tokens), a token-like value (hex ≥ 16, UUID, high-entropy base64), or a high-entropy path segment; `trimmed` (scheme://host/path) if it only has a query/fragment; else `full`. Skipped → `skipped_privacy`, shown as "not looked up for privacy", never clean.
 - **Gemini context** (`sanitize_for_external_ai`): recursively rewrites every URL in strings and dict keys (`…/[sensitive destination details omitted]` or trimmed), then re-applies PII masking. The original evidence stays server-side. The RAG chat uses the same sanitizer.
-- **Privacy report** (`build_privacy_report`): describes, from what the code actually did, where content went (backend processing, DB storage, VirusTotal full/trimmed/skipped/cached counts, AbuseIPDB, WHOIS, geolocation, Gemini used/skipped).
+- **Privacy report** (`build_privacy_report`): describes, from what the code actually did, where content went (backend processing, DB storage, VirusTotal full/trimmed/skipped/cached counts, AbuseIPDB, WHOIS, geolocation, Gemini used/skipped, Cloudinary image count: `sent`, `nothing_to_send` or `off`). Image attachments are the only thing sent to Cloudinary, under an unguessable (not signed) link, which is a deliberate trade-off for a hackathon build.
 - **Logs:** pipeline debug logs record counts only; provider errors are type-only; `_short_reason` scrubs `AIza…` keys and `key=` parameters.
 - **SSRF guard:** private/loopback/link-local/reserved IPs are never sent to providers.
 - **Share pack** (`workflow_c.share_pack`): strict allowlist — verdict, score, enumerated SPF/DKIM/DMARC values, hex hashes, evidence id/kind/status. No body, addresses, filenames, URLs, domains or model text.
@@ -526,10 +528,11 @@ Location `frontend/`. React 18, Vite 8 (`@vitejs/plugin-react`), Node >= 22.12. 
 **Pages**
 - **Dashboard** (`pages/OverviewPage.jsx`) — numbers from all stored investigations (`GET /investigations`, falling back to the browser session): emails analysed (and last 7 days), high risk, suspicious, low risk, average risk; risk-over-time area chart, verdict donut, top threat types, and a recent-investigations table whose rows open the report.
 - **Analyze email** (`pages/UploadPage.jsx`) — drag-and-drop or two sample emails. `startAnalysis` posts to `/analyze/jobs` and polls every 0.6 s; `PipelineTimeline` lights up the stages with their detail lines and a progress bar; the *Dynamic attachment analysis* row is shown only for a deeper run (`showSandbox`), so a standard run has eight rows. `usePacedStages` shows each finished stage for a minimum, randomised time (`MIN_STAGE_MS`, 0.7–2.3 s, about 12 s in total) so fast local runs remain readable; real slow stages are never delayed further. That is the default **Full** animation. **Fast** (Settings → Analysis animation, saved per browser in `localStorage` key `etap.animationSpeed` by `utils/animationSpeed.js`, or forced by building with `VITE_TIMELINE_PACING=off`) shows the real backend progress with no added delay. Two cards are shown before a run, **Standard analysis** (selected by default) and **Deeper attachment analysis**, which carries a visible "Needs a Windows VM in VirtualBox…" line. If the sandbox status call fails, that card is greyed out ("Couldn't check right now") and Standard stays available; Analyze is never left disabled without a visible reason. The result card shows score and verdict with **Open full report**, **Re-analyze** and **Analyze another**.
-- **Current investigation** (`pages/DashboardPage.jsx`) — one sticky tab bar (Summary, Why it was flagged, Remediation, Sender route, Threat analysis, Technical details, Past emails, Analyst tools):
+- **Current investigation** (`pages/DashboardPage.jsx`) — one sticky tab bar (Summary, Why it was flagged, Remediation, Image evidence (only when images were saved), Sender route, Threat analysis, Technical details, Past emails, Analyst tools):
   - `VerdictHero` — animated score ring, canonical verdict, headline, "why it was risky" tags per category with counts, number tiles (same counts as the category cards), trusted-sender note, PDF/JSON export and **Re-analyze this email**.
   - `RiskBreakdown` — category bars and cards (Sender & headers, Attachments, Links, Reputation, Past emails, Message content) with serious findings first, "+N more", reassuring signs and "not checked" counts.
   - `Remediation` — "Do this now" (evidence-specific), "Recommended steps" (policy) and "AI suggestions".
+  - Image evidence (`ImageEvidence.jsx`, only when an attachment has a `cloudinary` object) — one card per saved image: a blurred Cloudinary preview that is revealed by a click, the hidden QR link or OCR text, moderation result, size and a link to the full image.
   - Sender route — `GeoMap` when any hop has coordinates, otherwise a card explaining why (headers unavailable, live lookups off, no public hop).
   - Threat analysis — `EvidenceBreakdown` (multi-vector radar + score bars per angle) beside `MitreCards`.
   - Technical details — collapsible `HeaderAnalysis`, `AttachmentTable`, `ContentAnalysis`, `IocTable`.
@@ -606,7 +609,7 @@ Dev: `pytest`, `httpx` (`requirements-dev.txt`).
 
 ### External services
 
-Google Gemini, VirusTotal API v3 (free tier 4 req/min, 500/day), AbuseIPDB API v2, ip-api.com batch (free, no key, HTTP only, 15 req/min), WHOIS servers, DNS, ArcGIS map tiles, MongoDB Atlas, Render, Vercel.
+Google Gemini, VirusTotal API v3 (free tier 4 req/min, 500/day), AbuseIPDB API v2, ip-api.com batch (free, no key, HTTP only, 15 req/min), WHOIS servers, DNS, ArcGIS map tiles, Cloudinary (optional image storage and previews, free plan), MongoDB Atlas, Render, Vercel.
 
 ---
 
@@ -679,6 +682,7 @@ Test suites cover: parsing (`test_parse_any`, `test_single_email`), headers/orig
 
 ## 16. Deployment
 
+- **Hacktober HackDays edition (2026-10-25):** the project now runs on the team's own accounts, backend `https://etap-backend-2std.onrender.com` (service `etap-backend`) and frontend `https://e-tap-azure.vercel.app`, with its own Atlas cluster. Extra Render variable for image evidence: `CLOUDINARY_URL` (see §14). The older deployment at `etap-backend-od1c.onrender.com` / `e-tap-lac.vercel.app` belongs to another account and is no longer referenced. The agent launcher (`start-agent.cmd`) and `sandbox_agent/config.py` point at the new backend; an agent paired with the old server is moved over by running the launcher, which keeps the VM settings and asks for a new pairing code.
 - **Backend → Render** (Docker): root/build context `backend`, `backend/Dockerfile` (python:3.11-slim + `tesseract-ocr`, `tesseract-ocr-eng`, `libtesseract-dev`, `libzbar0`; `uvicorn app:app --host 0.0.0.0 --port ${PORT:-5000}`), health check `/health`. Set `MONGODB_URI, MONGO_DB_NAME=etap, USE_FAKE_DB=0, AUTO_FALLBACK_DB=0, THREAT_INTEL_LIVE=1, GEMINI_API_KEY, GEMINI_MODEL, VIRUSTOTAL_API_KEY, ABUSEIPDB_API_KEY, ALLOWED_ORIGINS` (include the Vercel origin). Don't set `PORT`. Current: `https://etap-backend-2std.onrender.com`.
 - **Frontend → Vercel**: root `frontend`, Vite preset, `npm ci`, `npm run build`, output `dist`, env `VITE_API_BASE_URL=https://etap-backend-2std.onrender.com` (no trailing slash; redeploy after changes). Current: `https://e-tap-azure.vercel.app`.
 - **Database → MongoDB Atlas**: least-privilege user, database `etap`, network access limited to Render egress where possible.
@@ -693,7 +697,8 @@ Test suites cover: parsing (`test_parse_any`, `test_single_email`), headers/orig
 - **`dnspython` not in requirements**, so the live-DNS auth tier is inactive in the Docker image unless added; header-reported results still work.
 - **sentence-transformers not in requirements**; hosted RAG uses lexical hash embeddings, not semantic ones.
 - **Dynamic analysis coverage.** Only 36 of 164 rule definitions are evaluable by the EQL subset (Sigma/YARA are the planned engine). Nothing clicks inside documents, so Office files and click-triggered PDFs usually come back inconclusive. Windows Sandbox support, a signed agent build and an agent auto-start are not built yet. The agent has been run end to end on only one real VM (the author's, 2026-10-24); a first-time setup on a fresh machine following the README has not been tried, and VirtualBox on a Hyper-V host (the agent only warns about it) has not been tested. Agent jobs are scoped by pairing token only, like the rest of the open API.
-- **XGBoost model** lineage is undocumented; features are coarse (e.g. SPF pass is mostly unknown for text-only training data). Treat as a triage aid.
+- **Cloudinary.** Only the free plan was assumed. The OCR (`adv_ocr`) and Rekognition moderation (`aws_rek`) add-ons are separate installs with their own quotas, so they are off by default and untested against a live account. Image URLs are unguessable but not signed, so anyone holding a link can open the image until the report is deleted. Cloudinary deletion is best effort (a failed delete is not retried). Inline (CID) images in the HTML body are not uploaded, only real attachments.
+- **XGBoost model** was trained by a former member of the original team on a large corpus of phishing emails (the exact dataset and training script were not kept in this repository); features are coarse (e.g. SPF pass is mostly unknown for text-only training data). Treat as a triage aid.
 - **Evaluation** is not yet meaningful (see §15).
 - **Gmail extension** relies on Gmail's private web endpoints (no Gmail API/OAuth) and can break when Gmail changes.
 - **Caches and limiters are in-process** (lost on restart, wrong with multiple workers).

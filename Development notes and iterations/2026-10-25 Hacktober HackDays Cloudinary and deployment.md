@@ -1,0 +1,34 @@
+# 2026-10-25 — Hacktober HackDays: Cloudinary image evidence and our own deployment
+
+**Type:** Decision and implementation
+
+## Why
+Hacktober HackDays (Unstop, SheBuilds Delhi, powered by MLH; theme Tech for Social Good) requires the project to use Cloudinary and to keep its build journey on Notion. The online round closed at 22:00 IST on 2026-10-25, a few hours after the work started. The original deployment belongs to a teammate's accounts, so the project was copied into `Hacktober HackDays\E-TAP`, pushed to the user's own repo and hosted again on the user's own accounts.
+
+## Hosting on our own accounts
+- **Atlas:** a free M0 cluster. The first deploy failed twice, in a way worth remembering: `ServerSelectionTimeoutError` meant Atlas's IP list only held the user's own address (fix: add `0.0.0.0/0`, because Render's free tier has no fixed address), and after that `OperationFailure` meant a wrong database password in `MONGODB_URI` (fix: reset the password and use a plain one). The change of error is how to tell a network problem from a login problem.
+- **Render:** Docker web service, root directory `backend`, health check `/health`, free instance (512 MB, cold starts). `/ready` reports `database: ok`.
+- **Vercel:** root directory `frontend`, Vite preset, `VITE_API_BASE_URL` set to the Render URL, and the Vercel origin added to `ALLOWED_ORIGINS` on Render.
+- **Old URLs removed:** the Gmail extension (`config.js`, `manifest.json`, `analysis.html` and its test), `sandbox_agent/config.py`, `start-agent.cmd`, the README and CONTEXT.md.
+- **Why "Deeper analysis does not work" after the move:** the agent still talked to the old server (a hard-coded default plus a saved URL and token in `%APPDATA%\E-TAP Sandbox Agent`). `start-agent.cmd` now passes `--server`, and `cmd_start` keeps the VM settings while dropping the old pairing. The agent zip the site serves is built on the fly from the deployed files (`sandbox_api.py`), so agent changes reach users only after a push and a Render redeploy.
+
+## Cloudinary: what it is used for
+The idea was to use it where E-TAP already handles images and where a user-facing benefit exists, not as decoration.
+- **Evidence store.** Image attachments (a QR code, a screenshot of an invoice) are uploaded to Cloudinary, so the report can show them without keeping image bytes in MongoDB.
+- **Safe viewing.** The report shows a blurred preview (a Cloudinary transformation of the stored asset); the reader clicks to reveal it. Phishing images can be unpleasant or misleading, and a QR code in an image is never opened automatically.
+- **Second reading of the text.** The `adv_ocr` add-on can read the image's text in addition to local Tesseract. It is off by default.
+- **Moderation.** `aws_rek` is also an opt-in flag.
+- **Cleanup.** Deleting a report or letting it expire deletes the images; the privacy report lists Cloudinary as a data flow with the image count.
+
+Design choices and why:
+- Free plan only. The pricing page confirmed 25 monthly credits (about 1 GB of storage or bandwidth, or 1,000 transformations) and access to free add-ons. The add-on quotas could not be confirmed from the public pages, so add-ons are optional, and an add-on error retries the upload without them.
+- Standard analysis must never wait on Cloudinary (the project's first rule). Uploads run in parallel, have an 8 s timeout, cap at 3 images of 8 MB each, and swallow every error.
+- Random public ids rather than signed delivery URLs. Signed URLs would be better for sensitive mail, but could not be tested without a live account in the time available. The limit is written in CONTEXT.md.
+- Only images are uploaded. Documents, scripts and archives never leave the server.
+
+## What went wrong on the way (and was fixed)
+- The first live report showed no Cloudinary anything. The upload had worked (the API record held a `cloudinary` object and the privacy report said `sent`), but the preview lived inside the collapsed *Technical details → Attachments* block at the bottom. It was moved into its own **Image evidence** section directly under Remediation, with its own tab.
+- Observed but not changed: the same report scored the Attachments category 0 although the file was flagged suspicious (the hidden QR code was counted under message content by the AI reading). Worth a look in `reportSummary.js`.
+
+## Verification
+Backend suite 226 passed (11 new tests for the store with the network mocked: off by default, URL parsing, signature rule, upload, images only, failure handling, add-on retry, the 3-image cap, deletion, privacy flow). Frontend tests 18 passed and the build succeeds. Live: one real upload through the hosted site stored `rickroll qr.png` in Cloudinary and recorded it on the report.

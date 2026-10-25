@@ -11,6 +11,12 @@ The result is one report that says **how risky the email is, why, and what to do
 - **Live demo (frontend):** <https://e-tap-azure.vercel.app/>
 - **Backend API:** <https://etap-backend-2std.onrender.com> · [health](https://etap-backend-2std.onrender.com/health) · [docs](https://etap-backend-2std.onrender.com/docs)
 
+## Built for Hacktober HackDays: tech for social good
+
+Most people who receive a phishing email cannot judge it for themselves: families, small businesses, first-time email users. E-TAP is built for them first. The report says in plain words how risky an email is, why, and what to do next, and keeps the forensic detail for analysts. It is free, open source (MIT), and standard analysis needs nothing to be installed.
+
+**Cloudinary** is part of the analysis, not decoration. Phishing often hides in an image: a QR code that leads to a fake login page, or a screenshot of an "invoice". When Cloudinary is configured, E-TAP saves each image attachment to Cloudinary (images only, at most 3 per email, under a random name), shows a **blurred preview** that is revealed only when the reader clicks it, and can have Cloudinary read the text in the image a second time. The image is deleted when the report is deleted or expires, and the privacy record (in the exported PDF and the API) lists it as a data flow. With no Cloudinary settings the step is simply off.
+
 For the deep technical reference (every module, library, environment variable, data shape and design decision), read **[CONTEXT.md](CONTEXT.md)**.
 
 ---
@@ -127,7 +133,7 @@ One function reconciles the label and the 0–100 score (the more severe wins) i
 
 - **Dashboard** — emails analysed, high risk / suspicious / low risk counts, average risk, risk-over-time chart, verdict breakdown, top threat types and recent investigations, from everything stored
 - **Analyze email** — a live timeline that lights up each stage as it runs (reading the email, sender & headers, static attachments, dynamic attachments, links & indicators, reputation, past emails, AI assessment, verdict), then the score, the verdict and **Re-analyze**. It shows two cards before anything runs: **Standard analysis** (selected by default, nothing to set up) and **Deeper attachment analysis** (says on the card that it needs a VirtualBox VM, and pairs your sandbox right there the first time). The timeline plays in full by default; **Settings → Analysis animation → Fast** removes the added delay so the report opens as soon as the analysis finishes
-- **Investigation report** — a big score ring and verdict, "why it was risky" tags (Header issues, Attachment issues, Suspicious links, Bad reputation, Seen before, Suspicious wording), category cards with the serious findings first, **Remediation**, the sender-route map, multi-vector analysis and MITRE ATT&CK, collapsible technical details, past emails and the threat graph, and analyst tools (review, case, sharing, retention) at the end
+- **Investigation report** — a big score ring and verdict, "why it was risky" tags (Header issues, Attachment issues, Suspicious links, Bad reputation, Seen before, Suspicious wording), category cards with the serious findings first, **Remediation**, **Image evidence** (blurred Cloudinary previews of image attachments, revealed on click), the sender-route map, multi-vector analysis and MITRE ATT&CK, collapsible technical details, past emails and the threat graph, and analyst tools (review, case, sharing, retention) at the end
 - **Reports** — every analysed email broken down stage by stage, searchable and filterable by risk
 - **Sandbox behaviour** — for deeper analyses, what each attachment did in your VM (rules matched, Defender blocks, processes), updating live while it runs
 - **Trusted domains** — senders you trust lower the risk only when SPF, DKIM and DMARC prove the email is genuine; the same page holds the analysis-animation setting and pairs your sandbox

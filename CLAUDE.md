@@ -13,6 +13,11 @@ Loaded automatically by Claude Code. Keep it short, current and true; update it 
 - Next feature: dynamic attachment analysis through a user-paired sandbox agent (`SANDBOX_BACKEND=agent`). Decision record: `Development notes and iterations/2026-10-24 Sandbox agent direction.md`.
 - `Development notes and iterations/` records the project's history, research and decisions; add a dated entry there for each major iteration. Personal or strategy notes go in the untracked `CLAUDE.local.md`, never in tracked files.
 
+## Hacktober HackDays copy (from 2026-10-25)
+- This folder (`Hacktober HackDays\E-TAP`) is the copy submitted to Hacktober HackDays (Unstop, Tech for Social Good; deadline 2026-10-25 22:00 IST). It is pushed to the user's own repo `github.com/Krish-Anand-dev/E-TAP` and hosted on the user's own accounts: backend `https://etap-backend-2std.onrender.com` (Render, root `backend`, Docker), frontend `https://e-tap-azure.vercel.app` (Vercel, root `frontend`), own Atlas cluster. The older `bhavitanand/E-TAP` deployment (`etap-backend-od1c`, `e-tap-lac`) belongs to a teammate and is not referenced here; the extension, agent launcher and docs now use the new URLs.
+- The event requires **Cloudinary** and the build journey kept on **Notion** (the user keeps the Notion page; `Development notes and iterations/` is the source to copy from).
+- Cloudinary image evidence: `backend/cloudinary_store.py` (upload in `pipeline.py` right after `analyze_attachments`, delete in `workflow_c.delete_record`/`delete_all`, privacy flow in `privacy.py`); UI in `frontend/src/components/report/ImageEvidence.jsx` (section `sec-images`, blurred until clicked). Off unless `CLOUDINARY_URL` is set; failures never break an analysis; the OCR and moderation add-ons are opt-in env flags. Tests: `backend/tests/test_cloudinary_store.py` (network mocked).
+
 ## User preferences
 - **First priority: nothing we build may hinder a normal user.** Standard (static) analysis is the default and must never wait on the sandbox. The choice between Standard and Deeper is shown up front, in the extension banner and on the Analyze page, with what Deeper needs written out (the team decided against hiding it: adding Deeper after a Standard run means re-running the whole pipeline, including rate-limited VirusTotal lookups). Dynamic analysis is an opt-in for people who own a VM.
 - Never commit or push unless asked in that turn.
@@ -42,7 +47,7 @@ Loaded automatically by Claude Code. Keep it short, current and true; update it 
 
 ## Run and test
 - Backend: `cd backend && python -m uvicorn app:app --port 5000` (needs `.env`; this folder has none — tests use env vars). Frontend: `cd frontend && npm run dev` (proxy to 127.0.0.1:5000).
-- Tests: `cd backend && python -m pytest tests -q --ignore=tests/test_threat_intel_live.py` (198 pass); `cd frontend && npm test && npx vite build`; `node --test --test-isolation=none extension/tests/*.test.mjs`.
+- Tests: `cd backend && python -m pytest tests -q --ignore=tests/test_threat_intel_live.py` (226 pass); `cd frontend && npm test && npx vite build`; `node --test --test-isolation=none extension/tests/*.test.mjs`.
 - Browser checks: the user may already have a backend and Vite running on 5000/5173. Don't kill those; run test servers on other ports (e.g. API 5010 with `ALLOWED_ORIGINS` set, UI via `vite build` with `VITE_API_BASE_URL` + `vite preview --port 5183`, output dir outside the repo).
 
 ## Known gaps worth remembering

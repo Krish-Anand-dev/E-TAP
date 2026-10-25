@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 
 export function AttachmentTable({ attachments = [] }) {
   const [copiedHash, setCopiedHash] = useState(null);
-  const [revealed, setRevealed] = useState({});
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
@@ -99,43 +98,6 @@ export function AttachmentTable({ attachments = [] }) {
                         )}
                       </td>
                     </tr>
-                    {att.cloudinary?.preview_url && (
-                      <tr className="row-cloudinary-evidence">
-                        <td colSpan={7} style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-hairline)' }}>
-                          <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                            <button
-                              type="button"
-                              onClick={() => setRevealed((r) => ({ ...r, [idx]: !r[idx] }))}
-                              title={revealed[idx] ? 'Hide the image' : 'Click to show the image'}
-                              style={{ padding: 0, border: '1px solid var(--border-hairline)', borderRadius: '6px', overflow: 'hidden', cursor: 'pointer', background: 'none', lineHeight: 0 }}
-                            >
-                              <img
-                                src={revealed[idx] ? att.cloudinary.preview_url : att.cloudinary.blurred_url}
-                                alt={revealed[idx] ? `Image attachment ${att.filename}` : 'Blurred image attachment'}
-                                width={240}
-                                height={160}
-                                loading="lazy"
-                                style={{ display: 'block', width: '240px', height: '160px', objectFit: 'cover' }}
-                              />
-                            </button>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Image evidence, stored on Cloudinary</span>
-                              <span>{revealed[idx] ? 'Showing the image. Click it to hide it again.' : 'Blurred for your safety. Click the image to show it.'}</span>
-                              {att.cloudinary.width && att.cloudinary.height && (
-                                <span>{att.cloudinary.width} x {att.cloudinary.height} px{att.cloudinary.format ? `, ${att.cloudinary.format.toUpperCase()}` : ''}</span>
-                              )}
-                              {att.cloudinary.moderation?.status && (
-                                <span>
-                                  Cloudinary moderation: {att.cloudinary.moderation.status}
-                                  {att.cloudinary.moderation.labels?.length > 0 && ` (${att.cloudinary.moderation.labels.join(', ')})`}
-                                </span>
-                              )}
-                              <a href={att.cloudinary.url} target="_blank" rel="noopener noreferrer">Open the full image</a>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
                     {hasHiddenContent && (
                       <tr className="row-hidden-content-detail">
                         <td colSpan={7} style={{ background: 'rgba(239, 68, 68, 0.05)', padding: '10px 16px', borderBottom: '1px solid var(--border-hairline)' }}>
