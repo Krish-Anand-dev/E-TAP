@@ -8,8 +8,8 @@ The result is one report that says **how risky the email is, why, and what to do
 
 > E-TAP is a triage assistant, not an oracle. A missing or failed check is always reported as *unknown*, never as *safe*.
 
-- **Live demo (frontend):** <https://e-tap-lac.vercel.app/>
-- **Backend API:** <https://etap-backend-od1c.onrender.com> · [health](https://etap-backend-od1c.onrender.com/health) · [docs](https://etap-backend-od1c.onrender.com/docs)
+- **Live demo (frontend):** <https://e-tap-azure.vercel.app/>
+- **Backend API:** <https://etap-backend-2std.onrender.com> · [health](https://etap-backend-2std.onrender.com/health) · [docs](https://etap-backend-2std.onrender.com/docs)
 
 For the deep technical reference (every module, library, environment variable, data shape and design decision), read **[CONTEXT.md](CONTEXT.md)**.
 

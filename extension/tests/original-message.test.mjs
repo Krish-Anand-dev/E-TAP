@@ -155,7 +155,7 @@ test('full-message handoff uploads original bytes and builds the hosted dossier 
     assert.equal(uploaded.get('source'), 'full_message');
     assert.deepEqual(Buffer.from(await uploaded.get('file').arrayBuffer()), raw);
     const url = new URL(sandbox.analysis.reportUrl(report));
-    assert.equal(url.origin, 'https://e-tap-lac.vercel.app');
+    assert.equal(url.origin, 'https://e-tap-azure.vercel.app');
     assert.equal(url.searchParams.get('dossier'), report.email_id);
     assert.equal(url.searchParams.has('body'), false);
 });
@@ -236,7 +236,7 @@ test('handoffs are scoped to the originating Gmail tab and the toolbar always op
     const { jobId } = await send({ action: 'startEmailAnalysis', data: {} });
     assert.equal((await send({ action: 'prepareEmailAnalysis', jobId }, { url: 'https://mail.google.com/', tab: { id: 3 } })).success, false);
     await action();
-    assert.equal(tabs.at(-1).url, 'https://e-tap-lac.vercel.app');
+    assert.equal(tabs.at(-1).url, 'https://e-tap-azure.vercel.app');
 });
 
 class Element {
@@ -308,7 +308,7 @@ test('analysis page redirects to the full report for either original or limited 
     for (const rawEmailBase64 of [raw.toString('base64'), null]) {
         const result = await page({ id: 'job1', state: 'ready', rawEmailBase64, data: { body: 'Visible' } }, async () => Response.json({ email_id: 'report1' }));
         assert.equal(new URL(result.destination).searchParams.get('dossier'), 'report1');
-        assert.equal(result.nodes.platform.href, 'https://e-tap-lac.vercel.app');
+        assert.equal(result.nodes.platform.href, 'https://e-tap-azure.vercel.app');
         assert.match(result.nodes.coverage.textContent, rawEmailBase64 ? /original .eml/ : /unavailable/);
     }
 });
@@ -318,14 +318,14 @@ test('backend errors retain retry, original-file upload, and platform access', a
     assert.equal(result.destination, undefined);
     assert.equal(result.nodes.retry.hidden, false);
     assert.equal(result.nodes.original.disabled, false);
-    assert.equal(result.nodes.platform.href, 'https://e-tap-lac.vercel.app');
+    assert.equal(result.nodes.platform.href, 'https://e-tap-azure.vercel.app');
     assert.match(result.nodes.status.textContent, /HTTP 503/);
 });
 
 test('expired handoffs retain a manual original-file import and platform access', async () => {
     const result = await page(null, () => assert.fail('Expired job must not upload'));
     assert.match(result.nodes.status.textContent, /expired/);
-    assert.equal(result.nodes.platform.href, 'https://e-tap-lac.vercel.app');
+    assert.equal(result.nodes.platform.href, 'https://e-tap-azure.vercel.app');
     assert.notEqual(result.nodes.original.disabled, true);
 });
 

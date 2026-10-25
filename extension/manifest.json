@@ -12,7 +12,7 @@
     "https://mail.google.com/*",
     "http://127.0.0.1:5000/*",
     "http://localhost:5000/*",
-    "https://etap-backend-od1c.onrender.com/*"
+    "https://etap-backend-2std.onrender.com/*"
   ],
   "background": {
     "service_worker": "background.js"

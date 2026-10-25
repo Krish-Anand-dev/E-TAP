@@ -15,7 +15,7 @@ from pathlib import Path
 
 from .protect import seal, unseal
 
-DEFAULT_SERVER = "https://etap-backend-od1c.onrender.com"
+DEFAULT_SERVER = "https://etap-backend-2std.onrender.com"
 
 
 def config_dir() -> Path:
