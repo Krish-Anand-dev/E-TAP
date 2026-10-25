@@ -1,0 +1,98 @@
+[rule]
+description = """
+Identifies attempts to enumerate the state of keyboard keys and the call is coming from a suspicious call stack.
+Adversaries may log user keystrokes to intercept credentials or other information from the user as the user types them.
+"""
+id = "6ef43c9a-25af-449c-8416-20349780a146"
+license = "Elastic License v2"
+name = "Keystrokes Input Capture from Suspicious CallStack"
+os_list = ["windows"]
+reference = [
+    "https://attack.mitre.org/techniques/T1056/001/",
+    "https://www.elastic.co/security-labs/protecting-your-devices-from-information-theft-keylogger-protection",
+]
+version = "1.0.22"
+
+query = '''
+api where
+ process.thread.Ext.call_stack_final_user_module.hash.sha256 != null and
+ (
+  process.Ext.api.name == "GetAsyncKeyState" or
+  (process.Ext.api.name == "RegisterRawInputDevices" and
+   process.Ext.api.parameters.usage == "KEYBOARD" and process.Ext.api.parameters.flags like "*INPUTSINK*") or
+  (process.Ext.api.name == "SetWindowsHookEx" and process.Ext.api.parameters.hook_type == "WH_KEYBOARD_LL" and
+   process.Ext.api.parameters.hook_module == "null")
+  ) and
+
+  process.thread.Ext.call_stack_final_user_module.name != null and process.executable != null and 
+  process.thread.Ext.call_stack_summary :
+           ("win32u.dll|Unknown|*",
+            "*win32u.dll|user32.dll|Unknown|*",
+            "win32u.dll|Unbacked|*",
+            "*win32u.dll|user32.dll|Unbacked|*",
+            "win32u.dll|user32.dll|Unbacked",
+            "*|python*.dll*",
+            "Unknown",
+            "Unbacked") and 
+  not (process.thread.Ext.call_stack_summary : "*clr.dll*" and process.thread.Ext.call_stack_final_user_module.name : "Unbacked") and 
+  not process.thread.Ext.call_stack_final_user_module.path : 
+                              ("?:\\Program Files\\*",
+                               "?:\\Program Files (x86)\\*",
+                               "?:\\Windows\\*", 
+                               "\\Program Files\\*",
+                               "\\Program Files (x86)\\*",
+                               "\\Windows\\*") and 
+  not process.thread.Ext.call_stack_final_user_module.name : ("Unknown", "Undetermined") and
+  not _arraysearch(process.thread.Ext.call_stack_final_user_module.code_signature, $entry, $entry.trusted == true and
+                   $entry.subject_name in (".NET", "Microsoft Corporation", "Microsoft Windows", "Sophos Limited", "EOG Resources, Inc.")) and
+  not process.executable : 
+                   ("?:\\Program Files (x86)\\Image Express\\ixDrill\\ixDrill.exe", 
+                    "?:\\Windows\\System32\\DellTPad\\ApMsgFwd.exe", 
+                    "?:\\Windows\\System32\\FMAPP.exe",
+                    "?:\\Program Files (x86)\\Power Automate Desktop\\PAD.Console.Host.exe",
+                    "?:\\Program Files (x86)\\SuperPuTTY\\SuperPutty.exe",
+                    "?:\\Program Files\\SuperPuTTY*\\SuperPutty.exe",
+                    "C:\\Program Files\\Four Winds Interactive\\Content Player\\Signage.exe",
+                    "C:\\Program Files\\WindowsApps\\Microsoft.PowerAutomateDesktop_*\\dotnet\\PAD.Console.Host.exe",
+                    "C:\\Program Files (x86)\\Hyland\\OCR for AnyDoc\\OCRforAnyDoc.exe",
+                    "C:\\Program Files\\Dell\\Dell Display and Peripheral Manager\\Plugins\\DDPM.Subagent.User\\DDPM.Subagent.User.exe") and
+  not (process.code_signature.trusted == true and
+       process.code_signature.subject_name in ("Grammarly, Inc.", "HP Inc.", "Proofpoint, Inc.", "ETH Zürich", "Learnpulse",
+        "Qisda Corporation", "ONELAUNCH TECHNOLOGIES INC.", "Laserfiche", "ARTICULATE GLOBAL, LLC",
+        "Connectwise, LLC", "Carl Zeiss Microscopy GmbH", "Articulate Global, Inc.", "JItbit LP", "Dell Inc.",
+        "Roblox Corporation", "Colony Labs, Inc.", "Devolutions Inc", "Wispr AI, Inc.", "Adobe Inc.", "Activision Publishing Inc")) and
+  not process.thread.Ext.call_stack_final_user_module.hash.sha256 in ("120446e2c7729a7ae15e08bcc5cdb95c35151aa0f7e803e53dc7e92a1579783d",
+                                                                      "46327ac3d7979cfc254ba0e76cd17b3a72128034f3618e8247bdcc9f6d84aea2",
+                                                                      "557ae751c11dfb2a9a976c3312f469a4f0b776c1088aeeefdee99b5327aa2fed",
+                                                                      "a57b437a7fe4eb285830564839f37a6704fa1f9dfe4a9a631cd28db43a83320c",
+                                                                      "604d2cddc32d62da41c9553f35eb9aac442574db219cb63caae25205bbff88f8")
+'''
+
+min_endpoint_version = "8.12.0"
+optional_actions = []
+reputation = true
+[[actions]]
+action = "kill_process"
+field = "process.entity_id"
+state = 0
+
+[[threat]]
+framework = "MITRE ATT&CK"
+[[threat.technique]]
+id = "T1056"
+name = "Input Capture"
+reference = "https://attack.mitre.org/techniques/T1056/"
+[[threat.technique.subtechnique]]
+id = "T1056.001"
+name = "Keylogging"
+reference = "https://attack.mitre.org/techniques/T1056/001/"
+
+
+
+[threat.tactic]
+id = "TA0009"
+name = "Collection"
+reference = "https://attack.mitre.org/tactics/TA0009/"
+
+[internal]
+min_endpoint_version = "8.12.0"

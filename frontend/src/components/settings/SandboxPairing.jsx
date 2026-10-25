@@ -1,0 +1,97 @@
+import React, { useEffect, useState } from 'react';
+import Icon from '../common/Icon';
+import { agentDownloadUrl, getSandboxPairing, pairSandbox, sandboxStateLabel, sandboxStateTone, unpairSandbox } from '../../api/sandbox';
+
+/**
+ * Pair this browser with the user's E-TAP Sandbox Agent (once).
+ * Full card on Settings; `compact` is the inline version on the Analyze page.
+ */
+export default function SandboxPairing({ compact = false, onChange }) {
+  const [state, setState] = useState(null);
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState(null);
+
+  const refresh = () => getSandboxPairing()
+    .then((next) => { setState(next); onChange?.(next); return next; })
+    .catch(() => setState({ available: false, unreachable: true }));
+  useEffect(() => {
+    refresh();
+    const timer = setInterval(refresh, 15000);
+    return () => clearInterval(timer);
+  }, []);
+
+  if (!state) return null;
+  if (compact && (state.paired || !state.available)) return null;
+  if (!state.available) {
+    return (
+      <section className="v2-card sandbox-pairing">
+        <h3>Deeper attachment analysis</h3>
+        <p className="v2-empty-line">{state.unreachable ? 'The analysis engine could not be reached.' : 'This E-TAP server does not offer deeper attachment analysis.'}</p>
+      </section>
+    );
+  }
+
+  const pair = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setMessage(null);
+    try {
+      await pairSandbox(code);
+      setCode('');
+      setMessage({ tone: 'ok', text: compact ? 'Paired. Your sandbox is ready.' : 'Paired. Deeper attachment analysis is now available on the Analyze page.' });
+      await refresh();
+    } catch (error) {
+      setMessage({ tone: 'bad', text: error.message });
+    } finally {
+      setBusy(false);
+    }
+  };
+  const unpair = async () => {
+    setBusy(true);
+    try { await unpairSandbox(); await refresh(); setMessage({ tone: 'ok', text: 'This browser is no longer paired.' }); } finally { setBusy(false); }
+  };
+  const tone = sandboxStateTone(state);
+
+  return (
+    <section className={`v2-card sandbox-pairing ${compact ? 'compact' : ''}`}>
+      {compact ? (
+        <div className="pair-inline-head"><strong>Pair your sandbox once</strong><span>Deeper analysis runs on a virtual machine on your own PC, so E-TAP needs to know which one.</span></div>
+      ) : (
+      <div className="v2-card-head">
+        <div><h3>Deeper attachment analysis</h3><p>Open attachments inside a virtual machine you own and see what they do.</p></div>
+        <span className={`sandbox-pill ${tone}`}><Icon name="box" size={14} />{sandboxStateLabel(state)}</span>
+      </div>
+      )}
+      {state.paired ? (
+        <div className="sandbox-paired">
+          <p>
+            Paired with <b>{state.name || 'your sandbox'}</b>{state.vm_name ? <> (VM <b>{state.vm_name}</b>)</> : null}.
+            {' '}{!state.online ? 'Start the E-TAP Sandbox Agent on that PC to bring it online; queued attachments wait for it.'
+              : state.problem ? `The agent is running but cannot use the VM: ${state.problem}`
+              : 'It is ready for deeper analyses.'}
+            {state.queued_jobs ? <> {state.queued_jobs} waiting.</> : null}
+          </p>
+          {!state.online && (
+            <p className="agent-help">No agent on this PC yet? <a href={agentDownloadUrl()} target="_blank" rel="noopener noreferrer">Download the E-TAP Sandbox Agent</a>, right-click the zip, choose <b>Extract All</b> and double-click <b>start-agent.cmd</b>. Using a new PC or a re-installed agent? Unpair this browser and pair again with the new code.</p>
+          )}
+          <button type="button" className="btn-ghost" onClick={unpair} disabled={busy}>Unpair this browser</button>
+        </div>
+      ) : (
+        <>
+          <ol className="pair-steps">
+            <li><span>1</span><div><a href={agentDownloadUrl()} target="_blank" rel="noopener noreferrer">Download the E-TAP Sandbox Agent</a> and extract it (right-click the zip, <b>Extract All</b>) on the PC that has your VirtualBox VM.</div></li>
+            <li><span>2</span><div>Double-click <b>start-agent.cmd</b>. It checks your computer, asks before each step and shows a pairing code.</div></li>
+            <li><span>3</span><div>Enter the code below. You only do this once.</div></li>
+          </ol>
+          <form className="domain-add pair-form" onSubmit={pair}>
+            <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="ABCD-1234" aria-label="Pairing code" maxLength={12} spellCheck={false} autoComplete="off" />
+            <button type="submit" className="btn-primary-action" disabled={busy || code.replace(/[^a-z0-9]/gi, '').length !== 8}>Pair</button>
+          </form>
+          <p className="pair-req"><Icon name="alert" size={14} />Optional. You need Python 3.10 or newer and a Windows virtual machine in VirtualBox, set up with the agent's guide. Windows Sandbox (Windows Pro) support is planned. Without these, Standard analysis still checks everything except opening the attachments.</p>
+        </>
+      )}
+      {message && <p className={`settings-msg ${message.tone}`} role="status">{message.text}</p>}
+    </section>
+  );
+}

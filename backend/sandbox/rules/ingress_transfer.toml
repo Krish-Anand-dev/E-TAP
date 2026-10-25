@@ -1,0 +1,19 @@
+[rule]
+id = "etap-001"
+name = "Ingress Transfer via Windows Utility"
+description = "Detects use of certutil or certreq to download files from the internet, a common living-off-the-land technique."
+version = "1"
+os_list = ["windows"]
+query = '''process where
+  (process.name : "certutil.exe" and process.command_line : ("-urlcache", "-split", "-f"))
+  or (process.name : "certreq.exe" and process.command_line : "-Post")
+'''
+
+[[actions]]
+action = "kill_process"
+
+[[threat]]
+tactic.name = "Command and Control"
+[[threat.technique]]
+id = "T1105"
+name = "Ingress Tool Transfer"

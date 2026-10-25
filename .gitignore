@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.coverage
+
+# Node / frontend build
+node_modules/
+frontend/node_modules/
+frontend/dist/
+dist/
+
+# Secrets and local environment
+.env
+.env.*
+CLAUDE.local.md
+!.env.example
+*.pem
+*.key
+
+# Local email artifacts / datasets (keep only intentionally committed small fixtures)
+*.eml
+*.msg
+*.mbox
+*.csv
+*.tar
+*.tar.gz
+*.tar.bz2
+*.zip
+
+# Local logs / generated outputs
+*.log
+backend/tests/*results.json
+.DS_Store
+Thumbs.db
+
+# Local validation and delivery artifacts
+tmp/
+.local/
+output/
+
+# Sandbox run files (samples, telemetry) and local recorded traces
+backend/sandbox/work/
+backend/sandbox/replays/*.xml

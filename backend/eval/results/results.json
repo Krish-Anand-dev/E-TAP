@@ -1,0 +1,945 @@
+{
+  "summary": {
+    "n_scored": 24,
+    "n_errors": 0,
+    "operating_points": {
+      "flagged (band=danger, score>=65)": {
+        "tp": 0,
+        "fp": 1,
+        "tn": 14,
+        "fn": 9,
+        "n_benign": 15,
+        "n_malicious": 9,
+        "false_positive_rate": 0.06666666666666667,
+        "false_negative_rate": 1.0,
+        "fpr_ci95": [
+          0.011866588606194856,
+          0.2981707755242399
+        ],
+        "fnr_ci95": [
+          0.7008472464490407,
+          1.0
+        ],
+        "by_category": {
+          "easy_ham": {
+            "label": "benign",
+            "n": 6,
+            "flagged": 0
+          },
+          "hard_ham": {
+            "label": "benign",
+            "n": 6,
+            "flagged": 1
+          },
+          "spam": {
+            "label": "malicious",
+            "n": 6,
+            "flagged": 0
+          },
+          "easy_ham_2": {
+            "label": "benign",
+            "n": 3,
+            "flagged": 0
+          },
+          "spam_2": {
+            "label": "malicious",
+            "n": 3,
+            "flagged": 0
+          }
+        },
+        "fn_with_empty_body": 2
+      },
+      "flagged-or-review (band>=caution, score>=40)": {
+        "tp": 1,
+        "fp": 6,
+        "tn": 9,
+        "fn": 8,
+        "n_benign": 15,
+        "n_malicious": 9,
+        "false_positive_rate": 0.4,
+        "false_negative_rate": 0.8888888888888888,
+        "fpr_ci95": [
+          0.19824228082594664,
+          0.642535572434923
+        ],
+        "fnr_ci95": [
+          0.5649937852319399,
+          0.9801096286728695
+        ],
+        "by_category": {
+          "easy_ham": {
+            "label": "benign",
+            "n": 6,
+            "flagged": 2
+          },
+          "hard_ham": {
+            "label": "benign",
+            "n": 6,
+            "flagged": 3
+          },
+          "spam": {
+            "label": "malicious",
+            "n": 6,
+            "flagged": 0
+          },
+          "easy_ham_2": {
+            "label": "benign",
+            "n": 3,
+            "flagged": 1
+          },
+          "spam_2": {
+            "label": "malicious",
+            "n": 3,
+            "flagged": 1
+          }
+        },
+        "fn_with_empty_body": 2
+      },
+      "evidence_state=high_risk_evidence": {
+        "tp": 0,
+        "fp": 1,
+        "tn": 14,
+        "fn": 9,
+        "n_benign": 15,
+        "n_malicious": 9,
+        "false_positive_rate": 0.06666666666666667,
+        "false_negative_rate": 1.0,
+        "fpr_ci95": [
+          0.011866588606194856,
+          0.2981707755242399
+        ],
+        "fnr_ci95": [
+          0.7008472464490407,
+          1.0
+        ],
+        "by_category": {
+          "easy_ham": {
+            "label": "benign",
+            "n": 6,
+            "flagged": 0
+          },
+          "hard_ham": {
+            "label": "benign",
+            "n": 6,
+            "flagged": 1
+          },
+          "spam": {
+            "label": "malicious",
+            "n": 6,
+            "flagged": 0
+          },
+          "easy_ham_2": {
+            "label": "benign",
+            "n": 3,
+            "flagged": 0
+          },
+          "spam_2": {
+            "label": "malicious",
+            "n": 3,
+            "flagged": 0
+          }
+        },
+        "fn_with_empty_body": 2
+      }
+    },
+    "threshold_sweep_risk_score": [
+      {
+        "threshold": 0,
+        "fp": 15,
+        "fn": 0,
+        "false_positive_rate": 1.0,
+        "false_negative_rate": 0.0
+      },
+      {
+        "threshold": 5,
+        "fp": 15,
+        "fn": 0,
+        "false_positive_rate": 1.0,
+        "false_negative_rate": 0.0
+      },
+      {
+        "threshold": 10,
+        "fp": 15,
+        "fn": 0,
+        "false_positive_rate": 1.0,
+        "false_negative_rate": 0.0
+      },
+      {
+        "threshold": 15,
+        "fp": 14,
+        "fn": 1,
+        "false_positive_rate": 0.9333333333333333,
+        "false_negative_rate": 0.1111111111111111
+      },
+      {
+        "threshold": 20,
+        "fp": 11,
+        "fn": 2,
+        "false_positive_rate": 0.7333333333333333,
+        "false_negative_rate": 0.2222222222222222
+      },
+      {
+        "threshold": 25,
+        "fp": 8,
+        "fn": 4,
+        "false_positive_rate": 0.5333333333333333,
+        "false_negative_rate": 0.4444444444444444
+      },
+      {
+        "threshold": 30,
+        "fp": 6,
+        "fn": 8,
+        "false_positive_rate": 0.4,
+        "false_negative_rate": 0.8888888888888888
+      },
+      {
+        "threshold": 35,
+        "fp": 6,
+        "fn": 8,
+        "false_positive_rate": 0.4,
+        "false_negative_rate": 0.8888888888888888
+      },
+      {
+        "threshold": 40,
+        "fp": 6,
+        "fn": 8,
+        "false_positive_rate": 0.4,
+        "false_negative_rate": 0.8888888888888888
+      },
+      {
+        "threshold": 45,
+        "fp": 5,
+        "fn": 8,
+        "false_positive_rate": 0.3333333333333333,
+        "false_negative_rate": 0.8888888888888888
+      },
+      {
+        "threshold": 50,
+        "fp": 5,
+        "fn": 9,
+        "false_positive_rate": 0.3333333333333333,
+        "false_negative_rate": 1.0
+      },
+      {
+        "threshold": 55,
+        "fp": 4,
+        "fn": 9,
+        "false_positive_rate": 0.26666666666666666,
+        "false_negative_rate": 1.0
+      },
+      {
+        "threshold": 60,
+        "fp": 2,
+        "fn": 9,
+        "false_positive_rate": 0.13333333333333333,
+        "false_negative_rate": 1.0
+      },
+      {
+        "threshold": 65,
+        "fp": 1,
+        "fn": 9,
+        "false_positive_rate": 0.06666666666666667,
+        "false_negative_rate": 1.0
+      },
+      {
+        "threshold": 70,
+        "fp": 1,
+        "fn": 9,
+        "false_positive_rate": 0.06666666666666667,
+        "false_negative_rate": 1.0
+      },
+      {
+        "threshold": 75,
+        "fp": 0,
+        "fn": 9,
+        "false_positive_rate": 0.0,
+        "false_negative_rate": 1.0
+      },
+      {
+        "threshold": 80,
+        "fp": 0,
+        "fn": 9,
+        "false_positive_rate": 0.0,
+        "false_negative_rate": 1.0
+      },
+      {
+        "threshold": 85,
+        "fp": 0,
+        "fn": 9,
+        "false_positive_rate": 0.0,
+        "false_negative_rate": 1.0
+      },
+      {
+        "threshold": 90,
+        "fp": 0,
+        "fn": 9,
+        "false_positive_rate": 0.0,
+        "false_negative_rate": 1.0
+      },
+      {
+        "threshold": 95,
+        "fp": 0,
+        "fn": 9,
+        "false_positive_rate": 0.0,
+        "false_negative_rate": 1.0
+      },
+      {
+        "threshold": 100,
+        "fp": 0,
+        "fn": 9,
+        "false_positive_rate": 0.0,
+        "false_negative_rate": 1.0
+      }
+    ],
+    "verdict_counts_by_label": {
+      "benign": {
+        "LIKELY LEGITIMATE": 4,
+        "LOW RISK": 5,
+        "SUSPICIOUS": 5,
+        "LIKELY PHISHING": 1
+      },
+      "malicious": {
+        "LOW RISK": 6,
+        "SUSPICIOUS": 1,
+        "LIKELY LEGITIMATE": 2
+      }
+    },
+    "environment": {
+      "providers": {
+        "offline_fallback": 24
+      },
+      "xgboost_triage_available": {
+        "true": 24
+      },
+      "threat_intel_modes": {
+        "offline_placeholder": 24
+      }
+    },
+    "sample_size_warning": "Only 15 benign and 9 malicious messages. The confidence intervals are the honest reading; do not quote these as detection rates.",
+    "errors": [],
+    "messages_with_empty_body": [
+      "20030228_spam_2/00002.9438920e9a55591b18e60d1ed37d992b.json",
+      "20030228_spam_2/00003.590eff932f8704d8b0fcbe69d023b54d.json"
+    ]
+  },
+  "rows": [
+    {
+      "sample_id": "20021010_easy_ham/0049.bda43370915afa1f557f7edab6913e04.json",
+      "label": "benign",
+      "category": "easy_ham",
+      "risk_score": 19,
+      "verdict": "LIKELY LEGITIMATE",
+      "verdict_band": "safe",
+      "evidence_state": "no_high_risk_found",
+      "confidence_level": "low",
+      "provider": "offline_fallback",
+      "triage_available": true,
+      "threat_intel_mode": "offline_placeholder",
+      "subject": "Re: hauns_froehlingsdorf@infinetivity.com",
+      "body_chars": 354,
+      "parse_warnings": [],
+      "header_red_flags": [],
+      "content_score": 10,
+      "content_categories": [
+        "Other"
+      ],
+      "top_reasons": [],
+      "n_urls": 1
+    },
+    {
+      "sample_id": "20021010_easy_ham/0051.9281d3f8a3faf47d09a7fafdf2caf26e.json",
+      "label": "benign",
+      "category": "easy_ham",
+      "risk_score": 19,
+      "verdict": "LIKELY LEGITIMATE",
+      "verdict_band": "safe",
+      "evidence_state": "no_high_risk_found",
+      "confidence_level": "low",
+      "provider": "offline_fallback",
+      "triage_available": true,
+      "threat_intel_mode": "offline_placeholder",
+      "subject": "[ILUG] Re: Sun Solaris",
+      "body_chars": 279,
+      "parse_warnings": [],
+      "header_red_flags": [],
+      "content_score": 10,
+      "content_categories": [
+        "Other"
+      ],
+      "top_reasons": [],
+      "n_urls": 1
+    },
+    {
+      "sample_id": "20021010_easy_ham/0091.3bdd7b578973ee005733480a8b6c9b54.json",
+      "label": "benign",
+      "category": "easy_ham",
+      "risk_score": 28,
+      "verdict": "LOW RISK",
+      "verdict_band": "safe",
+      "evidence_state": "no_high_risk_found",
+      "confidence_level": "low",
+      "provider": "offline_fallback",
+      "triage_available": true,
+      "threat_intel_mode": "offline_placeholder",
+      "subject": "Re: [scoop] Scoop MS Word .doc file into something that plucker or oth",
+      "body_chars": 2758,
+      "parse_warnings": [],
+      "header_red_flags": [],
+      "content_score": 20,
+      "content_categories": [
+        "Spam / Unwanted Commercial Email"
+      ],
+      "top_reasons": [
+        "ai.content.0"
+      ],
+      "n_urls": 6
+    },
+    {
+      "sample_id": "20021010_hard_ham/0001.f0cf04027e74802f09f723cb8916b48e.json",
+      "label": "benign",
+      "category": "hard_ham",
+      "risk_score": 57,
+      "verdict": "SUSPICIOUS",
+      "verdict_band": "caution",
+      "evidence_state": "suspicious_uncertain",
+      "confidence_level": "medium",
+      "provider": "offline_fallback",
+      "triage_available": true,
+      "threat_intel_mode": "offline_placeholder",
+      "subject": "CNET NEWS.COM: Cable companies cracking down on Wi-Fi",
+      "body_chars": 32122,
+      "parse_warnings": [],
+      "header_red_flags": [],
+      "content_score": 90,
+      "content_categories": [
+        "Payment / Invoice Fraud",
+        "Business Email Compromise (BEC)"
+      ],
+      "top_reasons": [
+        "link.flag.0",
+        "link.flag.1",
+        "ai.content.0"
+      ],
+      "n_urls": 83
+    },
+    {
+      "sample_id": "20021010_hard_ham/0002.2fe846db6e3249836abdbfcae459bf2a.json",
+      "label": "benign",
+      "category": "hard_ham",
+      "risk_score": 28,
+      "verdict": "LOW RISK",
+      "verdict_band": "safe",
+      "evidence_state": "no_high_risk_found",
+      "confidence_level": "low",
+      "provider": "offline_fallback",
+      "triage_available": true,
+      "threat_intel_mode": "offline_placeholder",
+      "subject": "Save an extra $50 on the iPaq 3835 PDA (CNET SHOPPER)",
+      "body_chars": 19180,
+      "parse_warnings": [],
+      "header_red_flags": [],
+      "content_score": 20,
+      "content_categories": [
+        "Spam / Unwanted Commercial Email"
+      ],
+      "top_reasons": [
+        "link.flag.0",
+        "ai.content.0"
+      ],
+      "n_urls": 42
+    },
+    {
+      "sample_id": "20021010_hard_ham/0004.409015be23edf1c42f319a870114664c.json",
+      "label": "benign",
+      "category": "hard_ham",
+      "risk_score": 57,
+      "verdict": "SUSPICIOUS",
+      "verdict_band": "caution",
+      "evidence_state": "suspicious_uncertain",
+      "confidence_level": "medium",
+      "provider": "offline_fallback",
+      "triage_available": true,
+      "threat_intel_mode": "offline_placeholder",
+      "subject": "Reg Headlines Wednesday July 10",
+      "body_chars": 4786,
+      "parse_warnings": [],
+      "header_red_flags": [],
+      "content_score": 90,
+      "content_categories": [
+        "Business Email Compromise (BEC)"
+      ],
+      "top_reasons": [
+        "ai.content.0"
+      ],
+      "n_urls": 21
+    },
+    {
+      "sample_id": "20021010_spam/0001.bfc8d64d12b325ff385cca8d07b84288.json",
+      "label": "malicious",
+      "category": "spam",
+      "risk_score": 23,
+      "verdict": "LOW RISK",
+      "verdict_band": "safe",
+      "evidence_state": "no_high_risk_found",
+      "confidence_level": "low",
+      "provider": "offline_fallback",
+      "triage_available": true,
+      "threat_intel_mode": "offline_placeholder",
+      "subject": "Life Insurance - Why Pay More?",
+      "body_chars": 3668,
+      "parse_warnings": [],
+      "header_red_flags": [],
+      "content_score": 20,
+      "content_categories": [
+        "Spam / Unwanted Commercial Email"
+      ],
+      "top_reasons": [
+        "ai.content.0"
+      ],
+      "n_urls": 1
+    },
+    {
+      "sample_id": "20021010_spam/0003.4b3d943b8df71af248d12f8b2e7a224a.json",
+      "label": "malicious",
+      "category": "spam",
+      "risk_score": 28,
+      "verdict": "LOW RISK",
+      "verdict_band": "safe",
+      "evidence_state": "no_high_risk_found",
+      "confidence_level": "low",
+      "provider": "offline_fallback",
+      "triage_available": true,
+      "threat_intel_mode": "offline_placeholder",
+      "subject": "Guaranteed to lose 10-12 lbs in 30 days                          11.15",
+      "body_chars": 625,
+      "parse_warnings": [],
+      "header_red_flags": [],
+      "content_score": 20,
+      "content_categories": [
+        "Spam / Unwanted Commercial Email"
+      ],
+      "top_reasons": [
+        "ai.content.0"
+      ],
+      "n_urls": 6
+    },
+    {
+      "sample_id": "20021010_spam/0005.1f42bb885de0ef7fc5cd09d34dc2ba54.json",
+      "label": "malicious",
+      "category": "spam",
+      "risk_score": 27,
+      "verdict": "LOW RISK",
+      "verdict_band": "safe",
+      "evidence_state": "no_high_risk_found",
+      "confidence_level": "low",
+      "provider": "offline_fallback",
+      "triage_available": true,
+      "threat_intel_mode": "offline_placeholder",
+      "subject": "[ILUG-Social] re: Guaranteed to lose 10-12 lbs in 30 days 10.148",
+      "body_chars": 659,
+      "parse_warnings": [],
+      "header_red_flags": [],
+      "content_score": 20,
+      "content_categories": [
+        "Spam / Unwanted Commercial Email"
+      ],
+      "top_reasons": [
+        "ai.content.0"
+      ],
+      "n_urls": 5
+    },
+    {
+      "sample_id": "20030228_easy_ham/00001.7c53336b37003a9286aba55d2945844c.json",
+      "label": "benign",
+      "category": "easy_ham",
+      "risk_score": 21,
+      "verdict": "LOW RISK",
+      "verdict_band": "safe",
+      "evidence_state": "no_high_risk_found",
+      "confidence_level": "low",
+      "provider": "offline_fallback",
+      "triage_available": true,
+      "threat_intel_mode": "offline_placeholder",
+      "subject": "Re: New Sequences Window",
+      "body_chars": 1604,
+      "parse_warnings": [],
+      "header_red_flags": [],
+      "content_score": 10,
+      "content_categories": [
+        "Other"
+      ],
+      "top_reasons": [],
+      "n_urls": 3
+    },
+    {
+      "sample_id": "20030228_easy_ham/00002.9c4069e25e1ef370c078db7ee85ff9ac.json",
+      "label": "benign",
+      "category": "easy_ham",
+      "risk_score": 40,
+      "verdict": "SUSPICIOUS",
+      "verdict_band": "caution",
+      "evidence_state": "suspicious_uncertain",
+      "confidence_level": "medium",
+      "provider": "offline_fallback",
+      "triage_available": true,
+      "threat_intel_mode": "offline_placeholder",
+      "subject": "[zzzzteana] RE: Alexander",
+      "body_chars": 899,
+      "parse_warnings": [],
+      "header_red_flags": [
+        "reply_to_domain_mismatch"
+      ],
+      "content_score": 20,
+      "content_categories": [
+        "Spam / Unwanted Commercial Email"
+      ],
+      "top_reasons": [
+        "hdr.flag.reply_to_domain_mismatch",
+        "ai.content.0"
+      ],
+      "n_urls": 2
+    },
+    {
+      "sample_id": "20030228_easy_ham/00003.860e3c3cee1b42ead714c5c874fe25f7.json",
+      "label": "benign",
+      "category": "easy_ham",
+      "risk_score": 63,
+      "verdict": "SUSPICIOUS",
+      "verdict_band": "caution",
+      "evidence_state": "suspicious_uncertain",
+      "confidence_level": "medium",
+      "provider": "offline_fallback",
+      "triage_available": true,
+      "threat_intel_mode": "offline_placeholder",
+      "subject": "[zzzzteana] Moscow bomber",
+      "body_chars": 1751,
+      "parse_warnings": [],
+      "header_red_flags": [
+        "reply_to_domain_mismatch"
+      ],
+      "content_score": 75,
+      "content_categories": [
+        "Social Engineering"
+      ],
+      "top_reasons": [
+        "hdr.flag.reply_to_domain_mismatch",
+        "ai.content.0"
+      ],
+      "n_urls": 2
+    },
+    {
+      "sample_id": "20030228_easy_ham_2/00002.5a587ae61666c5aa097c8e866aedcc59.json",
+      "label": "benign",
+      "category": "easy_ham_2",
+      "risk_score": 24,
+      "verdict": "LOW RISK",
+      "verdict_band": "safe",
+      "evidence_state": "no_high_risk_found",
+      "confidence_level": "low",
+      "provider": "offline_fallback",
+      "triage_available": true,
+      "threat_intel_mode": "offline_placeholder",
+      "subject": "Re: New Sequences Window",
+      "body_chars": 986,
+      "parse_warnings": [],
+      "header_red_flags": [],
+      "content_score": 10,
+      "content_categories": [
+        "Other"
+      ],
+      "top_reasons": [],
+      "n_urls": 6
+    },
+    {
+      "sample_id": "20030228_easy_ham_2/00003.19be8acd739ad589cd00d8425bac7115.json",
+      "label": "benign",
+      "category": "easy_ham_2",
+      "risk_score": 24,
+      "verdict": "LOW RISK",
+      "verdict_band": "safe",
+      "evidence_state": "no_high_risk_found",
+      "confidence_level": "low",
+      "provider": "offline_fallback",
+      "triage_available": true,
+      "threat_intel_mode": "offline_placeholder",
+      "subject": "Re: New Sequences Window",
+      "body_chars": 1436,
+      "parse_warnings": [],
+      "header_red_flags": [],
+      "content_score": 10,
+      "content_categories": [
+        "Other"
+      ],
+      "top_reasons": [],
+      "n_urls": 6
+    },
+    {
+      "sample_id": "20030228_easy_ham_2/00004.b2ed6c3c62bbdfab7683d60e214d1445.json",
+      "label": "benign",
+      "category": "easy_ham_2",
+      "risk_score": 51,
+      "verdict": "SUSPICIOUS",
+      "verdict_band": "caution",
+      "evidence_state": "suspicious_uncertain",
+      "confidence_level": "medium",
+      "provider": "offline_fallback",
+      "triage_available": true,
+      "threat_intel_mode": "offline_placeholder",
+      "subject": "Re: New Sequences Window",
+      "body_chars": 7477,
+      "parse_warnings": [],
+      "header_red_flags": [],
+      "content_score": 75,
+      "content_categories": [
+        "Social Engineering"
+      ],
+      "top_reasons": [
+        "ai.content.0"
+      ],
+      "n_urls": 7
+    },
+    {
+      "sample_id": "20030228_hard_ham/00001.7c7d6921e671bbe18ebb5f893cd9bb35.json",
+      "label": "benign",
+      "category": "hard_ham",
+      "risk_score": 73,
+      "verdict": "LIKELY PHISHING",
+      "verdict_band": "danger",
+      "evidence_state": "high_risk_evidence",
+      "confidence_level": "medium",
+      "provider": "offline_fallback",
+      "triage_available": true,
+      "threat_intel_mode": "offline_placeholder",
+      "subject": "Personal Finance: Resolutions You Can Keep",
+      "body_chars": 7050,
+      "parse_warnings": [],
+      "header_red_flags": [
+        "reply_to_domain_mismatch"
+      ],
+      "content_score": 90,
+      "content_categories": [
+        "Payment / Invoice Fraud"
+      ],
+      "top_reasons": [
+        "hdr.flag.reply_to_domain_mismatch",
+        "ai.content.0"
+      ],
+      "n_urls": 24
+    },
+    {
+      "sample_id": "20030228_hard_ham/00002.ca96f74042d05c1a1d29ca30467cfcd5.json",
+      "label": "benign",
+      "category": "hard_ham",
+      "risk_score": 16,
+      "verdict": "LIKELY LEGITIMATE",
+      "verdict_band": "safe",
+      "evidence_state": "no_high_risk_found",
+      "confidence_level": "low",
+      "provider": "offline_fallback",
+      "triage_available": true,
+      "threat_intel_mode": "offline_placeholder",
+      "subject": "Malcolm in the Middle Sweepstakes Prize Notification",
+      "body_chars": 14724,
+      "parse_warnings": [],
+      "header_red_flags": [],
+      "content_score": 20,
+      "content_categories": [
+        "Spam / Unwanted Commercial Email"
+      ],
+      "top_reasons": [
+        "ai.content.0"
+      ],
+      "n_urls": 0
+    },
+    {
+      "sample_id": "20030228_hard_ham/00003.268fd170a3fc73bee2739d8204856a53.json",
+      "label": "benign",
+      "category": "hard_ham",
+      "risk_score": 10,
+      "verdict": "LIKELY LEGITIMATE",
+      "verdict_band": "safe",
+      "evidence_state": "no_high_risk_found",
+      "confidence_level": "low",
+      "provider": "offline_fallback",
+      "triage_available": true,
+      "threat_intel_mode": "offline_placeholder",
+      "subject": "Automated 30 day renewal reminder 2002-05-27",
+      "body_chars": 299,
+      "parse_warnings": [],
+      "header_red_flags": [],
+      "content_score": 10,
+      "content_categories": [
+        "Other"
+      ],
+      "top_reasons": [],
+      "n_urls": 0
+    },
+    {
+      "sample_id": "20030228_spam/00001.7848dde101aa985090474a91ec93fcf0.json",
+      "label": "malicious",
+      "category": "spam",
+      "risk_score": 23,
+      "verdict": "LOW RISK",
+      "verdict_band": "safe",
+      "evidence_state": "no_high_risk_found",
+      "confidence_level": "low",
+      "provider": "offline_fallback",
+      "triage_available": true,
+      "threat_intel_mode": "offline_placeholder",
+      "subject": "Life Insurance - Why Pay More?",
+      "body_chars": 3668,
+      "parse_warnings": [],
+      "header_red_flags": [],
+      "content_score": 20,
+      "content_categories": [
+        "Spam / Unwanted Commercial Email"
+      ],
+      "top_reasons": [
+        "ai.content.0"
+      ],
+      "n_urls": 1
+    },
+    {
+      "sample_id": "20030228_spam/00002.d94f1b97e48ed3b553b3508d116e6a09.json",
+      "label": "malicious",
+      "category": "spam",
+      "risk_score": 28,
+      "verdict": "LOW RISK",
+      "verdict_band": "safe",
+      "evidence_state": "no_high_risk_found",
+      "confidence_level": "low",
+      "provider": "offline_fallback",
+      "triage_available": true,
+      "threat_intel_mode": "offline_placeholder",
+      "subject": "[ILUG] Guaranteed to lose 10-12 lbs in 30 days 10.206",
+      "body_chars": 781,
+      "parse_warnings": [],
+      "header_red_flags": [],
+      "content_score": 20,
+      "content_categories": [
+        "Spam / Unwanted Commercial Email"
+      ],
+      "top_reasons": [
+        "ai.content.0"
+      ],
+      "n_urls": 7
+    },
+    {
+      "sample_id": "20030228_spam/00003.2ee33bc6eacdb11f38d052c44819ba6c.json",
+      "label": "malicious",
+      "category": "spam",
+      "risk_score": 28,
+      "verdict": "LOW RISK",
+      "verdict_band": "safe",
+      "evidence_state": "no_high_risk_found",
+      "confidence_level": "low",
+      "provider": "offline_fallback",
+      "triage_available": true,
+      "threat_intel_mode": "offline_placeholder",
+      "subject": "Guaranteed to lose 10-12 lbs in 30 days                          11.15",
+      "body_chars": 636,
+      "parse_warnings": [],
+      "header_red_flags": [],
+      "content_score": 20,
+      "content_categories": [
+        "Spam / Unwanted Commercial Email"
+      ],
+      "top_reasons": [
+        "ai.content.0"
+      ],
+      "n_urls": 6
+    },
+    {
+      "sample_id": "20030228_spam_2/00001.317e78fa8ee2f54cd4890fdc09ba8176.json",
+      "label": "malicious",
+      "category": "spam_2",
+      "risk_score": 46,
+      "verdict": "SUSPICIOUS",
+      "verdict_band": "caution",
+      "evidence_state": "suspicious_uncertain",
+      "confidence_level": "medium",
+      "provider": "offline_fallback",
+      "triage_available": true,
+      "threat_intel_mode": "offline_placeholder",
+      "subject": "[ILUG] STOP THE MLM INSANITY",
+      "body_chars": 3027,
+      "parse_warnings": [],
+      "header_red_flags": [],
+      "content_score": 75,
+      "content_categories": [
+        "Social Engineering"
+      ],
+      "top_reasons": [
+        "ai.content.0"
+      ],
+      "n_urls": 1
+    },
+    {
+      "sample_id": "20030228_spam_2/00002.9438920e9a55591b18e60d1ed37d992b.json",
+      "label": "malicious",
+      "category": "spam_2",
+      "risk_score": 16,
+      "verdict": "LIKELY LEGITIMATE",
+      "verdict_band": "safe",
+      "evidence_state": "no_high_risk_found",
+      "confidence_level": "low",
+      "provider": "offline_fallback",
+      "triage_available": true,
+      "threat_intel_mode": "offline_placeholder",
+      "subject": "Real Protection, Stun Guns!  Free Shipping! Time:2:01:35 PM",
+      "body_chars": 0,
+      "parse_warnings": [
+        "Failed to decode single-part body: unknown encoding: DEFAULT"
+      ],
+      "header_red_flags": [],
+      "content_score": 20,
+      "content_categories": [
+        "Spam / Unwanted Commercial Email"
+      ],
+      "top_reasons": [
+        "ai.content.0"
+      ],
+      "n_urls": 0
+    },
+    {
+      "sample_id": "20030228_spam_2/00003.590eff932f8704d8b0fcbe69d023b54d.json",
+      "label": "malicious",
+      "category": "spam_2",
+      "risk_score": 12,
+      "verdict": "LIKELY LEGITIMATE",
+      "verdict_band": "safe",
+      "evidence_state": "no_high_risk_found",
+      "confidence_level": "low",
+      "provider": "offline_fallback",
+      "triage_available": true,
+      "threat_intel_mode": "offline_placeholder",
+      "subject": "New Improved Fat Burners, Now With TV Fat Absorbers! Time:6:25:49 PM",
+      "body_chars": 0,
+      "parse_warnings": [
+        "Failed to decode single-part body: unknown encoding: DEFAULT"
+      ],
+      "header_red_flags": [],
+      "content_score": 10,
+      "content_categories": [
+        "Other"
+      ],
+      "top_reasons": [],
+      "n_urls": 0
+    }
+  ],
+  "skipped": [],
+  "duplicates": [
+    {
+      "sample_id": "20050311_spam_2/00001.317e78fa8ee2f54cd4890fdc09ba8176.json",
+      "duplicate_of": "20030228_spam_2/00001.317e78fa8ee2f54cd4890fdc09ba8176.json"
+    },
+    {
+      "sample_id": "20050311_spam_2/00002.9438920e9a55591b18e60d1ed37d992b.json",
+      "duplicate_of": "20030228_spam_2/00002.9438920e9a55591b18e60d1ed37d992b.json"
+    },
+    {
+      "sample_id": "20050311_spam_2/00003.590eff932f8704d8b0fcbe69d023b54d.json",
+      "duplicate_of": "20030228_spam_2/00003.590eff932f8704d8b0fcbe69d023b54d.json"
+    }
+  ]
+}

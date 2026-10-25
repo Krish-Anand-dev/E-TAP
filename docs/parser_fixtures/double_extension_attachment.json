@@ -1,0 +1,51 @@
+{
+  "subject": "Your payslip and updated policy",
+  "from_raw": "HR Dept <hr@example.com>",
+  "from_display_name": "HR Dept",
+  "from_email": "hr@example.com",
+  "to": "victim@example.com",
+  "reply_to": null,
+  "date": "Tue, 25 Aug 2026 09:00:00 +0000",
+  "message_id": "<multi-attach@example.com>",
+  "all_headers": {
+    "From": [
+      "HR Dept <hr@example.com>"
+    ],
+    "To": [
+      "victim@example.com"
+    ],
+    "Subject": [
+      "Your payslip and updated policy"
+    ],
+    "Date": [
+      "Tue, 25 Aug 2026 09:00:00 +0000"
+    ],
+    "Message-ID": [
+      "<multi-attach@example.com>"
+    ],
+    "Content-Type": [
+      "multipart/mixed; boundary=\"B1\""
+    ],
+    "MIME-Version": [
+      "1.0"
+    ]
+  },
+  "body_text": "Please find attached your payslip and the updated policy document.\n",
+  "body_html": null,
+  "attachments": [
+    {
+      "filename": "payslip.pdf",
+      "content_type": "application/pdf",
+      "size_bytes": 15,
+      "content_bytes_b64": "JVBERi0xLjQKJeLjz9MK"
+    },
+    {
+      "filename": "policy_update.pdf.exe",
+      "content_type": "application/pdf",
+      "size_bytes": 17,
+      "content_bytes_b64": "TVqQAAMAAAAEAAAA//8AALg="
+    }
+  ],
+  "source_format": "eml",
+  "parse_warnings": []
+}

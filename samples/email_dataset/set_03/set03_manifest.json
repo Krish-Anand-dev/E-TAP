@@ -1,0 +1,82 @@
+[
+  {
+    "id": "set03_001",
+    "file": "set_03/eml/set03_001.eml",
+    "format": "eml",
+    "label": "benign",
+    "category": "order-receipt",
+    "size_bytes": 886
+  },
+  {
+    "id": "set03_002",
+    "file": "set_03/eml/set03_002.eml",
+    "format": "eml",
+    "label": "phishing",
+    "category": "fake-esignature-docusign",
+    "size_bytes": 1021
+  },
+  {
+    "id": "set03_003",
+    "file": "set_03/eml/set03_003.eml",
+    "format": "eml",
+    "label": "benign",
+    "category": "edge-case-html-only-body",
+    "size_bytes": 881
+  },
+  {
+    "id": "set03_004",
+    "file": "set_03/eml/set03_004.eml",
+    "format": "eml",
+    "label": "phishing",
+    "category": "malicious-zip-attachment-resume",
+    "size_bytes": 1585
+  },
+  {
+    "id": "set03_005",
+    "file": "set_03/eml/set03_005.eml",
+    "format": "eml",
+    "label": "spam",
+    "category": "fake-pharmacy-spam",
+    "size_bytes": 910
+  },
+  {
+    "id": "set03_006",
+    "file": "set_03/msg/set03_006.msg",
+    "format": "msg",
+    "label": "benign",
+    "category": "edge-case-multi-recipient",
+    "size_bytes": 8192
+  },
+  {
+    "id": "set03_007",
+    "file": "set_03/msg/set03_007.msg",
+    "format": "msg",
+    "label": "phishing",
+    "category": "fake-voicemail-html-credential-harvest",
+    "size_bytes": 7680
+  },
+  {
+    "id": "set03_008",
+    "file": "set_03/msg/set03_008.msg",
+    "format": "msg",
+    "label": "phishing",
+    "category": "gov-tax-impersonation-scam",
+    "size_bytes": 7680
+  },
+  {
+    "id": "set03_009",
+    "file": "set_03/msg/set03_009.msg",
+    "format": "msg",
+    "label": "spam",
+    "category": "fake-charity-donation-scam",
+    "size_bytes": 7168
+  },
+  {
+    "id": "set03_010",
+    "file": "set_03/msg/set03_010.msg",
+    "format": "msg",
+    "label": "benign",
+    "category": "short-normal-reply",
+    "size_bytes": 6656
+  }
+]

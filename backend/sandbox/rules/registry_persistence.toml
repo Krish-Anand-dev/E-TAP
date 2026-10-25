@@ -1,0 +1,19 @@
+[rule]
+id = "etap-007"
+name = "Registry Modification for Persistence"
+description = "Detects modification of common persistence registry keys (Run, RunOnce, Services) by non-standard processes."
+version = "1"
+os_list = ["windows"]
+query = '''registry where
+  registry.path : ("*\\CurrentVersion\\Run\\*", "*\\CurrentVersion\\RunOnce\\*", "*\\CurrentVersion\\RunServices\\*", "*\\CurrentVersion\\Explorer\\Shell Folders\\*")
+  and not process.name : ("explorer.exe", "svchost.exe", "dismhost.exe", "msiexec.exe")
+'''
+
+[[actions]]
+action = "kill_process"
+
+[[threat]]
+tactic.name = "Persistence"
+[[threat.technique]]
+id = "T1547.001"
+name = "Boot or Logon Autostart Execution: Registry Run Keys / Startup Folder"

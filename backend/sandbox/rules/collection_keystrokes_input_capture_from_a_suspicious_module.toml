@@ -1,0 +1,65 @@
+[rule]
+description = """
+Identifies attempts to enumerate the state of keyboard keys and the call is coming from Python, AutoIt, NodeJs or LUA
+libraries. Adversaries may log user keystrokes to intercept credentials or other information from the user as the user
+types them.
+"""
+id = "ca00acf2-6e1b-4823-8fdd-7339ffa7079f"
+license = "Elastic License v2"
+name = "Keystrokes Input Capture from a Suspicious Module"
+os_list = ["windows"]
+reference = [
+    "https://attack.mitre.org/techniques/T1056/001/",
+    "https://www.elastic.co/security-labs/protecting-your-devices-from-information-theft-keylogger-protection",
+]
+version = "1.0.9"
+
+query = '''
+api where process.executable != null and
+ (
+  (process.Ext.api.name == "GetAsyncKeyState" and process.Ext.api.metadata.background_callcount >= 400 and
+  process.Ext.api.metadata.ms_since_last_keyevent >= 100) or
+
+  (process.Ext.api.name == "SetWindowsHookEx" and process.Ext.api.parameters.hook_type == "WH_KEYBOARD_LL")
+  ) and
+  (
+   process.thread.Ext.call_stack_final_user_module.name : ("libffi*.dll", "python*.dll", "luacom.dll", "lua?.?.dll", "lua??.dll") or 
+   process.code_signature.subject_name in ("AutoIt Consulting Ltd", "OpenJS Foundation")
+  ) and
+
+  not (process.code_signature.subject_name == "NV Access Limited" and process.code_signature.trusted == true) and
+  not process.executable : ("C:\\Program Files\\Python39\\pythonw.exe", "C:\\Program Files\\WSL\\msrdc.exe") and
+  not process.thread.Ext.call_stack_final_user_module.hash.sha256 in ("eff52743773eb550fcc6ce3efc37c85724502233b6b002a35496d828bd7b280a", "0817a2a657a24c0d5fbb60df56960f42fc66b3039d522ec952dab83e2d869364", "f60dd9f2fcbd495674dfc1555effb710eb081fc7d4cae5fa58c438ab50405081")
+'''
+
+min_endpoint_version = "8.12.0"
+[[actions]]
+action = "kill_process"
+field = "process.entity_id"
+state = 0
+
+[[optional_actions]]
+action = "rollback"
+field = "process.entity_id"
+state = 0
+
+[[threat]]
+framework = "MITRE ATT&CK"
+[[threat.technique]]
+id = "T1056"
+name = "Input Capture"
+reference = "https://attack.mitre.org/techniques/T1056/"
+[[threat.technique.subtechnique]]
+id = "T1056.001"
+name = "Keylogging"
+reference = "https://attack.mitre.org/techniques/T1056/001/"
+
+
+
+[threat.tactic]
+id = "TA0009"
+name = "Collection"
+reference = "https://attack.mitre.org/tactics/TA0009/"
+
+[internal]
+min_endpoint_version = "8.12.0"

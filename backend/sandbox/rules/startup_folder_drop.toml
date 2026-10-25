@@ -1,0 +1,18 @@
+[rule]
+id = "etap-005"
+name = "File Dropped in Startup or AutoRun Location"
+description = "Detects files being created in Windows startup folders or Run registry keys, indicating persistence establishment."
+version = "1"
+os_list = ["windows"]
+query = '''file where
+  file.path : ("*\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\*", "*\\Start Menu\\Programs\\Startup\\*")
+'''
+
+[[actions]]
+action = "kill_process"
+
+[[threat]]
+tactic.name = "Persistence"
+[[threat.technique]]
+id = "T1547.001"
+name = "Boot or Logon Autostart Execution: Registry Run Keys / Startup Folder"

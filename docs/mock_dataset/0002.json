@@ -1,0 +1,41 @@
+{
+  "subject": "Re: PEP proposal",
+  "from_raw": "Guido van Rossum <guido@python.org>",
+  "from_display_name": "Guido van Rossum",
+  "from_email": "guido@python.org",
+  "to": "user9@example.com",
+  "reply_to": null,
+  "date": "Thu, 07 Aug 2008 11:00:00 -0700",
+  "message_id": "<csv-row-2@dataset.local>",
+  "all_headers": {
+    "From": [
+      "Guido van Rossum <guido@python.org>"
+    ],
+    "To": [
+      "user9@example.com"
+    ],
+    "Subject": [
+      "Re: PEP proposal"
+    ],
+    "Date": [
+      "Thu, 07 Aug 2008 11:00:00 -0700"
+    ],
+    "Message-ID": [
+      "<csv-row-2@dataset.local>"
+    ],
+    "X-Dataset-Label": [
+      "0"
+    ],
+    "Content-Type": [
+      "text/plain; charset=\"utf-8\""
+    ],
+    "MIME-Version": [
+      "1.0"
+    ]
+  },
+  "body_text": "Thanks for the draft, looks good, let's discuss on the call.",
+  "body_html": null,
+  "attachments": [],
+  "source_format": "csv",
+  "parse_warnings": []
+}

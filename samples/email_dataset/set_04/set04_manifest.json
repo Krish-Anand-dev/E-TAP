@@ -1,0 +1,82 @@
+[
+  {
+    "id": "set04_001",
+    "file": "set_04/eml/set04_001.eml",
+    "format": "eml",
+    "label": "benign",
+    "category": "automated-expense-reminder",
+    "size_bytes": 951
+  },
+  {
+    "id": "set04_002",
+    "file": "set_04/eml/set04_002.eml",
+    "format": "eml",
+    "label": "phishing",
+    "category": "spear-phishing-internal-project-reference",
+    "size_bytes": 1015
+  },
+  {
+    "id": "set04_003",
+    "file": "set_04/eml/set04_003.eml",
+    "format": "eml",
+    "label": "benign",
+    "category": "automated-backup-report",
+    "size_bytes": 940
+  },
+  {
+    "id": "set04_004",
+    "file": "set_04/eml/set04_004.eml",
+    "format": "eml",
+    "label": "phishing",
+    "category": "fake-browser-update-disguised-installer",
+    "size_bytes": 1633
+  },
+  {
+    "id": "set04_005",
+    "file": "set_04/eml/set04_005.eml",
+    "format": "eml",
+    "label": "spam",
+    "category": "fake-vehicle-sweepstakes",
+    "size_bytes": 952
+  },
+  {
+    "id": "set04_006",
+    "file": "set_04/msg/set04_006.msg",
+    "format": "msg",
+    "label": "benign",
+    "category": "it-scheduled-maintenance",
+    "size_bytes": 7168
+  },
+  {
+    "id": "set04_007",
+    "file": "set_04/msg/set04_007.msg",
+    "format": "msg",
+    "label": "phishing",
+    "category": "fake-shared-document-cloud-storage",
+    "size_bytes": 7168
+  },
+  {
+    "id": "set04_008",
+    "file": "set_04/msg/set04_008.msg",
+    "format": "msg",
+    "label": "phishing",
+    "category": "quishing-qr-code-phishing",
+    "size_bytes": 8192
+  },
+  {
+    "id": "set04_009",
+    "file": "set_04/msg/set04_009.msg",
+    "format": "msg",
+    "label": "spam",
+    "category": "inheritance-scam",
+    "size_bytes": 7680
+  },
+  {
+    "id": "set04_010",
+    "file": "set_04/msg/set04_010.msg",
+    "format": "msg",
+    "label": "benign",
+    "category": "edge-case-benign-attachment-type-mismatch",
+    "size_bytes": 8192
+  }
+]

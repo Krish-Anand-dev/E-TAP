@@ -1,0 +1,125 @@
+E-TAP WORKFLOW IMAGE — GENERATION BRIEF
+Mode: built-in image_gen tool. New infographic, not an edit of the stale image.
+Sources: root study.txt; backend/pipeline.py; backend/forensics/macro_scan.py;
+backend/forensics/image_forensics.py; backend/ai_engine/triage_model.py;
+backend/ai_engine/stage_g.py; backend/rag/*; current frontend report components.
+
+The attached old image is a content reference only. Replace its layout entirely.
+The user explicitly requested no geolocation/map stage in the new image.
+The user confirmed a dynamic attachment-analysis stage using an isolated local
+Windows 11 virtual machine, Sysmon operational logs and approximately 64 eligible
+behavior rules. Include that stage alongside the source-verified static forensics.
+Do not introduce version/deployment distinctions into the infographic. Do not
+invent a third-party sandbox service, ClamAV, rule names or measured accuracy.
+
+FINAL IMAGE PROMPT
+==================
+Use case: infographic-diagram.
+Asset type: presentation-ready technical project workflow infographic, high-
+resolution raster, landscape approximately 16:10. Aim for 3840 x 2400 detail.
+
+Create a polished E-TAP end-to-end email investigation workflow. White/off-white
+background, deep navy typography, teal/cyan forensic and data accents, restrained
+violet for AI, amber only for the decision branch. Clean thin vector-like icons,
+rounded rectangular cards, exceptionally clear text, consistent margins, subtle
+shadows, elegant technical editorial layout. No photographs, stickers, emoji,
+decorative clip art, watermark, provider logos or maps. Make labels readable.
+
+Title, exact: "E-TAP | EMAIL THREAT ANALYSIS WORKFLOW"
+Subtitle, exact: "From original email evidence to analyst report and contextual chat"
+
+LAYOUT AND CONNECTIONS
+Twelve numbered cards in three spacious rows of four. Main flow is serpentine:
+top row left to right 01 → 02 → 03 → 04; turn downward at right into 05;
+middle row right to left 05 → 06 → 07 → 08; turn downward at left into 09;
+bottom row left to right 09 → 10 → 11 → 12. Keep numbers prominent so direction
+cannot be mistaken. Thin dark connector arrows with clear arrowheads, no arrow
+through text or card interiors. Provide ample gutter space for connectors.
+
+Card 08 is a decision/triage card. Its normal arrow downward to 09 is labeled
+"Review required". A distinct amber bypass arrow goes from 08 directly to 10,
+skipping 09, labeled "Eligible benign: skip Gemini". Card 11 → 12 is labeled
+"Analyst question". A subtle dashed secondary connector from 10 to 12, below the
+bottom row, is labeled "Background summary + embedding". Card 12 is visibly a
+post-analysis chat stage, not a prerequisite for card 09's initial assessment.
+
+EXACT CARD COPY
+01 "EMAIL INGESTION"
+"Website: .eml / .msg"
+"Gmail extension: original message first"
+"Labeled content-only fallback · CLI"
+
+02 "PARSE + NORMALIZE"
+"Python email · extract-msg"
+"MIME headers, body and attachment bytes"
+"Input validation · PII masking"
+
+03 "FORENSIC ENGINES"
+"Headers: auth evidence + routing"
+"Static: signatures · SHA-256 · oletools"
+"Dynamic: isolated Windows 11 VM"
+"Sysmon logs · ~64 behavior rules"
+"QR decode: pyzbar + OpenCV"
+"OCR text: Tesseract"
+Within this card, distinguish the static and dynamic substeps with small
+contrasting accents; do not make the VM appear to be a QR decoder or OCR engine.
+
+04 "IOCs + LINK INSPECTION"
+"URLs · domains · public IPs · hashes"
+"QR destinations · href mismatches"
+"Lookalikes · static redirect hints"
+
+05 "LIVE REPUTATION | OPTIONAL"
+"VirusTotal: URL + file-hash reputation"
+"AbuseIPDB: IP abuse · WHOIS: domain age"
+"Privacy filters · lookup budgets · cache"
+
+06 "HISTORY + CAMPAIGNS"
+"MongoDB: exact + fuzzy IOC matches"
+"Related emails and campaign grouping"
+"NumPy / SciPy: seeded graph diffusion"
+
+07 "EVIDENCE CONTEXT"
+"Stable evidence IDs + provenance"
+"Static + VM findings · reputation · missing checks"
+"OCR text appended for model reasoning"
+
+08 "XGBOOST TRIAGE"
+"6 metadata features"
+"Benign confidence ≥ 0.90 + no risk guards?"
+"Otherwise, require deeper assessment"
+
+09 "GEMINI ASSESSMENT"
+"Sanitized context + cited evidence IDs"
+"Content + final assessment in one JSON response"
+"Pydantic validation · deterministic fallback"
+
+10 "FINAL VERDICT + STORAGE"
+"Reconcile score, label and display band"
+"Evidence narrative · coverage · provenance"
+"Persist final investigation in MongoDB"
+
+11 "ANALYST DASHBOARD"
+"Evidence · IOCs · attachments · campaigns"
+"Threat graph · MITRE mappings · actions"
+"PDF / JSON · review · retention controls"
+
+12 "RAG ANALYST CHAT"
+"After analysis: stored case context"
+"Summary → 384D embedding → retrieval → answer"
+"MiniLM or lexical fallback · optional Gemini"
+"Active-file or historical questions"
+
+Small clear footer, exact:
+"QR URLs feed IOC checks; OCR-only text joins model context later."
+"VM behavior evidence: Windows 11 + Sysmon + approximately 64 eligible rules."
+"Unavailable evidence is shown explicitly — unknown does not mean safe."
+
+ACCURACY CONSTRAINTS
+No geolocation, GeoMap, location pin, sender-location claim or ClamAV. Show both
+static forensics and the user-confirmed VM dynamic-analysis stage. No version or
+deployment distinctions. No link browsing or fresh VirusTotal file
+upload claim. No RAG arrow into the initial Gemini verdict. No guaranteed safety,
+accuracy percentage, GNN claim or automatic model retraining. Keep all twelve
+cards, especially graph diffusion, triage bypass, final persistence and later RAG.
+Use the literal copy and accurate directional arrows, not invented filler text.

@@ -1,0 +1,82 @@
+[
+  {
+    "id": "set02_001",
+    "file": "set_02/eml/set02_001.eml",
+    "format": "eml",
+    "label": "benign",
+    "category": "it-ticket-autoreply",
+    "size_bytes": 906
+  },
+  {
+    "id": "set02_002",
+    "file": "set_02/eml/set02_002.eml",
+    "format": "eml",
+    "label": "phishing",
+    "category": "fake-shipping-homoglyph-domain",
+    "size_bytes": 1012
+  },
+  {
+    "id": "set02_003",
+    "file": "set_02/eml/set02_003.eml",
+    "format": "eml",
+    "label": "benign",
+    "category": "calendar-invite-plaintext",
+    "size_bytes": 850
+  },
+  {
+    "id": "set02_004",
+    "file": "set_02/eml/set02_004.eml",
+    "format": "eml",
+    "label": "phishing",
+    "category": "fake-recruiter-macro-attachment",
+    "size_bytes": 1791
+  },
+  {
+    "id": "set02_005",
+    "file": "set_02/eml/set02_005.eml",
+    "format": "eml",
+    "label": "spam",
+    "category": "crypto-investment-scam",
+    "size_bytes": 981
+  },
+  {
+    "id": "set02_006",
+    "file": "set_02/msg/set02_006.msg",
+    "format": "msg",
+    "label": "benign",
+    "category": "vendor-quote",
+    "size_bytes": 7680
+  },
+  {
+    "id": "set02_007",
+    "file": "set_02/msg/set02_007.msg",
+    "format": "msg",
+    "label": "phishing",
+    "category": "oauth-consent-phishing",
+    "size_bytes": 7680
+  },
+  {
+    "id": "set02_008",
+    "file": "set_02/msg/set02_008.msg",
+    "format": "msg",
+    "label": "phishing",
+    "category": "bec-wire-transfer-finance",
+    "size_bytes": 7168
+  },
+  {
+    "id": "set02_009",
+    "file": "set_02/msg/set02_009.msg",
+    "format": "msg",
+    "label": "spam",
+    "category": "fake-tech-support-scam",
+    "size_bytes": 7168
+  },
+  {
+    "id": "set02_010",
+    "file": "set_02/msg/set02_010.msg",
+    "format": "msg",
+    "label": "benign",
+    "category": "edge-case-empty-body",
+    "size_bytes": 6656
+  }
+]

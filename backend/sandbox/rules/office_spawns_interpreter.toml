@@ -1,0 +1,22 @@
+[rule]
+id = "etap-003"
+name = "Suspicious Script Interpreter Spawned by Office Application"
+description = "Detects Microsoft Office applications spawning script interpreters (wscript, cscript, powershell, mshta, cmd), which is indicative of macro-based malware execution."
+version = "1"
+os_list = ["windows"]
+query = '''process where
+  process.parent.name : ("WINWORD.EXE", "EXCEL.EXE", "POWERPNT.EXE", "OUTLOOK.EXE", "ONENOTE.EXE", "msaccess.exe")
+  and process.name : ("cmd.exe", "powershell.exe", "pwsh.exe", "wscript.exe", "cscript.exe", "mshta.exe", "certutil.exe", "certreq.exe", "bitsadmin.exe")
+'''
+
+[[actions]]
+action = "kill_process"
+
+[[threat]]
+tactic.name = "Execution"
+[[threat.technique]]
+id = "T1204.002"
+name = "User Execution: Malicious File"
+[[threat.technique]]
+id = "T1059"
+name = "Command and Scripting Interpreter"

@@ -1,0 +1,82 @@
+[
+  {
+    "id": "set01_001",
+    "file": "set_01/eml/set01_001.eml",
+    "format": "eml",
+    "label": "benign",
+    "category": "internal-normal",
+    "size_bytes": 997
+  },
+  {
+    "id": "set01_002",
+    "file": "set_01/eml/set01_002.eml",
+    "format": "eml",
+    "label": "phishing",
+    "category": "credential-harvest-it-helpdesk",
+    "size_bytes": 1065
+  },
+  {
+    "id": "set01_003",
+    "file": "set_01/eml/set01_003.eml",
+    "format": "eml",
+    "label": "benign",
+    "category": "newsletter-confirmation",
+    "size_bytes": 917
+  },
+  {
+    "id": "set01_004",
+    "file": "set_01/eml/set01_004.eml",
+    "format": "eml",
+    "label": "phishing",
+    "category": "malicious-attachment-invoice",
+    "size_bytes": 1570
+  },
+  {
+    "id": "set01_005",
+    "file": "set_01/eml/set01_005.eml",
+    "format": "eml",
+    "label": "spam",
+    "category": "generic-unsolicited-marketing",
+    "size_bytes": 931
+  },
+  {
+    "id": "set01_006",
+    "file": "set_01/msg/set01_006.msg",
+    "format": "msg",
+    "label": "benign",
+    "category": "hr-payslip",
+    "size_bytes": 7680
+  },
+  {
+    "id": "set01_007",
+    "file": "set_01/msg/set01_007.msg",
+    "format": "msg",
+    "label": "phishing",
+    "category": "bank-account-suspension",
+    "size_bytes": 7680
+  },
+  {
+    "id": "set01_008",
+    "file": "set_01/msg/set01_008.msg",
+    "format": "msg",
+    "label": "benign",
+    "category": "project-update",
+    "size_bytes": 7168
+  },
+  {
+    "id": "set01_009",
+    "file": "set_01/msg/set01_009.msg",
+    "format": "msg",
+    "label": "phishing",
+    "category": "bec-executive-giftcard-scam",
+    "size_bytes": 7680
+  },
+  {
+    "id": "set01_010",
+    "file": "set_01/msg/set01_010.msg",
+    "format": "msg",
+    "label": "spam",
+    "category": "lottery-prize-scam",
+    "size_bytes": 7680
+  }
+]

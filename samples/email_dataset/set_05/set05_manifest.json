@@ -1,0 +1,242 @@
+[
+  {
+    "id": "set05_001",
+    "file": "set_05/eml/set05_001.eml",
+    "format": "eml",
+    "label": "benign",
+    "category": "food-delivery-confirmation",
+    "size_bytes": 837
+  },
+  {
+    "id": "set05_002",
+    "file": "set_05/eml/set05_002.eml",
+    "format": "eml",
+    "label": "phishing",
+    "category": "fake-zoom-meeting-invite",
+    "size_bytes": 857
+  },
+  {
+    "id": "set05_003",
+    "file": "set_05/eml/set05_003.eml",
+    "format": "eml",
+    "label": "benign",
+    "category": "own-bank-transaction-alert",
+    "size_bytes": 877
+  },
+  {
+    "id": "set05_004",
+    "file": "set_05/eml/set05_004.eml",
+    "format": "eml",
+    "label": "phishing",
+    "category": "fake-payroll-direct-deposit-change",
+    "size_bytes": 914
+  },
+  {
+    "id": "set05_005",
+    "file": "set_05/eml/set05_005.eml",
+    "format": "eml",
+    "label": "benign",
+    "category": "flight-booking-confirmation",
+    "size_bytes": 867
+  },
+  {
+    "id": "set05_006",
+    "file": "set_05/eml/set05_006.eml",
+    "format": "eml",
+    "label": "phishing",
+    "category": "fake-antivirus-renewal-invoice",
+    "size_bytes": 1621
+  },
+  {
+    "id": "set05_007",
+    "file": "set_05/eml/set05_007.eml",
+    "format": "eml",
+    "label": "benign",
+    "category": "software-license-receipt",
+    "size_bytes": 1251
+  },
+  {
+    "id": "set05_008",
+    "file": "set_05/eml/set05_008.eml",
+    "format": "eml",
+    "label": "phishing",
+    "category": "fake-linkedin-connection-malicious-link",
+    "size_bytes": 822
+  },
+  {
+    "id": "set05_009",
+    "file": "set_05/eml/set05_009.eml",
+    "format": "eml",
+    "label": "benign",
+    "category": "fire-drill-notice",
+    "size_bytes": 875
+  },
+  {
+    "id": "set05_010",
+    "file": "set_05/eml/set05_010.eml",
+    "format": "eml",
+    "label": "phishing",
+    "category": "fake-efax-scanned-document",
+    "size_bytes": 1391
+  },
+  {
+    "id": "set05_011",
+    "file": "set_05/eml/set05_011.eml",
+    "format": "eml",
+    "label": "benign",
+    "category": "conference-registration-confirmation",
+    "size_bytes": 1294
+  },
+  {
+    "id": "set05_012",
+    "file": "set_05/eml/set05_012.eml",
+    "format": "eml",
+    "label": "spam",
+    "category": "energy-drink-mlm-pitch",
+    "size_bytes": 931
+  },
+  {
+    "id": "set05_013",
+    "file": "set_05/eml/set05_013.eml",
+    "format": "eml",
+    "label": "phishing",
+    "category": "fake-court-subpoena-scare-tactic",
+    "size_bytes": 1715
+  },
+  {
+    "id": "set05_014",
+    "file": "set_05/eml/set05_014.eml",
+    "format": "eml",
+    "label": "benign",
+    "category": "colleague-out-of-office",
+    "size_bytes": 854
+  },
+  {
+    "id": "set05_015",
+    "file": "set_05/eml/set05_015.eml",
+    "format": "eml",
+    "label": "spam",
+    "category": "replica-luxury-goods-spam",
+    "size_bytes": 846
+  },
+  {
+    "id": "set05_016",
+    "file": "set_05/msg/set05_016.msg",
+    "format": "msg",
+    "label": "benign",
+    "category": "webinar-registration-confirmation",
+    "size_bytes": 7168
+  },
+  {
+    "id": "set05_017",
+    "file": "set_05/msg/set05_017.msg",
+    "format": "msg",
+    "label": "phishing",
+    "category": "fake-teams-meeting-malicious-ics",
+    "size_bytes": 8192
+  },
+  {
+    "id": "set05_018",
+    "file": "set_05/msg/set05_018.msg",
+    "format": "msg",
+    "label": "benign",
+    "category": "expense-approved-notification",
+    "size_bytes": 7168
+  },
+  {
+    "id": "set05_019",
+    "file": "set_05/msg/set05_019.msg",
+    "format": "msg",
+    "label": "phishing",
+    "category": "fake-vendor-tech-support-remote-access",
+    "size_bytes": 7680
+  },
+  {
+    "id": "set05_020",
+    "file": "set_05/msg/set05_020.msg",
+    "format": "msg",
+    "label": "benign",
+    "category": "team-lunch-potluck-signup",
+    "size_bytes": 7168
+  },
+  {
+    "id": "set05_021",
+    "file": "set_05/msg/set05_021.msg",
+    "format": "msg",
+    "label": "phishing",
+    "category": "fake-password-expiry-vpn",
+    "size_bytes": 7168
+  },
+  {
+    "id": "set05_022",
+    "file": "set_05/msg/set05_022.msg",
+    "format": "msg",
+    "label": "benign",
+    "category": "wms-vendor-patch-notes",
+    "size_bytes": 7168
+  },
+  {
+    "id": "set05_023",
+    "file": "set_05/msg/set05_023.msg",
+    "format": "msg",
+    "label": "phishing",
+    "category": "fake-employee-survey-giftcard-bait",
+    "size_bytes": 7168
+  },
+  {
+    "id": "set05_024",
+    "file": "set_05/msg/set05_024.msg",
+    "format": "msg",
+    "label": "benign",
+    "category": "vendor-doc-review-request",
+    "size_bytes": 7680
+  },
+  {
+    "id": "set05_025",
+    "file": "set_05/msg/set05_025.msg",
+    "format": "msg",
+    "label": "spam",
+    "category": "stock-pump-and-dump-tip",
+    "size_bytes": 7168
+  },
+  {
+    "id": "set05_026",
+    "file": "set_05/msg/set05_026.msg",
+    "format": "msg",
+    "label": "phishing",
+    "category": "fake-adobe-subscription-renewal",
+    "size_bytes": 7168
+  },
+  {
+    "id": "set05_027",
+    "file": "set_05/msg/set05_027.msg",
+    "format": "msg",
+    "label": "benign",
+    "category": "one-line-colleague-question",
+    "size_bytes": 6656
+  },
+  {
+    "id": "set05_028",
+    "file": "set_05/msg/set05_028.msg",
+    "format": "msg",
+    "label": "spam",
+    "category": "extended-car-warranty-spam",
+    "size_bytes": 7168
+  },
+  {
+    "id": "set05_029",
+    "file": "set_05/msg/set05_029.msg",
+    "format": "msg",
+    "label": "phishing",
+    "category": "fake-usps-customs-fee",
+    "size_bytes": 7168
+  },
+  {
+    "id": "set05_030",
+    "file": "set_05/msg/set05_030.msg",
+    "format": "msg",
+    "label": "benign",
+    "category": "b2b-cold-outreach-solar",
+    "size_bytes": 7168
+  }
+]

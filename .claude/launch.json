@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "backend",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "set USE_FAKE_DB=1&& set THREAT_INTEL_LIVE=0&& python -m uvicorn app:app --app-dir backend --host 127.0.0.1 --port 5000"],
+      "port": 5000
+    },
+    {
+      "name": "frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "frontend", "run", "dev"],
+      "port": 5173
+    }
+  ]
+}

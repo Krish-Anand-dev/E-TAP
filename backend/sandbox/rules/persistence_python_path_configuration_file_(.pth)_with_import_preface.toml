@@ -1,0 +1,62 @@
+[rule]
+description = """
+Detects creation or change of a Python path configuration file (.pth). These files are processed by the interpreter site
+machinery and normally list directories or comments. This rule matches .pth files whose leading bytes correspond to
+UTF-8 text beginning with an import-style preface (for example, the string starting with "import os, subpr" as used
+before subprocess or similar calls). That pattern is atypical and may indicate code execution via the .pth mechanism.
+"""
+id = "e7b2c4a1-5f0d-4e8c-9a3b-1d6f8e0c2a4b"
+license = "Elastic License v2"
+name = "Python Path Configuration File (.pth) with Import Preface"
+os_list = ["macos", "windows"]
+reference = ["https://docs.python.org/3/library/site.html", "https://attack.mitre.org/techniques/T1546/"]
+version = "1.0.1"
+
+query = '''
+file where event.type in ("creation", "change") and 
+ file.extension : "pth" and 
+ (
+  file.Ext.header_bytes : "696d706f7274206f732c207375627072" or
+  (file.path : "*site-packages*" and file.size >= 30000 and file.Ext.header_bytes : "696d706f7274*")
+  )
+'''
+
+min_endpoint_version = "8.10.0"
+optional_actions = []
+[[actions]]
+action = "kill_process"
+field = "process.entity_id"
+state = 0
+
+[[threat]]
+framework = "MITRE ATT&CK"
+[[threat.technique]]
+id = "T1059"
+name = "Command and Scripting Interpreter"
+reference = "https://attack.mitre.org/techniques/T1059/"
+[[threat.technique.subtechnique]]
+id = "T1059.006"
+name = "Python"
+reference = "https://attack.mitre.org/techniques/T1059/006/"
+
+
+
+[threat.tactic]
+id = "TA0002"
+name = "Execution"
+reference = "https://attack.mitre.org/tactics/TA0002/"
+[[threat]]
+framework = "MITRE ATT&CK"
+[[threat.technique]]
+id = "T1546"
+name = "Event Triggered Execution"
+reference = "https://attack.mitre.org/techniques/T1546/"
+
+
+[threat.tactic]
+id = "TA0003"
+name = "Persistence"
+reference = "https://attack.mitre.org/tactics/TA0003/"
+
+[internal]
+min_endpoint_version = "8.10.0"

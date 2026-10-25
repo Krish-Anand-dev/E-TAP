@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "E-TAP — Email Threat Analysis",
+  "version": "1.6.1",
+  "description": "Open a Gmail email in E-TAP for analysis, with optional deeper attachment analysis in your own paired sandbox.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://mail.google.com/*",
+    "http://127.0.0.1:5000/*",
+    "http://localhost:5000/*",
+    "https://etap-backend-od1c.onrender.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://mail.google.com/*"
+      ],
+      "css": [
+        "styles.css"
+      ],
+      "js": [
+        "config.js",
+        "gmail-original.js",
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "E-TAP Email Analysis"
+  }
+}

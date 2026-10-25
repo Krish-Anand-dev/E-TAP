@@ -1,0 +1,90 @@
+[rule]
+description = """
+Identifies Windows Native API calls with ROP gadgets and from an unusual Microsoft signed module. This may be the result
+of a code injection.
+"""
+id = "d869a5ff-5bda-4417-90c9-c353a949d26e"
+license = "Elastic License v2"
+name = "API Call via Jump ROP Gadget"
+os_list = ["windows"]
+version = "1.0.11"
+
+query = '''
+api where process.Ext.api.behaviors == "image_rop" and
+ process.Ext.api.name in ("VirtualAlloc", "VirtualProtect", "WriteProcessMemory", "SetThreadContext", "SuspendThread", "VirtualProtectEx") and
+ not process.thread.Ext.call_stack_final_user_module.name in ("Kernel", "Unbacked") and 
+ /* final user module trailing bytes starts with JMP or CALL REG pattern */
+ (
+  _arraysearch(process.thread.Ext.call_stack, $entry,
+               stringcontains~($entry.symbol_info, process.thread.Ext.call_stack_final_user_module.name) and $entry.callsite_trailing_bytes regex """(([23][6e]|[45].|6[4-7]|90|f[023])?ff[12de][3-7]|([23][6e]|4.|6[4-7]|90|f[023])?5[3-7]c3).+""" and not $entry.callsite_trailing_bytes : "ff15*") or
+
+   (process.thread.Ext.call_stack_final_user_module.name == "Undetermined" and
+    process.thread.Ext.call_stack_summary in 
+             ("ntdll.dll|kernelbase.dll|Unbacked", 
+              "ntdll.dll|kernelbase.dll|ntdll.dll",
+              "ntdll.dll|kernelbase.dll|ntdll.dll|kernel32.dll|ntdll.dll") and
+    _arraysearch(process.thread.Ext.call_stack, $entry,
+                $entry.symbol_info : ("*kernelbase.dll*", "*ntdll.dll*") and $entry.callsite_trailing_bytes regex """(([23][6e]|[45].|6[4-7]|90|f[023])?ff([de][3-7]|[12][367]|1424|55)|([23][6e]|4.|6[4-7]|90|f[023])?5[3-7]c3).+""" and not $entry.callsite_trailing_bytes : "ff15*")) or
+
+    (process.Ext.api.behaviors == "proxy_call" and
+     process.thread.Ext.call_stack_final_user_module.name == "Undetermined" and
+     process.thread.Ext.call_stack_summary like "ntdll.dll|kernelbase.dll|*" and
+     _arraysearch(process.thread.Ext.call_stack, $entry, $entry.callsite_trailing_bytes regex """(([23][6e]|[45].|6[4-7]|90|f[023])?ff([de][3-7]|[12][367]|1424|55)|([23][6e]|4.|6[4-7]|90|f[023])?5[3-7]c3).+""" and not $entry.callsite_trailing_bytes : "ff15*"))
+  ) and
+  not (process.thread.Ext.call_stack_final_user_module.path like
+                              ("c:\\program files (x86)\\*",
+                               "c:\\windows\\syswow64\\*",
+                               "c:\\windows\\system32\\spool\\drivers\\x64\\3\\x2wfuv0u.dll") and
+       _arraysearch(process.thread.Ext.call_stack, $entry, $entry.callsite_trailing_bytes : ("??ffd6f*", "ffd6*", "??ff15*", "??ff14*", "55c316*"))) and
+  not process.thread.Ext.call_stack_final_user_module.hash.sha256 in
+                                  ("5e3758ffbb23dd84717ba3193deea24d47de15de5f65dd7051fcb5ede6938340",
+                                   "526104f18200c6cd055886c4d08f02278aa0325abe17b697529e4a67ac7582f8",
+                                   "579ab93c5db70cd3b3b3e2372cfcba1d968336e7e88b6ffc9e85160cc7c41d93",
+                                   "0d5d73d3bea132f98be91f918d13043791decb419a81d9e755979315a7cf0502",
+                                   "55bc12b34f81f43fa99bbe18d4ca1f07ccdde962039c59959d212aa7eac7586d",
+                                   "92090a86491251f461e1b8e6e7c6ff9f1ed0aebd63c19381850e219d2dd44708",
+                                   "9ace6b6d2093f4812461a4d05c66cf3a4f838b5292deea78c31e7301feeebc82",
+                                   "e093097faf851745b434c376dd48139eb0883805f130cb94d8ed5a10317dc745",
+                                   "a86749e6e28a8991c0b04fd626f49731e6b1185686e52523ea51a00f10f709d9",
+                                   "f7df966bb1aab2a430134148bd5fd9024cc69b0e4f22ee2db00130effc577965") and
+  not (process.executable : "C:\\Program Files\\Evolution Services Manager\\FireDaemon.exe" and
+       process.thread.Ext.call_stack_final_user_module.path == "c:\\program files\\evolution services manager\\licensing.dll") and 
+  not process.thread.Ext.call_stack_summary like ("ntdll.dll|wow64.dll|wow64cpu.dll|wow64.dll|*", "wow64cpu.dll|wow64.dll|ntdll.dll|kernelbase.dll|webio.dll|*") and
+  not _arraysearch(process.thread.Ext.call_stack_final_user_module.code_signature,
+                   $entry, $entry.subject_name in ("Microsoft Windows Hardware Compatibility Publisher", "Microsoft Windows Software Compatibility Publisher") and $entry.status == "trusted") and
+  process.thread.Ext.call_stack_final_user_module.path != "c:\\program files\\microsoft office\\office16\\gkexcel.dll" and
+  not _arraysearch(process.thread.Ext.call_stack, $entry,
+                   $entry.callsite_trailing_bytes like
+                               ("f0ffe*",
+                                "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                                "48ff25da280000*", "48ff15339d0000*", "48ff1524a601000f1f4400008bf0*", "ff24bc1894320000ff24bc1894320000ff24*",
+                                "48ff1594aa01000f1f4400008bf0488d84249800000048398424900000007459488d8c2490000000e8e2f4ffffeb4a488d8424a00100004883ceff48ffc66639"))
+'''
+
+min_endpoint_version = "8.10.0"
+[[actions]]
+action = "kill_process"
+field = "process.entity_id"
+state = 0
+tree = true
+
+[[optional_actions]]
+action = "rollback"
+field = "process.entity_id"
+state = 0
+
+[[threat]]
+framework = "MITRE ATT&CK"
+[[threat.technique]]
+id = "T1055"
+name = "Process Injection"
+reference = "https://attack.mitre.org/techniques/T1055/"
+
+
+[threat.tactic]
+id = "TA0005"
+name = "Defense Evasion"
+reference = "https://attack.mitre.org/tactics/TA0005/"
+
+[internal]
+min_endpoint_version = "8.10.0"

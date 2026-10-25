@@ -1,0 +1,44 @@
+{
+  "subject": "Never agree to be a loser",
+  "from_raw": "Young Esposito <Young@iworld.de>",
+  "from_display_name": "Young Esposito",
+  "from_email": "Young@iworld.de",
+  "to": "user4@gvc.ceas-challenge.cc",
+  "reply_to": null,
+  "date": "Tue, 05 Aug 2008 16:31:02 -0700",
+  "message_id": "<csv-row-0@dataset.local>",
+  "all_headers": {
+    "From": [
+      "Young Esposito <Young@iworld.de>"
+    ],
+    "To": [
+      "user4@gvc.ceas-challenge.cc"
+    ],
+    "Subject": [
+      "Never agree to be a loser"
+    ],
+    "Date": [
+      "Tue, 05 Aug 2008 16:31:02 -0700"
+    ],
+    "Message-ID": [
+      "<csv-row-0@dataset.local>"
+    ],
+    "X-Dataset-Label": [
+      "1"
+    ],
+    "X-Extracted-URLs": [
+      "http://fake-pharma.example.com/order"
+    ],
+    "Content-Type": [
+      "text/plain; charset=\"utf-8\""
+    ],
+    "MIME-Version": [
+      "1.0"
+    ]
+  },
+  "body_text": "Buck up, your troubles caused by small dimension will be gone soon. Click here to order.",
+  "body_html": null,
+  "attachments": [],
+  "source_format": "csv",
+  "parse_warnings": []
+}
