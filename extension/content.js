@@ -74,7 +74,7 @@ function renderIdle(container, existing, key) {
             'Nothing to set up.', () => runAnalysis(container, node, key, false)),
         choiceCard('deep', 'Deeper attachment analysis',
             'Everything in Standard, plus the attachments are opened in your own virtual machine and what they do is recorded.',
-            'Needs a Windows VM in VirtualBox and the free E-TAP Sandbox Agent, paired once. Windows Sandbox (Windows Pro) is planned.',
+            'Needs a Windows VM in VirtualBox or VMware Workstation and the free E-TAP Sandbox Agent, paired once. Windows Sandbox (Windows Pro) is planned.',
             () => runAnalysis(container, node, key, true)));
     node.append(cards);
 }

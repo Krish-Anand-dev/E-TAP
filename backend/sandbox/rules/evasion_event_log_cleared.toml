@@ -1,0 +1,41 @@
+[rule]
+id = "etap-020"
+name = "Windows Event Log Cleared"
+description = "A command that erases a Windows event log, which removes evidence of what ran on the machine."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''process where
+  (process.name in~ ("wevtutil.exe") and process.command_line : (" cl ", "clear-log"))
+  or (process.name in~ ("powershell.exe", "pwsh.exe") and process.command_line : ("Clear-EventLog", "Remove-EventLog", "ClearEventLog"))
+'''
+
+[[actions]]
+action = "kill_process"
+
+[[threat]]
+tactic.name = "Defense Evasion"
+[[threat.technique]]
+id = "T1070.001"
+name = "Indicator Removal: Clear Windows Event Logs"
+
+[[tests]]
+name = "wevtutil cl"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "wevtutil.exe", executable = "C:\\Windows\\System32\\wevtutil.exe", command_line = "wevtutil.exe cl System" } }
+
+[[tests]]
+name = "wevtutil clear-log"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "wevtutil.exe", executable = "C:\\Windows\\System32\\wevtutil.exe", command_line = "wevtutil.exe clear-log Security" } }
+
+[[tests]]
+name = "powershell"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "powershell.exe", executable = "C:\\Windows\\System32\\powershell.exe", command_line = "powershell Clear-EventLog -LogName Application" } }
+
+[[tests]]
+name = "read a log"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "wevtutil.exe", executable = "C:\\Windows\\System32\\wevtutil.exe", command_line = "wevtutil.exe qe System /c:5" } }

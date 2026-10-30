@@ -1,0 +1,37 @@
+[rule]
+id = "etap-048"
+name = "Connection to a Common Backdoor Port"
+description = "An outbound connection to a port often used by reverse shells and remote-access tools."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''network where
+  destination.port in (4444, 4445, 5555, 6666, 1337, 31337, 12345)
+'''
+
+[[threat]]
+tactic.name = "Command and Control"
+[[threat.technique]]
+id = "T1571"
+name = "Non-Standard Port"
+
+[[tests]]
+name = "4444"
+expect = "match"
+event = { _category = "network", event = { action = "connection_attempted" }, process = { name = "update.exe", executable = "C:\\Windows\\System32\\update.exe", command_line = "update.exe" }, destination = { ip = "203.0.113.5", port = 4444, domain = "" } }
+
+[[tests]]
+name = "31337"
+expect = "match"
+event = { _category = "network", event = { action = "connection_attempted" }, process = { name = "powershell.exe", executable = "C:\\Windows\\System32\\powershell.exe", command_line = "powershell.exe" }, destination = { ip = "203.0.113.5", port = 31337, domain = "" } }
+
+[[tests]]
+name = "https"
+expect = "no_match"
+event = { _category = "network", event = { action = "connection_attempted" }, process = { name = "update.exe", executable = "C:\\Windows\\System32\\update.exe", command_line = "update.exe" }, destination = { ip = "203.0.113.5", port = 443, domain = "" } }
+
+[[tests]]
+name = "http"
+expect = "no_match"
+event = { _category = "network", event = { action = "connection_attempted" }, process = { name = "wscript.exe", executable = "C:\\Windows\\System32\\wscript.exe", command_line = "wscript.exe" }, destination = { ip = "203.0.113.5", port = 80, domain = "" } }

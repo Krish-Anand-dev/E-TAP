@@ -15,7 +15,19 @@ from pathlib import Path
 
 from .protect import seal, unseal
 
-DEFAULT_SERVER = "https://etap-backend-2std.onrender.com"
+FALLBACK_SERVER = "https://etap-backend-2std.onrender.com"
+
+
+def bundled_server() -> str:
+    """The server this agent was downloaded from (server_url.txt in the zip), else the fallback."""
+    try:
+        text = Path(__file__).with_name("server_url.txt").read_text(encoding="utf-8").strip()
+    except OSError:
+        return FALLBACK_SERVER
+    return text.rstrip("/") if text.startswith(("http://", "https://")) else FALLBACK_SERVER
+
+
+DEFAULT_SERVER = bundled_server()
 
 
 def config_dir() -> Path:
@@ -30,13 +42,21 @@ def config_path() -> Path:
     return config_dir() / "config.json"
 
 
+PROVIDERS = ("virtualbox", "vmware")
+
+
 @dataclass
 class VMSettings:
-    name: str = ""
+    name: str = ""            # VirtualBox VM name, or a display name for a VMware VM
     snapshot: str = "clean"
     guest_user: str = ""
     guest_password_sealed: str = ""
     vboxmanage: str = ""
+    # Which hypervisor runs the VM. Older settings files have none of these three and
+    # load as VirtualBox, so an agent set up before VMware support keeps working.
+    provider: str = "virtualbox"
+    vmrun: str = ""           # path to vmrun.exe (VMware only; empty = find it)
+    vmx_path: str = ""        # the VM's .vmx file (VMware only)
     dwell_seconds: int = 30
     pdf_viewer: str = ""
     # True only after the VM was started once and Windows accepted this user and password.
@@ -68,7 +88,9 @@ class AgentConfig:
 
     @property
     def is_set_up(self) -> bool:
-        return bool(self.vm.name and self.vm.guest_user and self.vm.guest_password_sealed and self.vm.login_verified)
+        vm = self.vm
+        has_vm = bool(vm.name and (vm.vmx_path if vm.provider == "vmware" else True))
+        return bool(has_vm and vm.guest_user and vm.guest_password_sealed and vm.login_verified)
 
     @property
     def is_registered(self) -> bool:

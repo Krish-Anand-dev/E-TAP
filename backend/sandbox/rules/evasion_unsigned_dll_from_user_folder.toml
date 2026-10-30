@@ -1,0 +1,45 @@
+[rule]
+id = "etap-029"
+name = "Unsigned Library Loaded From a User-Writable Folder"
+description = "An unsigned DLL loaded from Temp, Public, AppData or ProgramData, as in DLL side-loading."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''library where
+  dll.signed : "false"
+  and dll.path : ("\\AppData\\", "\\Users\\Public\\", "\\Temp\\", "\\ProgramData\\")
+  and dll.path : ".dll"
+'''
+
+[[threat]]
+tactic.name = "Defense Evasion"
+[[threat.technique]]
+id = "T1574.002"
+name = "Hijack Execution Flow: DLL Side-Loading"
+
+[[threat]]
+tactic.name = "Execution"
+[[threat.technique]]
+id = "T1129"
+name = "Shared Modules"
+
+[[tests]]
+name = "public folder"
+expect = "match"
+event = { _category = "library", event = { action = "load" }, process = { name = "update.exe", executable = "C:\\Windows\\System32\\update.exe", command_line = "update.exe" }, dll = { path = "C:\\Users\\Public\\version.dll", name = "version.dll", signed = "false" } }
+
+[[tests]]
+name = "temp folder"
+expect = "match"
+event = { _category = "library", event = { action = "load" }, process = { name = "update.exe", executable = "C:\\Windows\\System32\\update.exe", command_line = "update.exe" }, dll = { path = "C:\\Users\\bob\\AppData\\Local\\Temp\\x.dll", name = "x.dll", signed = "false" } }
+
+[[tests]]
+name = "system library"
+expect = "no_match"
+event = { _category = "library", event = { action = "load" }, process = { name = "update.exe", executable = "C:\\Windows\\System32\\update.exe", command_line = "update.exe" }, dll = { path = "C:\\Windows\\System32\\kernel32.dll", name = "kernel32.dll", signed = "true" } }
+
+[[tests]]
+name = "signed library in temp"
+expect = "no_match"
+event = { _category = "library", event = { action = "load" }, process = { name = "update.exe", executable = "C:\\Windows\\System32\\update.exe", command_line = "update.exe" }, dll = { path = "C:\\Users\\bob\\AppData\\Local\\Temp\\signed.dll", name = "signed.dll", signed = "true" } }

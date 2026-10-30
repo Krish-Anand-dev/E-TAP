@@ -1,0 +1,65 @@
+[rule]
+id = "etap-019"
+name = "Shadow Copy or Backup Deletion"
+description = "Commands that delete Windows shadow copies, backups or recovery settings, a standard step before ransomware encrypts files."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''process where
+  (process.name in~ ("vssadmin.exe") and process.command_line : "delete" and process.command_line : ("shadows", "shadowstorage"))
+  or (process.name in~ ("vssadmin.exe") and process.command_line : "resize shadowstorage")
+  or (process.name in~ ("wmic.exe") and process.command_line : "shadowcopy" and process.command_line : "delete")
+  or (process.name in~ ("bcdedit.exe") and process.command_line : ("recoveryenabled no", "ignoreallfailures"))
+  or (process.name in~ ("wbadmin.exe") and process.command_line : ("delete catalog", "delete backup", "delete systemstatebackup"))
+  or (process.name in~ ("powershell.exe", "pwsh.exe") and process.command_line : "Win32_ShadowCopy" and process.command_line : "Delete")
+'''
+
+[[actions]]
+action = "kill_process"
+
+[[threat]]
+tactic.name = "Impact"
+[[threat.technique]]
+id = "T1490"
+name = "Inhibit System Recovery"
+
+[[tests]]
+name = "vssadmin"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "vssadmin.exe", executable = "C:\\Windows\\System32\\vssadmin.exe", command_line = "vssadmin.exe delete shadows /all /quiet" } }
+
+[[tests]]
+name = "wmic"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "wmic.exe", executable = "C:\\Windows\\System32\\wmic.exe", command_line = "wmic.exe shadowcopy delete" } }
+
+[[tests]]
+name = "bcdedit"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "bcdedit.exe", executable = "C:\\Windows\\System32\\bcdedit.exe", command_line = "bcdedit.exe /set {default} recoveryenabled no" } }
+
+[[tests]]
+name = "wbadmin"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "wbadmin.exe", executable = "C:\\Windows\\System32\\wbadmin.exe", command_line = "wbadmin delete catalog -quiet" } }
+
+[[tests]]
+name = "powershell"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "powershell.exe", executable = "C:\\Windows\\System32\\powershell.exe", command_line = "powershell Get-WmiObject Win32_Shadowcopy | ForEach-Object {$_.Delete();}" } }
+
+[[tests]]
+name = "list shadows"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "vssadmin.exe", executable = "C:\\Windows\\System32\\vssadmin.exe", command_line = "vssadmin.exe list shadows" } }
+
+[[tests]]
+name = "create shadow"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "wmic.exe", executable = "C:\\Windows\\System32\\wmic.exe", command_line = "wmic shadowcopy call create Volume='C:\\'" } }
+
+[[tests]]
+name = "show boot entries"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "bcdedit.exe", executable = "C:\\Windows\\System32\\bcdedit.exe", command_line = "bcdedit.exe /enum" } }

@@ -3,16 +3,25 @@ id = "etap-006"
 name = "DNS Query by Unusual Process"
 description = "Detects DNS queries made by script interpreters or LOLBins, which may indicate malware attempting to reach C2 infrastructure."
 version = "1"
+author = "E-TAP team"
+license = "MIT"
 os_list = ["windows"]
 query = '''dns where
   process.name : ("powershell.exe", "pwsh.exe", "wscript.exe", "cscript.exe", "mshta.exe", "certutil.exe", "regsvr32.exe", "rundll32.exe")
 '''
-
-[[actions]]
-action = "kill_process"
 
 [[threat]]
 tactic.name = "Command and Control"
 [[threat.technique]]
 id = "T1071.001"
 name = "Application Layer Protocol: Web Protocols"
+
+[[tests]]
+name = "powershell lookup"
+expect = "match"
+event = { _category = "dns", event = { action = "lookup_requested" }, process = { name = "powershell.exe", executable = "C:\\Windows\\System32\\powershell.exe", command_line = "powershell.exe" }, dns = { question = { name = "evil.test" } } }
+
+[[tests]]
+name = "browser lookup"
+expect = "no_match"
+event = { _category = "dns", event = { action = "lookup_requested" }, process = { name = "chrome.exe", executable = "C:\\Windows\\System32\\chrome.exe", command_line = "chrome.exe" }, dns = { question = { name = "evil.test" } } }

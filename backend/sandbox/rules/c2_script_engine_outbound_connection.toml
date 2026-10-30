@@ -1,0 +1,35 @@
+[rule]
+id = "etap-049"
+name = "Script Engine or Windows Tool Making a Network Connection"
+description = "A script host or built-in Windows tool connecting out to the network, which these programs rarely need to do."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''network where
+  process.name in~ ("wscript.exe", "cscript.exe", "mshta.exe", "powershell.exe", "pwsh.exe", "certutil.exe", "regsvr32.exe", "rundll32.exe", "msbuild.exe", "bitsadmin.exe")
+'''
+
+[[threat]]
+tactic.name = "Command and Control"
+[[threat.technique]]
+id = "T1071.001"
+name = "Application Layer Protocol: Web Protocols"
+[[threat.technique]]
+id = "T1105"
+name = "Ingress Tool Transfer"
+
+[[tests]]
+name = "wscript"
+expect = "match"
+event = { _category = "network", event = { action = "connection_attempted" }, process = { name = "wscript.exe", executable = "C:\\Windows\\System32\\wscript.exe", command_line = "wscript.exe" }, destination = { ip = "203.0.113.5", port = 443, domain = "" } }
+
+[[tests]]
+name = "certutil"
+expect = "match"
+event = { _category = "network", event = { action = "connection_attempted" }, process = { name = "certutil.exe", executable = "C:\\Windows\\System32\\certutil.exe", command_line = "certutil.exe" }, destination = { ip = "203.0.113.5", port = 80, domain = "" } }
+
+[[tests]]
+name = "ordinary program"
+expect = "no_match"
+event = { _category = "network", event = { action = "connection_attempted" }, process = { name = "update.exe", executable = "C:\\Windows\\System32\\update.exe", command_line = "update.exe" }, destination = { ip = "203.0.113.5", port = 443, domain = "" } }

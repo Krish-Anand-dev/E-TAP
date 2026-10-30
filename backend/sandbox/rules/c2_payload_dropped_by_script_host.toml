@@ -1,0 +1,44 @@
+[rule]
+id = "etap-037"
+name = "Executable or Script Dropped by a Script Host or Office"
+description = "A script engine, Office program or download tool writing an executable or script file to disk."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''file where
+  process.name in~ ("wscript.exe", "cscript.exe", "mshta.exe", "powershell.exe", "pwsh.exe", "winword.exe", "excel.exe", "powerpnt.exe", "outlook.exe", "certutil.exe", "bitsadmin.exe", "curl.exe")
+  and file.extension in~ ("exe", "dll", "scr", "bat", "cmd", "ps1", "vbs", "vbe", "js", "jse", "wsf", "hta", "jar", "lnk", "msi")
+'''
+
+[[threat]]
+tactic.name = "Command and Control"
+[[threat.technique]]
+id = "T1105"
+name = "Ingress Tool Transfer"
+
+[[threat]]
+tactic.name = "Execution"
+[[threat.technique]]
+id = "T1204.002"
+name = "User Execution: Malicious File"
+
+[[tests]]
+name = "wscript drops exe"
+expect = "match"
+event = { _category = "file", event = { action = "creation" }, process = { name = "wscript.exe", executable = "C:\\Windows\\System32\\wscript.exe", command_line = "wscript.exe" }, file = { path = "C:\\Users\\Public\\payload.exe", name = "payload.exe", extension = "exe" } }
+
+[[tests]]
+name = "powershell drops script"
+expect = "match"
+event = { _category = "file", event = { action = "creation" }, process = { name = "powershell.exe", executable = "C:\\Windows\\System32\\powershell.exe", command_line = "powershell.exe" }, file = { path = "C:\\Users\\bob\\AppData\\Local\\Temp\\x.ps1", name = "x.ps1", extension = "ps1" } }
+
+[[tests]]
+name = "text file"
+expect = "no_match"
+event = { _category = "file", event = { action = "creation" }, process = { name = "wscript.exe", executable = "C:\\Windows\\System32\\wscript.exe", command_line = "wscript.exe" }, file = { path = "C:\\Users\\bob\\notes.txt", name = "notes.txt", extension = "txt" } }
+
+[[tests]]
+name = "installer by user"
+expect = "no_match"
+event = { _category = "file", event = { action = "creation" }, process = { name = "explorer.exe", executable = "C:\\Windows\\System32\\explorer.exe", command_line = "explorer.exe" }, file = { path = "C:\\Users\\bob\\setup.exe", name = "setup.exe", extension = "exe" } }

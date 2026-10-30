@@ -1,0 +1,33 @@
+[rule]
+id = "etap-031"
+name = "Scheduled Task Created"
+description = "A new scheduled task made from the command line or PowerShell, a common way to run malware again later."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''process where
+  (process.name in~ ("schtasks.exe") and process.command_line : "/create")
+  or (process.name in~ ("powershell.exe", "pwsh.exe") and process.command_line : ("Register-ScheduledTask", "New-ScheduledTask"))
+'''
+
+[[threat]]
+tactic.name = "Persistence"
+[[threat.technique]]
+id = "T1053.005"
+name = "Scheduled Task/Job: Scheduled Task"
+
+[[tests]]
+name = "schtasks"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "schtasks.exe", executable = "C:\\Windows\\System32\\schtasks.exe", command_line = "schtasks.exe /create /tn upd /tr C:\\x.exe /sc minute" } }
+
+[[tests]]
+name = "powershell"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "powershell.exe", executable = "C:\\Windows\\System32\\powershell.exe", command_line = "powershell Register-ScheduledTask -TaskName x" } }
+
+[[tests]]
+name = "query tasks"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "schtasks.exe", executable = "C:\\Windows\\System32\\schtasks.exe", command_line = "schtasks.exe /query" } }

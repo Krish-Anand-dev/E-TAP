@@ -1,0 +1,41 @@
+[rule]
+id = "etap-051"
+name = "Remote Thread Injected Into Another Process"
+description = "A process creating a thread inside a common host process such as explorer.exe or notepad.exe, the classic code-injection step."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''thread where
+  target.process.name in~ ("explorer.exe", "svchost.exe", "notepad.exe", "winlogon.exe", "spoolsv.exe", "werfault.exe", "lsass.exe", "dllhost.exe", "rundll32.exe", "regsvr32.exe", "msedge.exe", "chrome.exe", "firefox.exe")
+  and not process.name in~ ("csrss.exe", "wininit.exe", "services.exe", "svchost.exe", "lsass.exe", "explorer.exe", "winlogon.exe", "msmpeng.exe")
+'''
+
+[[actions]]
+action = "kill_process"
+
+[[threat]]
+tactic.name = "Defense Evasion"
+[[threat.technique]]
+id = "T1055"
+name = "Process Injection"
+
+[[tests]]
+name = "into explorer"
+expect = "match"
+event = { _category = "thread", event = { action = "remote_thread" }, process = { name = "update.exe", executable = "C:\\Windows\\System32\\update.exe", command_line = "update.exe" }, target = { process = { name = "explorer.exe", executable = "C:\\Windows\\System32\\explorer.exe", command_line = "explorer.exe" } }, thread = { start_function = "", start_module = "" } }
+
+[[tests]]
+name = "into notepad"
+expect = "match"
+event = { _category = "thread", event = { action = "remote_thread" }, process = { name = "a.exe", executable = "C:\\Windows\\System32\\a.exe", command_line = "a.exe" }, target = { process = { name = "notepad.exe", executable = "C:\\Windows\\System32\\notepad.exe", command_line = "notepad.exe" } }, thread = { start_function = "", start_module = "" } }
+
+[[tests]]
+name = "system process"
+expect = "no_match"
+event = { _category = "thread", event = { action = "remote_thread" }, process = { name = "csrss.exe", executable = "C:\\Windows\\System32\\csrss.exe", command_line = "csrss.exe" }, target = { process = { name = "explorer.exe", executable = "C:\\Windows\\System32\\explorer.exe", command_line = "explorer.exe" } }, thread = { start_function = "", start_module = "" } }
+
+[[tests]]
+name = "unlisted target"
+expect = "no_match"
+event = { _category = "thread", event = { action = "remote_thread" }, process = { name = "update.exe", executable = "C:\\Windows\\System32\\update.exe", command_line = "update.exe" }, target = { process = { name = "unknown.exe", executable = "C:\\Windows\\System32\\unknown.exe", command_line = "unknown.exe" } }, thread = { start_function = "", start_module = "" } }

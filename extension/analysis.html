@@ -22,9 +22,9 @@
       <h2>Deeper attachment analysis</h2>
       <p><span id="sandbox-state" class="pill">Your sandbox: checking…</span></p>
       <div id="sandbox-setup" hidden>
-        <p>Deeper analysis is optional. It opens this email's attachments inside a Windows virtual machine you own (VirtualBox) and records what they do. If you do not have one, the standard analysis below covers everything else. To set it up once, you need Python 3.10 or newer on that PC:</p>
+        <p>Deeper analysis is optional. It opens this email's attachments inside a Windows virtual machine you own (VirtualBox or VMware) and records what they do. If you do not have one, the standard analysis below covers everything else. To set it up once, you need Python 3.10 or newer on that PC:</p>
         <ol>
-          <li><a id="agent-download" href="#" target="_blank" rel="noopener noreferrer">Download the E-TAP Sandbox Agent</a> and extract it (right-click the zip, <strong>Extract All</strong>) on the PC that has your VirtualBox VM.</li>
+          <li><a id="agent-download" href="#" target="_blank" rel="noopener noreferrer">Download the E-TAP Sandbox Agent</a> and extract it (right-click the zip, <strong>Extract All</strong>) on the PC that has your VirtualBox or VMware VM.</li>
           <li>Double-click <strong>start-agent.cmd</strong>. It checks your computer, asks before each step and then shows a pairing code.</li>
           <li>Enter the code here.</li>
         </ol>
@@ -34,7 +34,7 @@
           <button id="pair" class="primary">Pair and analyze</button>
         </div>
         <p id="pair-error" role="alert"></p>
-        <button id="standard-instead">I don't have a VirtualBox VM: run standard analysis</button>
+        <button id="standard-instead">I don't have a VirtualBox or VMware VM: run standard analysis</button>
       </div>
     </section>
     <section id="original-help" hidden>

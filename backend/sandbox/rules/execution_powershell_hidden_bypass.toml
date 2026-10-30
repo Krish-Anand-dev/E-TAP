@@ -1,0 +1,45 @@
+[rule]
+id = "etap-010"
+name = "PowerShell Hidden Window With Policy Bypass"
+description = "PowerShell run with a hidden window and with execution policy or profile checks switched off."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''process where
+  process.name in~ ("powershell.exe", "pwsh.exe")
+  and process.command_line : ("-w hidden", "-windowstyle hidden", "-win hidden", "-wi hidden")
+  and process.command_line : ("bypass", " -nop", "-noprofile")
+'''
+
+[[threat]]
+tactic.name = "Execution"
+[[threat.technique]]
+id = "T1059.001"
+name = "Command and Scripting Interpreter: PowerShell"
+
+[[threat]]
+tactic.name = "Defense Evasion"
+[[threat.technique]]
+id = "T1564.003"
+name = "Hide Artifacts: Hidden Window"
+
+[[tests]]
+name = "hidden bypass"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "powershell.exe", executable = "C:\\Windows\\System32\\powershell.exe", command_line = "powershell.exe -w hidden -ep bypass -File x.ps1" } }
+
+[[tests]]
+name = "hidden noprofile"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "pwsh.exe", executable = "C:\\Windows\\System32\\pwsh.exe", command_line = "pwsh -WindowStyle Hidden -NoProfile -File y.ps1" } }
+
+[[tests]]
+name = "noprofile only"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "powershell.exe", executable = "C:\\Windows\\System32\\powershell.exe", command_line = "powershell.exe -NoProfile -File x.ps1" } }
+
+[[tests]]
+name = "hidden only"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "powershell.exe", executable = "C:\\Windows\\System32\\powershell.exe", command_line = "powershell -w hidden Get-Date" } }

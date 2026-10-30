@@ -1,0 +1,42 @@
+[rule]
+id = "etap-027"
+name = "Windows Defender Disabled in the Registry"
+description = "Registry values that turn off Windows Defender or add exclusions to it."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''registry where
+  (registry.path : ("*\\Windows Defender\\DisableAntiSpyware", "*\\Windows Defender\\DisableAntiVirus", "*\\Real-Time Protection\\DisableRealtimeMonitoring", "*\\Real-Time Protection\\DisableBehaviorMonitoring", "*\\Real-Time Protection\\DisableIOAVProtection")
+   and registry.data.strings : "0x00000001")
+  or registry.path : "*\\Windows Defender\\Exclusions\\*"
+'''
+
+[[actions]]
+action = "kill_process"
+
+[[threat]]
+tactic.name = "Defense Evasion"
+[[threat.technique]]
+id = "T1562.001"
+name = "Impair Defenses: Disable or Modify Tools"
+
+[[tests]]
+name = "disable antispyware"
+expect = "match"
+event = { _category = "registry", event = { action = "modification" }, process = { name = "reg.exe", executable = "C:\\Windows\\System32\\reg.exe", command_line = "reg.exe" }, registry = { path = "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\DisableAntiSpyware", data = { strings = ["DWORD (0x00000001)"] } } }
+
+[[tests]]
+name = "exclusion"
+expect = "match"
+event = { _category = "registry", event = { action = "modification" }, process = { name = "reg.exe", executable = "C:\\Windows\\System32\\reg.exe", command_line = "reg.exe" }, registry = { path = "HKLM\\SOFTWARE\\Microsoft\\Windows Defender\\Exclusions\\Paths\\C:\\Users\\Public", data = { strings = ["DWORD (0x00000000)"] } } }
+
+[[tests]]
+name = "setting turned back on"
+expect = "no_match"
+event = { _category = "registry", event = { action = "modification" }, process = { name = "reg.exe", executable = "C:\\Windows\\System32\\reg.exe", command_line = "reg.exe" }, registry = { path = "HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\\DisableAntiSpyware", data = { strings = ["DWORD (0x00000000)"] } } }
+
+[[tests]]
+name = "unrelated defender value"
+expect = "no_match"
+event = { _category = "registry", event = { action = "modification" }, process = { name = "reg.exe", executable = "C:\\Windows\\System32\\reg.exe", command_line = "reg.exe" }, registry = { path = "HKLM\\SOFTWARE\\Microsoft\\Windows Defender\\Signature Updates\\X", data = { strings = ["DWORD (0x00000001)"] } } }

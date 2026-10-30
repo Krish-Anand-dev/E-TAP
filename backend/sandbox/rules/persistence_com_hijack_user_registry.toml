@@ -1,0 +1,27 @@
+[rule]
+id = "etap-035"
+name = "COM Object Hijack in the User Registry"
+description = "A per-user COM class pointed at a new library or program, which Windows loads in place of the real one."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''registry where
+  registry.path : ("HKU\\*\\Software\\Classes\\CLSID\\*\\InprocServer32*", "HKU\\*\\Software\\Classes\\CLSID\\*\\LocalServer32*")
+'''
+
+[[threat]]
+tactic.name = "Persistence"
+[[threat.technique]]
+id = "T1546.015"
+name = "Event Triggered Execution: Component Object Model Hijacking"
+
+[[tests]]
+name = "inproc server"
+expect = "match"
+event = { _category = "registry", event = { action = "modification" }, process = { name = "reg.exe", executable = "C:\\Windows\\System32\\reg.exe", command_line = "reg.exe" }, registry = { path = "HKU\\S-1-5-21-1\\Software\\Classes\\CLSID\\{11111111-2222-3333-4444-555555555555}\\InprocServer32\\(Default)", data = { strings = ["C:\\x.dll"] } } }
+
+[[tests]]
+name = "machine-wide install"
+expect = "no_match"
+event = { _category = "registry", event = { action = "modification" }, process = { name = "reg.exe", executable = "C:\\Windows\\System32\\reg.exe", command_line = "reg.exe" }, registry = { path = "HKLM\\SOFTWARE\\Classes\\CLSID\\{11111111-2222-3333-4444-555555555555}\\InprocServer32\\(Default)", data = { strings = ["C:\\Windows\\x.dll"] } } }

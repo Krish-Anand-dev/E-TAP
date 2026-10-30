@@ -1,0 +1,46 @@
+[rule]
+id = "etap-023"
+name = "Windows Tool Renamed to Hide It"
+description = "A program whose built-in name is a Windows tool (cmd, certutil, PowerShell and so on) but which runs under a different file name."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''process where
+  process.pe.original_file_name in~ ("cmd.exe", "powershell.exe", "wscript.exe", "cscript.exe", "mshta.exe", "rundll32.exe", "regsvr32.exe", "certutil.exe", "msbuild.exe", "bitsadmin.exe", "wmic.exe", "schtasks.exe")
+  and not process.name in~ ("cmd.exe", "powershell.exe", "wscript.exe", "cscript.exe", "mshta.exe", "rundll32.exe", "regsvr32.exe", "certutil.exe", "msbuild.exe", "bitsadmin.exe", "wmic.exe", "schtasks.exe")
+'''
+
+[[actions]]
+action = "kill_process"
+
+[[threat]]
+tactic.name = "Defense Evasion"
+[[threat.technique]]
+id = "T1036.003"
+name = "Masquerading: Rename System Utilities"
+
+[[tests]]
+name = "renamed certutil"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "svchost32.exe", executable = "C:\\Windows\\System32\\svchost32.exe", command_line = "svchost32.exe -urlcache", pe = { original_file_name = "certutil.exe" } } }
+
+[[tests]]
+name = "renamed powershell"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "update.exe", executable = "C:\\Windows\\System32\\update.exe", command_line = "update.exe", pe = { original_file_name = "PowerShell.EXE" } } }
+
+[[tests]]
+name = "genuine certutil"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "certutil.exe", executable = "C:\\Windows\\System32\\certutil.exe", command_line = "certutil.exe -hashfile x.exe sha256", pe = { original_file_name = "CertUtil.exe" } } }
+
+[[tests]]
+name = "unrelated program"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "notepad.exe", executable = "C:\\Windows\\System32\\notepad.exe", command_line = "notepad.exe", pe = { original_file_name = "NOTEPAD.EXE" } } }
+
+[[tests]]
+name = "no original name"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "tool.exe", executable = "C:\\Windows\\System32\\tool.exe", command_line = "tool.exe" } }

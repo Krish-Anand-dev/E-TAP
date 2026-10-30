@@ -1,0 +1,38 @@
+[rule]
+id = "etap-016"
+name = "Developer or Installer Tool Used as a Proxy"
+description = "MSBuild, InstallUtil, CMSTP and similar signed tools starting inside a suspicious sample, often used to run code without a normal program."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''process where
+  process.name in~ ("msbuild.exe", "installutil.exe", "regasm.exe", "regsvcs.exe", "cmstp.exe", "ieexec.exe", "mavinject.exe", "odbcconf.exe")
+'''
+
+[[threat]]
+tactic.name = "Defense Evasion"
+[[threat.technique]]
+id = "T1127.001"
+name = "Trusted Developer Utilities Proxy Execution: MSBuild"
+[[threat.technique]]
+id = "T1218.004"
+name = "System Binary Proxy Execution: InstallUtil"
+[[threat.technique]]
+id = "T1218.003"
+name = "System Binary Proxy Execution: CMSTP"
+
+[[tests]]
+name = "msbuild"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "msbuild.exe", executable = "C:\\Windows\\System32\\msbuild.exe", command_line = "msbuild.exe C:\\Users\\Public\\x.xml" } }
+
+[[tests]]
+name = "cmstp"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "cmstp.exe", executable = "C:\\Windows\\System32\\cmstp.exe", command_line = "cmstp.exe /s /ns x.inf" } }
+
+[[tests]]
+name = "name only in text"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "cmd.exe", executable = "C:\\Windows\\System32\\cmd.exe", command_line = "cmd.exe /c echo msbuild" } }

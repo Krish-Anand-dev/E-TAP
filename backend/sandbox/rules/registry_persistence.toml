@@ -3,17 +3,26 @@ id = "etap-007"
 name = "Registry Modification for Persistence"
 description = "Detects modification of common persistence registry keys (Run, RunOnce, Services) by non-standard processes."
 version = "1"
+author = "E-TAP team"
+license = "MIT"
 os_list = ["windows"]
 query = '''registry where
   registry.path : ("*\\CurrentVersion\\Run\\*", "*\\CurrentVersion\\RunOnce\\*", "*\\CurrentVersion\\RunServices\\*", "*\\CurrentVersion\\Explorer\\Shell Folders\\*")
   and not process.name : ("explorer.exe", "svchost.exe", "dismhost.exe", "msiexec.exe")
 '''
 
-[[actions]]
-action = "kill_process"
-
 [[threat]]
 tactic.name = "Persistence"
 [[threat.technique]]
 id = "T1547.001"
 name = "Boot or Logon Autostart Execution: Registry Run Keys / Startup Folder"
+
+[[tests]]
+name = "run key by unknown program"
+expect = "match"
+event = { _category = "registry", event = { action = "modification" }, process = { name = "update.exe", executable = "C:\\Windows\\System32\\update.exe", command_line = "update.exe" }, registry = { path = "HKU\\S-1\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\Updater", data = { strings = ["C:\\x.exe"] } } }
+
+[[tests]]
+name = "run key by explorer"
+expect = "no_match"
+event = { _category = "registry", event = { action = "modification" }, process = { name = "explorer.exe", executable = "C:\\Windows\\System32\\explorer.exe", command_line = "explorer.exe" }, registry = { path = "HKU\\S-1\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\Updater", data = { strings = ["C:\\x.exe"] } } }

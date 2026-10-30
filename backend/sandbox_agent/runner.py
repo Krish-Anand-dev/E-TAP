@@ -53,7 +53,7 @@ def run_job(job_id: str, samples: list[dict], work_dir: Path, *, vbox: VBox | No
         vbox.restore()
         vbox.start()
         vbox.wait_ready()
-        vbox._gc("mkdir", "--parents", r"C:\sandbox\in", r"C:\sandbox\out")
+        vbox.make_dirs(r"C:\sandbox\in", r"C:\sandbox\out")
 
         # Clear Sysmon log for clean baseline
         vbox.clear_sysmon()

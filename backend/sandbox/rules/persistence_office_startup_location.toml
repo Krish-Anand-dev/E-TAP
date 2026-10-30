@@ -1,0 +1,35 @@
+[rule]
+id = "etap-036"
+name = "File Dropped in an Office Startup Location"
+description = "A file placed in the Word STARTUP, Excel XLSTART or Add-ins folders, which Office loads every time it starts."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''file where
+  file.path : ("*\\Microsoft\\Word\\STARTUP\\*", "*\\Microsoft\\Excel\\XLSTART\\*", "*\\Microsoft\\AddIns\\*")
+'''
+
+[[threat]]
+tactic.name = "Persistence"
+[[threat.technique]]
+id = "T1137.001"
+name = "Office Application Startup: Office Template Macros"
+[[threat.technique]]
+id = "T1137.006"
+name = "Office Application Startup: Add-ins"
+
+[[tests]]
+name = "word startup"
+expect = "match"
+event = { _category = "file", event = { action = "creation" }, process = { name = "explorer.exe", executable = "C:\\Windows\\System32\\explorer.exe", command_line = "explorer.exe" }, file = { path = "C:\\Users\\bob\\AppData\\Roaming\\Microsoft\\Word\\STARTUP\\x.dotm", name = "x.dotm", extension = "dotm" } }
+
+[[tests]]
+name = "excel startup"
+expect = "match"
+event = { _category = "file", event = { action = "creation" }, process = { name = "explorer.exe", executable = "C:\\Windows\\System32\\explorer.exe", command_line = "explorer.exe" }, file = { path = "C:\\Users\\bob\\AppData\\Roaming\\Microsoft\\Excel\\XLSTART\\book.xlsm", name = "book.xlsm", extension = "xlsm" } }
+
+[[tests]]
+name = "normal document"
+expect = "no_match"
+event = { _category = "file", event = { action = "creation" }, process = { name = "explorer.exe", executable = "C:\\Windows\\System32\\explorer.exe", command_line = "explorer.exe" }, file = { path = "C:\\Users\\bob\\Documents\\report.docx", name = "report.docx", extension = "docx" } }

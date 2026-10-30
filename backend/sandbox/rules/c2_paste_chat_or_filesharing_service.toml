@@ -1,0 +1,38 @@
+[rule]
+id = "etap-046"
+name = "Lookup of a Paste, Chat-Bot or File-Sharing Service"
+description = "A DNS lookup of paste sites, anonymous file hosts or chat-bot APIs that malware uses to fetch instructions or send data out."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''dns where
+  dns.question.name : ("pastebin.com", "paste.ee", "hastebin.com", "transfer.sh", "anonfiles.com", "file.io", "gofile.io", "api.telegram.org", "cdn.discordapp.com", "media.discordapp.net")
+'''
+
+[[threat]]
+tactic.name = "Command and Control"
+[[threat.technique]]
+id = "T1102"
+name = "Web Service"
+
+[[threat]]
+tactic.name = "Exfiltration"
+[[threat.technique]]
+id = "T1567.002"
+name = "Exfiltration Over Web Service: Exfiltration to Cloud Storage"
+
+[[tests]]
+name = "pastebin"
+expect = "match"
+event = { _category = "dns", event = { action = "lookup_requested" }, process = { name = "powershell.exe", executable = "C:\\Windows\\System32\\powershell.exe", command_line = "powershell.exe" }, dns = { question = { name = "pastebin.com" } } }
+
+[[tests]]
+name = "telegram"
+expect = "match"
+event = { _category = "dns", event = { action = "lookup_requested" }, process = { name = "wscript.exe", executable = "C:\\Windows\\System32\\wscript.exe", command_line = "wscript.exe" }, dns = { question = { name = "api.telegram.org" } } }
+
+[[tests]]
+name = "code hosting"
+expect = "no_match"
+event = { _category = "dns", event = { action = "lookup_requested" }, process = { name = "powershell.exe", executable = "C:\\Windows\\System32\\powershell.exe", command_line = "powershell.exe" }, dns = { question = { name = "github.com" } } }

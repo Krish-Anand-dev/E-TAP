@@ -1,0 +1,41 @@
+[rule]
+id = "etap-034"
+name = "Logon or Debugger Registry Hijack"
+description = "Registry values that make Windows start an attacker's program at logon or in place of another program (Winlogon, Image File Execution Options, AppInit)."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''registry where
+  registry.path : ("*\\Image File Execution Options\\*\\Debugger", "*\\CurrentVersion\\Winlogon\\Shell", "*\\CurrentVersion\\Winlogon\\Userinit", "*\\Windows\\AppInit_DLLs", "*\\Session Manager\\BootExecute")
+'''
+
+[[actions]]
+action = "kill_process"
+
+[[threat]]
+tactic.name = "Persistence"
+[[threat.technique]]
+id = "T1546.012"
+name = "Event Triggered Execution: Image File Execution Options Injection"
+[[threat.technique]]
+id = "T1547.004"
+name = "Boot or Logon Autostart Execution: Winlogon Helper DLL"
+[[threat.technique]]
+id = "T1546.010"
+name = "Event Triggered Execution: AppInit DLLs"
+
+[[tests]]
+name = "debugger"
+expect = "match"
+event = { _category = "registry", event = { action = "modification" }, process = { name = "reg.exe", executable = "C:\\Windows\\System32\\reg.exe", command_line = "reg.exe" }, registry = { path = "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options\\notepad.exe\\Debugger", data = { strings = ["C:\\x.exe"] } } }
+
+[[tests]]
+name = "winlogon shell"
+expect = "match"
+event = { _category = "registry", event = { action = "modification" }, process = { name = "reg.exe", executable = "C:\\Windows\\System32\\reg.exe", command_line = "reg.exe" }, registry = { path = "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon\\Shell", data = { strings = ["explorer.exe, C:\\x.exe"] } } }
+
+[[tests]]
+name = "file extension key"
+expect = "no_match"
+event = { _category = "registry", event = { action = "modification" }, process = { name = "reg.exe", executable = "C:\\Windows\\System32\\reg.exe", command_line = "reg.exe" }, registry = { path = "HKU\\S-1\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts\\.txt", data = { strings = ["x"] } } }

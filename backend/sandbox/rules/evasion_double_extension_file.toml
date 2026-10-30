@@ -1,0 +1,37 @@
+[rule]
+id = "etap-060"
+name = "File With a Disguised Double Extension Created"
+description = "A file such as invoice.pdf.exe or photo.jpg.scr being created: a program dressed up with a document or picture extension to trick the user."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''file where
+  file.name : ("*.pdf.exe", "*.doc.exe", "*.docx.exe", "*.xls.exe", "*.xlsx.exe", "*.jpg.exe", "*.jpeg.exe", "*.png.exe", "*.txt.exe", "*.pdf.scr", "*.doc.scr", "*.docx.scr", "*.xls.scr", "*.xlsx.scr", "*.jpg.scr", "*.jpeg.scr", "*.png.scr", "*.txt.scr", "*.pdf.js", "*.doc.js", "*.docx.js", "*.pdf.vbs", "*.doc.vbs", "*.pdf.bat", "*.pdf.cmd", "*.pdf.lnk", "*.jpg.lnk", "*.txt.lnk", "*.pdf.hta")
+'''
+
+[[threat]]
+tactic.name = "Defense Evasion"
+[[threat.technique]]
+id = "T1036.007"
+name = "Masquerading: Double File Extension"
+
+[[tests]]
+name = "pdf exe"
+expect = "match"
+event = { _category = "file", event = { action = "creation" }, process = { name = "explorer.exe", executable = "C:\\Windows\\System32\\explorer.exe", command_line = "explorer.exe" }, file = { path = "C:\\Users\\bob\\invoice.pdf.exe", name = "invoice.pdf.exe", extension = "exe" } }
+
+[[tests]]
+name = "jpg scr"
+expect = "match"
+event = { _category = "file", event = { action = "creation" }, process = { name = "x.exe", executable = "C:\\Windows\\System32\\x.exe", command_line = "x.exe" }, file = { path = "C:\\Users\\bob\\photo.jpg.scr", name = "photo.jpg.scr", extension = "scr" } }
+
+[[tests]]
+name = "real pdf"
+expect = "no_match"
+event = { _category = "file", event = { action = "creation" }, process = { name = "x.exe", executable = "C:\\Windows\\System32\\x.exe", command_line = "x.exe" }, file = { path = "C:\\Users\\bob\\invoice.pdf", name = "invoice.pdf", extension = "pdf" } }
+
+[[tests]]
+name = "plain program"
+expect = "no_match"
+event = { _category = "file", event = { action = "creation" }, process = { name = "x.exe", executable = "C:\\Windows\\System32\\x.exe", command_line = "x.exe" }, file = { path = "C:\\Users\\bob\\setup.exe", name = "setup.exe", extension = "exe" } }

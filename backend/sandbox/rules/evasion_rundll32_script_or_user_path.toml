@@ -1,0 +1,33 @@
+[rule]
+id = "etap-014"
+name = "Rundll32 Running Script or a User-Folder Library"
+description = "rundll32.exe running script code or a library from a folder normal users can write to."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''process where
+  process.name in~ ("rundll32.exe")
+  and process.command_line : ("javascript:", "RunHTMLApplication", "\\AppData\\", "\\Temp\\", "\\Users\\Public\\", "\\ProgramData\\")
+'''
+
+[[threat]]
+tactic.name = "Defense Evasion"
+[[threat.technique]]
+id = "T1218.011"
+name = "System Binary Proxy Execution: Rundll32"
+
+[[tests]]
+name = "script"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "rundll32.exe", executable = "C:\\Windows\\System32\\rundll32.exe", command_line = "rundll32.exe javascript:\\..\\mshtml,RunHTMLApplication" } }
+
+[[tests]]
+name = "public folder"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "rundll32.exe", executable = "C:\\Windows\\System32\\rundll32.exe", command_line = "rundll32.exe C:\\Users\\Public\\x.dll,Run" } }
+
+[[tests]]
+name = "control panel"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "rundll32.exe", executable = "C:\\Windows\\System32\\rundll32.exe", command_line = "rundll32.exe shell32.dll,Control_RunDLL" } }

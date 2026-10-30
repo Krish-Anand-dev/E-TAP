@@ -1,0 +1,42 @@
+[rule]
+id = "etap-063"
+name = "Windows System Process Running From the Wrong Place"
+description = "A program named like a core Windows process (svchost, lsass, csrss, services, winlogon and similar) running from anywhere other than the Windows system folders, a classic way for malware to hide in plain sight."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''process where
+  process.name in~ ("svchost.exe", "lsass.exe", "csrss.exe", "services.exe", "winlogon.exe", "smss.exe",
+                    "wininit.exe", "spoolsv.exe", "taskhostw.exe")
+  and not process.executable : ("C:\\Windows\\System32\\", "C:\\Windows\\SysWOW64\\", "C:\\Windows\\WinSxS\\")
+'''
+
+[[actions]]
+action = "kill_process"
+
+[[threat]]
+tactic.name = "Defense Evasion"
+[[threat.technique]]
+id = "T1036.005"
+name = "Masquerading: Match Legitimate Name or Location"
+
+[[tests]]
+name = "svchost in temp"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "svchost.exe", executable = "C:\\Users\\bob\\AppData\\Local\\Temp\\svchost.exe", command_line = "svchost.exe -k x" } }
+
+[[tests]]
+name = "lsass in public"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "lsass.exe", executable = "C:\\Users\\Public\\lsass.exe", command_line = "lsass.exe" } }
+
+[[tests]]
+name = "the real svchost"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "svchost.exe", executable = "C:\\Windows\\System32\\svchost.exe", command_line = "svchost.exe -k netsvcs" } }
+
+[[tests]]
+name = "32-bit svchost"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "svchost.exe", executable = "C:\\Windows\\SysWOW64\\svchost.exe", command_line = "svchost.exe -k x" } }

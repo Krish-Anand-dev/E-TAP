@@ -1,0 +1,40 @@
+[rule]
+id = "etap-057"
+name = "User Added to a Privileged Local Group"
+description = "net adding a user to the local Administrators or Remote Desktop Users group, which gives the attacker full or remote control."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''process where
+  process.name in~ ("net.exe", "net1.exe")
+  and process.command_line : ("localgroup")
+  and process.command_line : ("administrators", "administrateurs", "remote desktop users")
+  and process.command_line : (" /add")
+'''
+
+[[threat]]
+tactic.name = "Persistence"
+[[threat.technique]]
+id = "T1098"
+name = "Account Manipulation"
+
+[[tests]]
+name = "administrators"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "net.exe", executable = "C:\\Windows\\System32\\net.exe", command_line = "net.exe localgroup administrators backdoor /add" } }
+
+[[tests]]
+name = "remote desktop"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "net.exe", executable = "C:\\Windows\\System32\\net.exe", command_line = "net.exe localgroup \"Remote Desktop Users\" bob /add" } }
+
+[[tests]]
+name = "list members"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "net.exe", executable = "C:\\Windows\\System32\\net.exe", command_line = "net.exe localgroup administrators" } }
+
+[[tests]]
+name = "other group"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "net.exe", executable = "C:\\Windows\\System32\\net.exe", command_line = "net.exe localgroup users bob /add" } }

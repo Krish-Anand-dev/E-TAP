@@ -1,0 +1,41 @@
+[rule]
+id = "etap-061"
+name = "File Renamed With a Ransomware Extension"
+description = "Files being created with extensions that well-known ransomware families add to encrypted files (locked, crypt, lockbit, wncry and similar)."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''file where
+  file.extension in~ ("locked", "lockbit", "crypt", "crypted", "cryptolocker", "encrypted", "wncry", "wnry", "wcry",
+                      "ryk", "conti", "akira", "blackcat", "cerber", "locky", "zepto", "djvu")
+'''
+
+[[actions]]
+action = "kill_process"
+
+[[threat]]
+tactic.name = "Impact"
+[[threat.technique]]
+id = "T1486"
+name = "Data Encrypted for Impact"
+
+[[tests]]
+name = "locked"
+expect = "match"
+event = { _category = "file", event = { action = "creation" }, process = { name = "x.exe", executable = "C:\\Windows\\System32\\x.exe", command_line = "x.exe" }, file = { path = "C:\\Users\\bob\\Documents\\budget.xlsx.locked", name = "budget.xlsx.locked", extension = "locked" } }
+
+[[tests]]
+name = "wncry"
+expect = "match"
+event = { _category = "file", event = { action = "creation" }, process = { name = "x.exe", executable = "C:\\Windows\\System32\\x.exe", command_line = "x.exe" }, file = { path = "C:\\Users\\bob\\a.docx.WNCRY", name = "a.docx.WNCRY", extension = "WNCRY" } }
+
+[[tests]]
+name = "normal spreadsheet"
+expect = "no_match"
+event = { _category = "file", event = { action = "creation" }, process = { name = "x.exe", executable = "C:\\Windows\\System32\\x.exe", command_line = "x.exe" }, file = { path = "C:\\Users\\bob\\Documents\\budget.xlsx", name = "budget.xlsx", extension = "xlsx" } }
+
+[[tests]]
+name = "similar word"
+expect = "no_match"
+event = { _category = "file", event = { action = "creation" }, process = { name = "x.exe", executable = "C:\\Windows\\System32\\x.exe", command_line = "x.exe" }, file = { path = "C:\\Users\\bob\\notes.encoding", name = "notes.encoding", extension = "encoding" } }

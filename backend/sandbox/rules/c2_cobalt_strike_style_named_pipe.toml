@@ -1,0 +1,45 @@
+[rule]
+id = "etap-050"
+name = "Command-and-Control Style Named Pipe"
+description = "A named pipe whose name matches the defaults of well-known attack frameworks (msagent_, MSSE-, postex_), used for communication between implants."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''pipe where
+  pipe.name : ("\\msagent_", "\\MSSE-", "\\postex_")
+'''
+
+[[actions]]
+action = "kill_process"
+
+[[threat]]
+tactic.name = "Execution"
+[[threat.technique]]
+id = "T1559"
+name = "Inter-Process Communication"
+
+[[tests]]
+name = "msagent"
+expect = "match"
+event = { _category = "pipe", event = { action = "pipe_created" }, process = { name = "update.exe", executable = "C:\\Windows\\System32\\update.exe", command_line = "update.exe" }, pipe = { name = "\\msagent_f8", action = "created" } }
+
+[[tests]]
+name = "msse"
+expect = "match"
+event = { _category = "pipe", event = { action = "pipe_created" }, process = { name = "update.exe", executable = "C:\\Windows\\System32\\update.exe", command_line = "update.exe" }, pipe = { name = "\\MSSE-1234-server", action = "created" } }
+
+[[tests]]
+name = "postex"
+expect = "match"
+event = { _category = "pipe", event = { action = "pipe_created" }, process = { name = "rundll32.exe", executable = "C:\\Windows\\System32\\rundll32.exe", command_line = "rundll32.exe" }, pipe = { name = "\\postex_ab12", action = "created" } }
+
+[[tests]]
+name = "browser pipe"
+expect = "no_match"
+event = { _category = "pipe", event = { action = "pipe_created" }, process = { name = "chrome.exe", executable = "C:\\Windows\\System32\\chrome.exe", command_line = "chrome.exe" }, pipe = { name = "\\mojo.1234.5678.99", action = "created" } }
+
+[[tests]]
+name = "windows pipe"
+expect = "no_match"
+event = { _category = "pipe", event = { action = "pipe_created" }, process = { name = "svchost.exe", executable = "C:\\Windows\\System32\\svchost.exe", command_line = "svchost.exe" }, pipe = { name = "\\wkssvc", action = "created" } }

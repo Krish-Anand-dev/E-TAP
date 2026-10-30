@@ -3,6 +3,8 @@ id = "etap-005"
 name = "File Dropped in Startup or AutoRun Location"
 description = "Detects files being created in Windows startup folders or Run registry keys, indicating persistence establishment."
 version = "1"
+author = "E-TAP team"
+license = "MIT"
 os_list = ["windows"]
 query = '''file where
   file.path : ("*\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\*", "*\\Start Menu\\Programs\\Startup\\*")
@@ -16,3 +18,13 @@ tactic.name = "Persistence"
 [[threat.technique]]
 id = "T1547.001"
 name = "Boot or Logon Autostart Execution: Registry Run Keys / Startup Folder"
+
+[[tests]]
+name = "shortcut in Startup"
+expect = "match"
+event = { _category = "file", event = { action = "creation" }, process = { name = "explorer.exe", executable = "C:\\Windows\\System32\\explorer.exe", command_line = "explorer.exe" }, file = { path = "C:\\Users\\bob\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\x.lnk", name = "x.lnk", extension = "lnk" } }
+
+[[tests]]
+name = "shortcut in Documents"
+expect = "no_match"
+event = { _category = "file", event = { action = "creation" }, process = { name = "explorer.exe", executable = "C:\\Windows\\System32\\explorer.exe", command_line = "explorer.exe" }, file = { path = "C:\\Users\\bob\\Documents\\x.lnk", name = "x.lnk", extension = "lnk" } }

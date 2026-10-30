@@ -1,0 +1,43 @@
+[rule]
+id = "etap-032"
+name = "Windows Service Created or Repointed"
+description = "A Windows service created, or its program path changed, from the command line or PowerShell."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''process where
+  (process.name in~ ("sc.exe") and process.command_line : (" create ", " config ") and process.command_line : "binpath")
+  or (process.name in~ ("powershell.exe", "pwsh.exe") and process.command_line : "New-Service")
+'''
+
+[[threat]]
+tactic.name = "Persistence"
+[[threat.technique]]
+id = "T1543.003"
+name = "Create or Modify System Process: Windows Service"
+
+[[tests]]
+name = "sc create"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "sc.exe", executable = "C:\\Windows\\System32\\sc.exe", command_line = "sc.exe create evilsvc binPath= C:\\Users\\Public\\x.exe start= auto" } }
+
+[[tests]]
+name = "sc config"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "sc.exe", executable = "C:\\Windows\\System32\\sc.exe", command_line = "sc config svc binpath= C:\\x.exe" } }
+
+[[tests]]
+name = "powershell"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "powershell.exe", executable = "C:\\Windows\\System32\\powershell.exe", command_line = "powershell New-Service -Name x -BinaryPathName C:\\x.exe" } }
+
+[[tests]]
+name = "query"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "sc.exe", executable = "C:\\Windows\\System32\\sc.exe", command_line = "sc.exe query" } }
+
+[[tests]]
+name = "start type only"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "sc.exe", executable = "C:\\Windows\\System32\\sc.exe", command_line = "sc.exe config svc start= disabled" } }

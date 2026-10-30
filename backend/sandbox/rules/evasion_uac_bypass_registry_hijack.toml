@@ -1,0 +1,35 @@
+[rule]
+id = "etap-026"
+name = "UAC Bypass Through a Registry Hijack"
+description = "Writing the registry keys that auto-elevating Windows programs read, a well-known way to get administrator rights without a prompt."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''registry where
+  registry.path : ("*\\Software\\Classes\\ms-settings\\shell\\open\\command*", "*\\Software\\Classes\\mscfile\\shell\\open\\command*", "*\\Environment\\windir")
+'''
+
+[[actions]]
+action = "kill_process"
+
+[[threat]]
+tactic.name = "Privilege Escalation"
+[[threat.technique]]
+id = "T1548.002"
+name = "Abuse Elevation Control Mechanism: Bypass User Account Control"
+
+[[tests]]
+name = "ms-settings"
+expect = "match"
+event = { _category = "registry", event = { action = "modification" }, process = { name = "reg.exe", executable = "C:\\Windows\\System32\\reg.exe", command_line = "reg.exe" }, registry = { path = "HKU\\S-1-5-21-1\\Software\\Classes\\ms-settings\\shell\\open\\command\\(Default)", data = { strings = ["cmd.exe /c x"] } } }
+
+[[tests]]
+name = "windir"
+expect = "match"
+event = { _category = "registry", event = { action = "modification" }, process = { name = "reg.exe", executable = "C:\\Windows\\System32\\reg.exe", command_line = "reg.exe" }, registry = { path = "HKU\\S-1-5-21-1\\Environment\\windir", data = { strings = ["cmd /c x"] } } }
+
+[[tests]]
+name = "file association"
+expect = "no_match"
+event = { _category = "registry", event = { action = "modification" }, process = { name = "reg.exe", executable = "C:\\Windows\\System32\\reg.exe", command_line = "reg.exe" }, registry = { path = "HKU\\S-1-5-21-1\\Software\\Classes\\.txt\\(Default)", data = { strings = ["txtfile"] } } }

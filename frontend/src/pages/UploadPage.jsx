@@ -212,7 +212,7 @@ export function PipelineTimeline({ stages, finished, failed, showSandbox = true 
 function AgentHelp({ onPairAgain }) {
   return (
     <div className="agent-help">
-      <p>No agent on this PC yet? <a href={agentDownloadUrl()} target="_blank" rel="noopener noreferrer">Download the E-TAP Sandbox Agent</a>, right-click the zip and choose <b>Extract All</b>, then double-click <b>start-agent.cmd</b> in the extracted folder. It checks your VirtualBox VM and shows a pairing code.</p>
+      <p>No agent on this PC yet? <a href={agentDownloadUrl()} target="_blank" rel="noopener noreferrer">Download the E-TAP Sandbox Agent</a>, right-click the zip and choose <b>Extract All</b>, then double-click <b>start-agent.cmd</b> in the extracted folder. It checks your VirtualBox or VMware VM and shows a pairing code.</p>
       <p>Installed it before, on a different PC or after a reinstall? <button type="button" className="link-button" onClick={onPairAgain}>Pair a different sandbox</button> to enter a new code.</p>
     </div>
   );
@@ -437,7 +437,7 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
               <span className="choice-icon"><Icon name="box" size={20} /></span>
               <strong>Deeper attachment analysis</strong>
               <span>Also opens the attachments inside your own virtual machine and records what they do.</span>
-              <span className="choice-req">Needs a Windows VM in VirtualBox and the free E-TAP Sandbox Agent, paired once. Windows Sandbox (Windows Pro) is planned.</span>
+              <span className="choice-req">Needs a Windows VM in VirtualBox or VMware Workstation and the free E-TAP Sandbox Agent, paired once. Windows Sandbox (Windows Pro) is planned.</span>
               {sandboxState && (
                 <span className={`sandbox-pill ${sandboxStateTone(sandboxState)}`}>
                   <Icon name="box" size={13} />

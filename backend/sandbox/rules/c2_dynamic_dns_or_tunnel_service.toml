@@ -1,0 +1,35 @@
+[rule]
+id = "etap-045"
+name = "Lookup of a Dynamic DNS or Tunnelling Service"
+description = "A DNS lookup of a free dynamic-DNS or tunnelling domain that attackers use to hide the real server."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''dns where
+  dns.question.name : (".duckdns.org", ".no-ip.org", ".no-ip.biz", ".ddns.net", ".hopto.org", ".zapto.org", ".serveo.net", ".ngrok.io", ".ngrok-free.app", ".trycloudflare.com", ".loca.lt")
+'''
+
+[[threat]]
+tactic.name = "Command and Control"
+[[threat.technique]]
+id = "T1568"
+name = "Dynamic Resolution"
+[[threat.technique]]
+id = "T1572"
+name = "Protocol Tunneling"
+
+[[tests]]
+name = "duckdns"
+expect = "match"
+event = { _category = "dns", event = { action = "lookup_requested" }, process = { name = "wscript.exe", executable = "C:\\Windows\\System32\\wscript.exe", command_line = "wscript.exe" }, dns = { question = { name = "evil.duckdns.org" } } }
+
+[[tests]]
+name = "ngrok"
+expect = "match"
+event = { _category = "dns", event = { action = "lookup_requested" }, process = { name = "powershell.exe", executable = "C:\\Windows\\System32\\powershell.exe", command_line = "powershell.exe" }, dns = { question = { name = "abc.ngrok-free.app" } } }
+
+[[tests]]
+name = "ordinary site"
+expect = "no_match"
+event = { _category = "dns", event = { action = "lookup_requested" }, process = { name = "wscript.exe", executable = "C:\\Windows\\System32\\wscript.exe", command_line = "wscript.exe" }, dns = { question = { name = "example.com" } } }

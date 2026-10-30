@@ -1,0 +1,44 @@
+[rule]
+id = "etap-024"
+name = "Program Started From a User-Writable Folder"
+description = "An executable launched from Temp, Public, ProgramData or similar folders that malware commonly drops into."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''process where
+  process.executable : ("\\AppData\\Local\\Temp\\", "\\AppData\\Roaming\\", "\\Users\\Public\\", "\\ProgramData\\", "\\Windows\\Temp\\", "\\$Recycle.Bin\\")
+  and process.executable : ".exe"
+'''
+
+[[threat]]
+tactic.name = "Execution"
+[[threat.technique]]
+id = "T1204.002"
+name = "User Execution: Malicious File"
+
+[[threat]]
+tactic.name = "Defense Evasion"
+[[threat.technique]]
+id = "T1036.005"
+name = "Masquerading: Match Legitimate Name or Location"
+
+[[tests]]
+name = "public folder"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "update.exe", executable = "C:\\Users\\Public\\update.exe", command_line = "C:\\Users\\Public\\update.exe" } }
+
+[[tests]]
+name = "temp folder"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "a.exe", executable = "C:\\Users\\bob\\AppData\\Local\\Temp\\a.exe", command_line = "a.exe" } }
+
+[[tests]]
+name = "system program"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "cmd.exe", executable = "C:\\Windows\\System32\\cmd.exe", command_line = "cmd.exe" } }
+
+[[tests]]
+name = "program files"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "setup.exe", executable = "C:\\Program Files\\App\\setup.exe", command_line = "setup.exe" } }

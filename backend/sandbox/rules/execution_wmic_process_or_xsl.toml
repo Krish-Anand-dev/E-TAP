@@ -1,0 +1,39 @@
+[rule]
+id = "etap-015"
+name = "WMIC Creating a Process or Running an XSL Script"
+description = "wmic.exe starting a process, reaching a remote computer, or applying an XSL stylesheet that can run code."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''process where
+  process.name in~ ("wmic.exe")
+  and process.command_line : ("process call create", ".xsl", "/node:")
+'''
+
+[[threat]]
+tactic.name = "Execution"
+[[threat.technique]]
+id = "T1047"
+name = "Windows Management Instrumentation"
+
+[[threat]]
+tactic.name = "Defense Evasion"
+[[threat.technique]]
+id = "T1220"
+name = "XSL Script Processing"
+
+[[tests]]
+name = "process create"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "wmic.exe", executable = "C:\\Windows\\System32\\wmic.exe", command_line = "wmic process call create calc.exe" } }
+
+[[tests]]
+name = "xsl"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "wmic.exe", executable = "C:\\Windows\\System32\\wmic.exe", command_line = "wmic os get /format:evil.xsl" } }
+
+[[tests]]
+name = "hardware query"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "wmic.exe", executable = "C:\\Windows\\System32\\wmic.exe", command_line = "wmic cpu get name" } }

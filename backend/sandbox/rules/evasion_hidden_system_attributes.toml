@@ -1,0 +1,34 @@
+[rule]
+id = "etap-025"
+name = "File Hidden With System and Hidden Attributes"
+description = "attrib.exe setting both the hidden and system attributes so a dropped file does not show in Explorer."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''process where
+  process.name in~ ("attrib.exe")
+  and process.command_line : "+h"
+  and process.command_line : "+s"
+'''
+
+[[threat]]
+tactic.name = "Defense Evasion"
+[[threat.technique]]
+id = "T1564.001"
+name = "Hide Artifacts: Hidden Files and Directories"
+
+[[tests]]
+name = "hide payload"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "attrib.exe", executable = "C:\\Windows\\System32\\attrib.exe", command_line = "attrib +h +s C:\\Users\\Public\\payload.exe" } }
+
+[[tests]]
+name = "remove read-only"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "attrib.exe", executable = "C:\\Windows\\System32\\attrib.exe", command_line = "attrib -r C:\\x.txt" } }
+
+[[tests]]
+name = "hidden only"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "attrib.exe", executable = "C:\\Windows\\System32\\attrib.exe", command_line = "attrib +h C:\\x.txt" } }

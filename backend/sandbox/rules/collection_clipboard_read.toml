@@ -1,0 +1,48 @@
+[rule]
+id = "etap-053"
+name = "Clipboard Contents Read by a Script"
+description = "A PowerShell or command-shell process reads the Windows clipboard, which stealers use to collect copied passwords. Known limits: it only checks the command line, so it misses the gcb alias and a script file that calls Get-Clipboard inside it, and ordinary admin scripts also use Get-Clipboard, so it is a review-level signal only."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''process where
+  process.name in~ ("powershell.exe", "pwsh.exe", "powershell_ise.exe", "cmd.exe")
+  and process.command_line : "Get-Clipboard"
+'''
+
+[[threat]]
+tactic.name = "Collection"
+[[threat.technique]]
+id = "T1115"
+name = "Clipboard Data"
+
+[[tests]]
+name = "powershell reads the clipboard"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "powershell.exe", executable = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", command_line = "powershell.exe -NoProfile -Command Get-Clipboard" } }
+
+[[tests]]
+name = "clipboard read piped to a file from cmd"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "cmd.exe", executable = "C:\\Windows\\System32\\cmd.exe", command_line = "cmd.exe /c powershell Get-Clipboard > C:\\Users\\Public\\c.txt" } }
+
+[[tests]]
+name = "powershell writes to the clipboard"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "powershell.exe", executable = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", command_line = "powershell.exe -Command Set-Clipboard -Value hello" } }
+
+[[tests]]
+name = "powershell running a command that does not touch the clipboard"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "powershell.exe", executable = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", command_line = "powershell.exe -NoProfile -Command Get-ChildItem C:\\Users\\Public" } }
+
+[[tests]]
+name = "cmd running a command that does not touch the clipboard"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "cmd.exe", executable = "C:\\Windows\\System32\\cmd.exe", command_line = "cmd.exe /c dir C:\\Users\\Public" } }
+
+[[tests]]
+name = "clip.exe built-in copy tool"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "clip.exe", executable = "C:\\Windows\\System32\\clip.exe", command_line = "clip.exe" } }

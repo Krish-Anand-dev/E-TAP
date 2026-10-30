@@ -1,0 +1,38 @@
+[rule]
+id = "etap-043"
+name = "Process Image Replaced (Hollowing or Herpaderping)"
+description = "Sysmon reporting that a running process had its program image replaced or locked, the signature of process hollowing and herpaderping."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''tamper where
+  tamper.type : ("Image is replaced", "Image is locked for access")
+'''
+
+[[actions]]
+action = "kill_process"
+
+[[threat]]
+tactic.name = "Defense Evasion"
+[[threat.technique]]
+id = "T1055.012"
+name = "Process Injection: Process Hollowing"
+[[threat.technique]]
+id = "T1055"
+name = "Process Injection"
+
+[[tests]]
+name = "replaced"
+expect = "match"
+event = { _category = "tamper", event = { action = "process_tampering" }, process = { name = "update.exe", executable = "C:\\Windows\\System32\\update.exe", command_line = "update.exe" }, tamper = { type = "Image is replaced" } }
+
+[[tests]]
+name = "locked"
+expect = "match"
+event = { _category = "tamper", event = { action = "process_tampering" }, process = { name = "a.exe", executable = "C:\\Windows\\System32\\a.exe", command_line = "a.exe" }, tamper = { type = "Image is locked for access" } }
+
+[[tests]]
+name = "other type"
+expect = "no_match"
+event = { _category = "tamper", event = { action = "process_tampering" }, process = { name = "a.exe", executable = "C:\\Windows\\System32\\a.exe", command_line = "a.exe" }, tamper = { type = "Something else" } }

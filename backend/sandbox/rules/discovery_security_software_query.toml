@@ -1,0 +1,27 @@
+[rule]
+id = "etap-042"
+name = "Installed Security Software Queried"
+description = "A query of the Windows Security Center for the installed antivirus product."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''process where
+  process.command_line : ("AntiVirusProduct", "AntiSpywareProduct", "SecurityCenter2")
+'''
+
+[[threat]]
+tactic.name = "Discovery"
+[[threat.technique]]
+id = "T1518.001"
+name = "Software Discovery: Security Software Discovery"
+
+[[tests]]
+name = "wmic antivirus"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "wmic.exe", executable = "C:\\Windows\\System32\\wmic.exe", command_line = "wmic /namespace:\\\\root\\SecurityCenter2 path AntiVirusProduct get displayName" } }
+
+[[tests]]
+name = "os caption"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "wmic.exe", executable = "C:\\Windows\\System32\\wmic.exe", command_line = "wmic os get caption" } }

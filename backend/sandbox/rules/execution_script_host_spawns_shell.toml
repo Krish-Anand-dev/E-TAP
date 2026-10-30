@@ -1,0 +1,41 @@
+[rule]
+id = "etap-011"
+name = "Script Host Spawns a Command Shell"
+description = "A Windows script host (wscript, cscript, mshta) starting cmd or PowerShell, typical of a script-based dropper."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''process where
+  process.parent.name in~ ("wscript.exe", "cscript.exe", "mshta.exe")
+  and process.name in~ ("cmd.exe", "powershell.exe", "pwsh.exe")
+'''
+
+[[threat]]
+tactic.name = "Execution"
+[[threat.technique]]
+id = "T1059.003"
+name = "Command and Scripting Interpreter: Windows Command Shell"
+[[threat.technique]]
+id = "T1059.001"
+name = "Command and Scripting Interpreter: PowerShell"
+
+[[tests]]
+name = "wscript to cmd"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "cmd.exe", executable = "C:\\Windows\\System32\\cmd.exe", command_line = "cmd.exe /c whoami", parent = { name = "wscript.exe", executable = "C:\\Windows\\System32\\wscript.exe" } } }
+
+[[tests]]
+name = "mshta to powershell"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "powershell.exe", executable = "C:\\Windows\\System32\\powershell.exe", command_line = "powershell -c 1", parent = { name = "mshta.exe", executable = "C:\\Windows\\System32\\mshta.exe" } } }
+
+[[tests]]
+name = "explorer to cmd"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "cmd.exe", executable = "C:\\Windows\\System32\\cmd.exe", command_line = "cmd.exe /c dir", parent = { name = "explorer.exe", executable = "C:\\Windows\\System32\\explorer.exe" } } }
+
+[[tests]]
+name = "wscript to notepad"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "notepad.exe", executable = "C:\\Windows\\System32\\notepad.exe", command_line = "notepad.exe", parent = { name = "wscript.exe", executable = "C:\\Windows\\System32\\wscript.exe" } } }

@@ -1,0 +1,38 @@
+[rule]
+id = "etap-054"
+name = "Certutil Decoding a File"
+description = "certutil decoding a Base64 or hex file, which turns a harmless-looking text file into a program."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''process where
+  process.name in~ ("certutil.exe")
+  and process.command_line : (" -decode", " -decodehex", " -encode", " /decode")
+'''
+
+[[threat]]
+tactic.name = "Defense Evasion"
+[[threat.technique]]
+id = "T1140"
+name = "Deobfuscate/Decode Files or Information"
+
+[[tests]]
+name = "decode"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "certutil.exe", executable = "C:\\Windows\\System32\\certutil.exe", command_line = "certutil.exe -decode in.txt out.exe" } }
+
+[[tests]]
+name = "hex decode"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "certutil.exe", executable = "C:\\Windows\\System32\\certutil.exe", command_line = "certutil -decodehex in.hex out.bin" } }
+
+[[tests]]
+name = "list store"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "certutil.exe", executable = "C:\\Windows\\System32\\certutil.exe", command_line = "certutil.exe -store My" } }
+
+[[tests]]
+name = "other program"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "notepad.exe", executable = "C:\\Windows\\System32\\notepad.exe", command_line = "notepad.exe -decode.txt" } }

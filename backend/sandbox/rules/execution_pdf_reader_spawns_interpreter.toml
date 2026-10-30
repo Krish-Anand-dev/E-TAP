@@ -1,0 +1,45 @@
+[rule]
+id = "etap-058"
+name = "PDF Reader Starting a Shell or Script Host"
+description = "Adobe, Foxit, Sumatra or Nitro starting cmd, PowerShell, a script host or a download tool, which a booby-trapped PDF does to run its payload."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''process where
+  process.parent.name in~ ("acrord32.exe", "acrobat.exe", "foxitreader.exe", "foxitpdfreader.exe", "sumatrapdf.exe", "nitropdf.exe")
+  and process.name in~ ("cmd.exe", "powershell.exe", "pwsh.exe", "wscript.exe", "cscript.exe", "mshta.exe",
+                        "certutil.exe", "bitsadmin.exe", "rundll32.exe", "regsvr32.exe")
+'''
+
+[[actions]]
+action = "kill_process"
+
+[[threat]]
+tactic.name = "Execution"
+[[threat.technique]]
+id = "T1204.002"
+name = "User Execution: Malicious File"
+[[threat.technique]]
+id = "T1059"
+name = "Command and Scripting Interpreter"
+
+[[tests]]
+name = "acrobat starts cmd"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "cmd.exe", executable = "C:\\Windows\\System32\\cmd.exe", command_line = "cmd.exe /c calc", parent = { name = "AcroRd32.exe" } } }
+
+[[tests]]
+name = "foxit starts powershell"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "powershell.exe", executable = "C:\\Windows\\System32\\powershell.exe", command_line = "powershell.exe -c x", parent = { name = "FoxitReader.exe" } } }
+
+[[tests]]
+name = "reader opened by the user"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "AcroRd32.exe", executable = "C:\\Windows\\System32\\AcroRd32.exe", command_line = "AcroRd32.exe doc.pdf", parent = { name = "explorer.exe" } } }
+
+[[tests]]
+name = "cmd under Word"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "cmd.exe", executable = "C:\\Windows\\System32\\cmd.exe", command_line = "cmd.exe /c dir", parent = { name = "winword.exe" } } }

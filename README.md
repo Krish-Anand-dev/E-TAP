@@ -88,7 +88,7 @@ Every input becomes the same `ParsedEmail` object. The file type is decided from
 For each attachment: SHA-256, true type from magic bytes (libmagic when installed, built-in signature table otherwise), declared-vs-actual type mismatch, double extensions (`invoice.pdf.exe`), executables disguised under harmless names, and password-protected/corrupt Office files. Office documents get **static VBA analysis with oletools**: auto-run triggers (`AutoOpen`), suspicious APIs (`Shell`, `CreateObject`, PowerShell) and referenced IOCs. Images are decoded for **QR codes** (pyzbar, OpenCV fallback) and **OCR text** (Tesseract); OCR text is appended to the content the AI reviews, so image-only phishing is not invisible. With **Cloudinary** configured, image attachments (up to 3 per email, images only) are also saved to your Cloudinary account under a random name: the report shows a **blurred preview** you click to reveal, Cloudinary can read the text in the image a second time (OCR add-on), and the images are deleted when the report is deleted or expires. Without credentials this step is off and nothing is uploaded.
 
 ### Stage S — Deeper attachment analysis (optional, in your own sandbox)
-When you choose **Deeper attachment analysis**, eligible attachments (scripts, executables, shortcuts, documents, PDFs, ZIP members; up to 3 per email) are opened inside a VirtualBox Windows VM **you own**. The free **E-TAP Sandbox Agent** runs next to the VM and pairs once with a short code. For each job it:
+When you choose **Deeper attachment analysis**, eligible attachments (scripts, executables, shortcuts, documents, PDFs, ZIP members; up to 3 per email) are opened inside a Windows VM **you own** (VirtualBox or VMware Workstation). The free **E-TAP Sandbox Agent** runs next to the VM and pairs once with a short code. For each job it:
 1. restores the VM's clean snapshot;
 2. opens the files;
 3. records what happens with Sysmon and Windows Defender;
@@ -152,7 +152,7 @@ Standard analysis never opens an attachment, and it is all most people need. **D
 ### What runs where
 | On your PC | On the E-TAP server |
 |---|---|
-| Your VirtualBox VM, where attachments are opened | The analysis pipeline, the report and your score |
+| Your VirtualBox or VMware VM, where attachments are opened | The analysis pipeline, the report and your score |
 | The **E-TAP Sandbox Agent**, a small program that drives the VM | The **detection rules** (`backend/sandbox/rules`) |
 | The agent's settings: VM name, snapshot, guest login (the password and pairing token are protected by Windows for your user only) | The job queue, holding attachments only until your agent has run them |
 
@@ -163,7 +163,7 @@ Standard analysis never opens an attachment, and it is all most people need. **D
 
 ### Before you start (once)
 Prepare a VM kept only for this, never your everyday one:
-- **VirtualBox** with a Windows 10/11 VM and **Guest Additions** installed;
+- **VirtualBox** (with **Guest Additions**) or **VMware Workstation** (with **VMware Tools**), and a Windows 10/11 VM in it;
 - **Sysmon** installed in the VM;
 - a Windows **user with a password** inside the VM;
 - a **snapshot taken in a clean state** (for example named `clean`). The VM goes back to it after every run.
@@ -172,7 +172,7 @@ On your PC you also need **Python 3.10 or newer** (from python.org, with "Add to
 
 ### 1. Choose Deeper
 - **On the website:** open **Analyze email** and drop the email file. Two cards appear: **Standard analysis** and **Deeper attachment analysis** (its *i* icon explains what it needs). Pick Deeper.
-- **In Gmail:** click the **Deeper attachment analysis** card on the E-TAP banner. If you have no VM, click **Standard analysis** instead (or *I don't have a VirtualBox VM* on the pairing screen).
+- **In Gmail:** click the **Deeper attachment analysis** card on the E-TAP banner. If you have no VM, click **Standard analysis** instead (or *I don't have a VirtualBox or VMware VM* on the pairing screen).
 
 The first time, it says **Your sandbox: not paired** and shows three steps.
 
@@ -180,10 +180,10 @@ The first time, it says **Your sandbox: not paired** and shows three steps.
 1. Click **Download the E-TAP Sandbox Agent**, right-click the zip and choose **Extract All** (do not run it from inside the zip), then open the extracted folder and double-click **`start-agent.cmd`**.
 2. The agent asks permission, then checks your computer:
    - Windows and Python;
-   - VirtualBox and its version;
+   - VirtualBox and its version, or VMware's `vmrun` (the agent asks which to use when both are installed; `start-agent.cmd setup --provider vmware` chooses VMware directly);
    - the VMs it finds and their snapshots;
    - whether the VM is cut off from your PC and the network (network adapter, clipboard, drag and drop and shared folders all off), with a one-line fix for each that is not;
-   - whether Windows is running its hypervisor (Hyper-V, WSL2, Windows Sandbox), which can make VirtualBox slow;
+   - whether Windows is running its hypervisor (Hyper-V, WSL2, Windows Sandbox), which can make VirtualBox or VMware slow;
    - whether Windows Sandbox exists (optional).
    Nothing in the VM is changed during setup, and the VM is not started. A warning does not stop setup.
 3. Choose your VM, type the clean snapshot name, the guest Windows user and its password (hidden while typing). **The agent then starts the VM once and checks that Windows really accepts that login.** A wrong user or password is refused (it asks again, three tries) and is never saved as set up. The VM is restored to its clean snapshot afterwards.
@@ -194,7 +194,7 @@ Optional checks:
 - `start-agent.cmd check` repeats the read-only checks above at any time without starting the VM.
 - `start-agent.cmd test` restores the VM once and confirms that the guest login, Sysmon and the Defender log all work. The two checks are separate because only `test` starts the VM (setup also starts it once, to verify the login).
 
-**What "online" means.** While it runs, the agent re-checks every 20 seconds that VirtualBox answers, the VM still exists, the clean snapshot still exists and the login was verified, and tells E-TAP. The page shows **Your sandbox: online** only when all of that is true, **needs attention** (with the reason) when the agent runs but the VM is not usable, and **offline** within about 30 seconds of the agent window closing. The page refreshes this by itself. A VM that is merely powered off or aborted is fine: every run starts from the clean snapshot.
+**What "online" means.** While it runs, the agent re-checks every 20 seconds that VirtualBox (or VMware) answers, the VM still exists, the clean snapshot still exists and the login was verified, and tells E-TAP. The page shows **Your sandbox: online** only when all of that is true, **needs attention** (with the reason) when the agent runs but the VM is not usable, and **offline** within about 30 seconds of the agent window closing. The page refreshes this by itself. A VM that is merely powered off or aborted is fine: every run starts from the clean snapshot.
 
 ### 3. Pair (once)
 Type the code into the box on the website (or the extension's tab) and click **Pair**. The page shows **Your sandbox: online**, and the agent window says *Paired*. Keep the agent window open: it is your sandbox. The pairing is remembered, so you never enter a code again in that browser.
@@ -249,7 +249,7 @@ Double-click `start-agent.cmd`; it goes straight to *Your sandbox: online*. Then
 | Database | MongoDB / MongoDB Atlas (pymongo), in-memory fake DB for tests |
 | Frontend | React 18, Vite, axios, Leaflet / react-leaflet, react-force-graph-2d, Recharts, jsPDF |
 | Extension | Chrome Manifest V3, IndexedDB handoff store |
-| Dynamic analysis | VirtualBox (`VBoxManage`), Sysmon and Windows Defender events, an EQL-subset behaviour-rule engine (Sigma and YARA planned), a standard-library-only Python agent with Windows-protected settings |
+| Dynamic analysis | VirtualBox (`VBoxManage`) or VMware Workstation (`vmrun`), Sysmon and Windows Defender events, an EQL-subset behaviour-rule engine with 63 original MIT-licensed rules, each with its own tests (Sigma and YARA planned), a standard-library-only Python agent with Windows-protected settings |
 | Hosting | Render (Docker backend), Vercel (frontend), MongoDB Atlas |
 
 ## Quick start (local)
@@ -304,7 +304,7 @@ Development notes and iterations/   Research, decisions and the history of how t
 
 ## Limitations
 
-- Dynamic analysis needs your own VirtualBox VM and the agent; nothing clicks inside documents yet, so Office files and click-triggered PDFs are often inconclusive, and only 36 of the 164 bundled behaviour rules can be evaluated so far.
+- Dynamic analysis needs your own VirtualBox or VMware VM and the agent (VMware support is tested with a fake `vmrun`, not yet on a real VMware); nothing clicks inside documents yet, so Office files and click-triggered PDFs are often inconclusive, and the 63 behaviour rules are checked with synthetic events, not yet against a broad set of real samples.
 - The Gmail extension uses Gmail's web endpoints, not the official Gmail API.
 
 ## License

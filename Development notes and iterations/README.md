@@ -11,6 +11,7 @@ How E-TAP got to where it is: the main iterations, the research behind the bigge
 | 2026-10-25 | [Standard analysis first](2026-10-25%20Standard%20analysis%20first.md) | Decision and implementation |
 | 2026-10-25 | [Getting the sandbox working: the iterations](2026-10-25%20Getting%20the%20sandbox%20working.md) | Implementation log |
 | 2026-10-25 | [Hacktober HackDays: Cloudinary image evidence and our own deployment](2026-10-25%20Hacktober%20HackDays%20Cloudinary%20and%20deployment.md) | Decision and implementation |
+| 2026-10-31 | [63 original detection rules and VMware in the agent](2026-10-31%20Fifty%20detection%20rules%20and%20VMware.md) | Implementation |
 
 ## Project timeline
 
@@ -64,3 +65,6 @@ About a dozen rounds of testing as a normal user turned a sandbox that worked on
 
 ### 13. Hacktober HackDays: our own deployment and Cloudinary (2026-10-25)
 The project moved to the team's own repo and hosting (Atlas, Render, Vercel), every hard-coded old URL was replaced, and the Cloudinary requirement was met with an image evidence store: image attachments are saved to Cloudinary, shown as blurred previews in their own report section, optionally read a second time by Cloudinary OCR, and deleted with the report. See [the entry](2026-10-25%20Hacktober%20HackDays%20Cloudinary%20and%20deployment.md).
+
+### 14. 63 original detection rules and VMware (2026-10-31)
+The first folder we looked in held neither extra rules nor VMware code, so both were written fresh; the right folder, a sibling copy with 53 tested MIT rules, an extended engine and a VMware provider, was then compared and adopted, with ten rules of ours added. The third-party Elastic rules were removed (licence, and 127 of 157 never ran), a rule that had never loaded (etap-002) is fixed, and the agent can drive VMware Workstation as well as VirtualBox. Details: [2026-10-31 63 detection rules and VMware](2026-10-31%20Fifty%20detection%20rules%20and%20VMware.md).

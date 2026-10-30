@@ -6,9 +6,11 @@ The sandbox answers one question:
 
 > **What actually happens when a normal user opens an email attachment in a Windows environment?**
 
+This README describes the server-side local VirtualBox worker (`SANDBOX_BACKEND=virtualbox`), which is VirtualBox only. The paired agent also supports VMware Workstation Pro; see [`../sandbox_agent/README.md`](../sandbox_agent/README.md).
+
 Since 2026-10-24 the VM run itself lives in `../sandbox_agent/runner.py` (shared by the paired agent and the local worker) and rule evaluation in `analysis.py`; see CONTEXT.md, Stage S, for the architecture. The status notes below come from the local development of this module.
 
-It copies the attachment into a disposable VirtualBox Windows 11 VM, opens it with the appropriate application, watches what happens via Sysmon for 30 seconds, checks the activity against 36 detection rules, and reports the results. If a rule matches, the risk score goes up. If no rule matches, the result is "inconclusive" — never "safe."
+It copies the attachment into a disposable VirtualBox Windows 11 VM, opens it with the appropriate application, watches what happens via Sysmon for 30 seconds, checks the activity against 63 original detection rules, and reports the results. If a rule matches, the risk score goes up. If no rule matches, the result is "inconclusive" — never "safe."
 
 ---
 
@@ -23,7 +25,7 @@ It copies the attachment into a disposable VirtualBox Windows 11 VM, opens it wi
 | VM isolation | ✅ Works | NIC disabled, clipboard off, drag-and-drop off |
 | Snapshot restore | ✅ Works | ~20 seconds (fresh snapshot taken 2026-10-18) |
 | Guest control | ✅ Works | run, copyto, copyfrom all verified |
-| Rule engine | ✅ Works | 36 evaluable Windows rules, 128 unsupported queries reported |
+| Rule engine | ✅ Works | 63 original Windows rules, all evaluable, each with its own tests (new event types verified with synthetic Sysmon XML only) |
 | ECS converter | ✅ Works | Parses Sysmon XML, filters to sample process tree |
 | Scoring | ✅ Works | Never-lowers-risk logic verified |
 | Pipeline integration | ✅ Works | sandbox.submit() called after correlation, result in API response |
@@ -106,7 +108,7 @@ Host (your laptop)                         Guest (VirtualBox VM)
 6. Dwell time (30 seconds) while Sysmon observes
 7. Sysmon log exported as XML → copied to host
 8. Events filtered to sample's process tree only
-9. 36 detection rules evaluated against filtered events
+9. 63 detection rules evaluated against filtered events
 10. New Defender events checked for sample-related detections/blocks
 11. VM restored to clean state → results stored in MongoDB → risk score updated (only raised, never lowered)
 
@@ -136,40 +138,32 @@ For a sample expected to spawn a process without being blocked, use `--expect-pr
 
 ### Sources
 
-**Elastic Defend (30 rules)** — from the `Reorg_det_rules` corpus. Out of 157 unique Windows rules, only 30 work with Sysmon. The other 127 need Elastic-only telemetry (`.Ext.*` fields, call stacks, memory regions, code signatures).
+All **63 rules are original E-TAP work under the MIT licence** (`etap-001` to `etap-007` in-house earlier, `etap-008` to `etap-053` written on 2026-10-25 and `etap-054` to `etap-063` on 2026-10-31 from MITRE ATT&CK technique descriptions and the Sysmon event documentation, with Atomic Red Team, MIT, used only as a reference for what techniques look like on a command line). The full catalogue, the provenance notes, how severity maps to the score floors (High = 85, Medium = 65), the rule file format and the list of Sysmon event types that are converted are in [`rules/README.md`](rules/README.md).
 
-**E-TAP Custom (6 rules)** — written to cover email-phishing attack patterns:
-
-| Rule ID | Name | MITRE |
-|---------|------|-------|
-| etap-001 | Ingress Transfer via Windows Utility | T1105 |
-| etap-002 | Attempt to Disable Windows Defender Services | T1562.001 |
-| etap-003 | Suspicious Script Interpreter Spawned by Office Application | T1204.002, T1059 |
-| etap-004 | Suspicious Script Host Execution of Script File | T1059.005, T1059.007 |
-| etap-005 | File Dropped in Startup or AutoRun Location | T1547.001 |
-| etap-006 | DNS Query by Unusual Process | T1071.001 |
-| etap-007 | Registry Modification for Persistence | T1547.001 |
+An earlier version of this folder bundled 157 rules from a collection published under the Elastic License v2. They were removed on 2026-10-31 because that licence is not open source in the OSI sense; 128 of the 164 rules then present could not run in our engine anyway.
 
 ### What Rules Can Detect
 
-- Process chains: Office app → script interpreter → LOLBin → network
-- LOLBin abuse: certutil, bitsadmin, mshta, regsvr32, rundll32
-- Persistence: Startup folder drops, registry Run keys
-- Defense evasion: Disabling Defender, AMSI bypass, AppLocker tampering
-- Credential theft: Mimikatz, Rubeus, LSA dumps
-- Known RATs: Remcos, NetWire registry fingerprints
+- Process chains: Office app or script host → shell or LOLBin → network, and script engines dropping or starting files
+- LOLBin abuse: certutil, bitsadmin, mshta, regsvr32, rundll32, wmic, MSBuild and friends
+- Persistence: Startup and Office startup folders, Run keys, scheduled tasks, services, WMI subscriptions, COM and Winlogon hijacks
+- Defense evasion: Defender and firewall tampering, AMSI bypass, event-log clearing, renamed Windows tools, UAC bypass keys, process injection and tampering
+- Credential theft: LSASS memory reads, dumping commands (Mimikatz, ProcDump, comsvcs, SAM hives), browser and vault password access
+- Command and control: dynamic-DNS, paste, chat-bot and Tor lookups, backdoor ports, attack-framework named pipes
+- Impact: shadow copy and backup deletion
 
 ### What Rules Cannot Detect
 
 - In-memory attacks (no process spawn)
 - Browser-only exploits (no Sysmon event)
 - Kernel-level rootkits
-- Anything needing Elastic-only telemetry
+- Anything that needs telemetry E-TAP does not collect (call stacks, memory contents)
+- Behaviour that Sysmon in the VM is not configured to log (image loads, remote threads, process access, named pipes and process tampering depend on the VM's Sysmon configuration)
 - Zero-days
 
 ### Adding More Rules
 
-Drop `.toml` files into `backend/sandbox/rules/`. The engine auto-loads compatible ones, skips the rest with reasons.
+Add a `.toml` file to `backend/sandbox/rules/` following [`rules/README.md`](rules/README.md), including at least one `match` and one `no_match` test, then run `python -m pytest backend/tests/test_sandbox_rules.py`. Do not copy rules from other collections without checking their licence.
 
 ---
 
@@ -268,7 +262,7 @@ backend/sandbox/
 ├── scoring.py           Risk scoring (never lowers)
 ├── replay.py            Recorded-trace fallback
 ├── README.md            This file
-├── rules/               164 detection rules (.toml); 36 are evaluable today
+├── rules/               63 original detection rules (.toml, each with tests) + README catalogue
 ├── replays/             Recorded Sysmon traces (empty)
 └── work/                Temp job files (git-ignored)
 ```

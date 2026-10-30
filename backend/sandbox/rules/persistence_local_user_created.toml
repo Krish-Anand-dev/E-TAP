@@ -1,0 +1,39 @@
+[rule]
+id = "etap-056"
+name = "Local User Account Created"
+description = "net creating a new local Windows account, a backdoor so the attacker can come back later."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''process where
+  process.name in~ ("net.exe", "net1.exe")
+  and process.command_line : (" user ")
+  and process.command_line : (" /add")
+'''
+
+[[threat]]
+tactic.name = "Persistence"
+[[threat.technique]]
+id = "T1136.001"
+name = "Create Account: Local Account"
+
+[[tests]]
+name = "net user add"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "net.exe", executable = "C:\\Windows\\System32\\net.exe", command_line = "net.exe user backdoor P@ss1 /add" } }
+
+[[tests]]
+name = "net1 user add"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "net1.exe", executable = "C:\\Windows\\System32\\net1.exe", command_line = "net1 user bob secret /add" } }
+
+[[tests]]
+name = "show a user"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "net.exe", executable = "C:\\Windows\\System32\\net.exe", command_line = "net.exe user bob" } }
+
+[[tests]]
+name = "other program"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "whoami.exe", executable = "C:\\Windows\\System32\\whoami.exe", command_line = "whoami.exe /user /add" } }

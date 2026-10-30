@@ -3,6 +3,8 @@ id = "etap-003"
 name = "Suspicious Script Interpreter Spawned by Office Application"
 description = "Detects Microsoft Office applications spawning script interpreters (wscript, cscript, powershell, mshta, cmd), which is indicative of macro-based malware execution."
 version = "1"
+author = "E-TAP team"
+license = "MIT"
 os_list = ["windows"]
 query = '''process where
   process.parent.name : ("WINWORD.EXE", "EXCEL.EXE", "POWERPNT.EXE", "OUTLOOK.EXE", "ONENOTE.EXE", "msaccess.exe")
@@ -20,3 +22,13 @@ name = "User Execution: Malicious File"
 [[threat.technique]]
 id = "T1059"
 name = "Command and Scripting Interpreter"
+
+[[tests]]
+name = "word starts cmd"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "cmd.exe", executable = "C:\\Windows\\System32\\cmd.exe", command_line = "cmd.exe /c x", parent = { name = "WINWORD.EXE", executable = "C:\\Windows\\System32\\WINWORD.EXE" } } }
+
+[[tests]]
+name = "explorer starts cmd"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "cmd.exe", executable = "C:\\Windows\\System32\\cmd.exe", command_line = "cmd.exe /c x", parent = { name = "explorer.exe", executable = "C:\\Windows\\System32\\explorer.exe" } } }

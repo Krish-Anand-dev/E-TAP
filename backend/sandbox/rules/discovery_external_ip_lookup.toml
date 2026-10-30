@@ -1,0 +1,32 @@
+[rule]
+id = "etap-044"
+name = "External IP Address Lookup"
+description = "A DNS lookup of a public service that reports the machine's internet address, often the first thing a stealer or backdoor does."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''dns where
+  dns.question.name : ("api.ipify.org", "ipify.org", "ifconfig.me", "icanhazip.com", "checkip.amazonaws.com", "ip-api.com", "ipinfo.io", "ident.me", "wtfismyip.com", "myexternalip.com")
+'''
+
+[[threat]]
+tactic.name = "Discovery"
+[[threat.technique]]
+id = "T1016.001"
+name = "System Network Configuration Discovery: Internet Connection Discovery"
+
+[[tests]]
+name = "ipify"
+expect = "match"
+event = { _category = "dns", event = { action = "lookup_requested" }, process = { name = "powershell.exe", executable = "C:\\Windows\\System32\\powershell.exe", command_line = "powershell.exe" }, dns = { question = { name = "api.ipify.org" } } }
+
+[[tests]]
+name = "ifconfig"
+expect = "match"
+event = { _category = "dns", event = { action = "lookup_requested" }, process = { name = "wscript.exe", executable = "C:\\Windows\\System32\\wscript.exe", command_line = "wscript.exe" }, dns = { question = { name = "ifconfig.me" } } }
+
+[[tests]]
+name = "ordinary site"
+expect = "no_match"
+event = { _category = "dns", event = { action = "lookup_requested" }, process = { name = "powershell.exe", executable = "C:\\Windows\\System32\\powershell.exe", command_line = "powershell.exe" }, dns = { question = { name = "microsoft.com" } } }

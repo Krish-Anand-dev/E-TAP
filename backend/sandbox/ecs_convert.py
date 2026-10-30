@@ -1,4 +1,19 @@
-"""Sysmon (wevtutil XML export) -> ECS-like dicts, restricted to the sample's process tree."""
+"""Sysmon (wevtutil XML export) -> ECS-like dicts, restricted to the sample's process tree.
+
+Sysmon event -> rule category (fields besides `process.*`, the acting process):
+   1  process        process.parent.*, process.pe.original_file_name, process.working_directory,
+                     process.integrity_level, user.name
+   3  network        destination.ip, destination.port (int), destination.domain, network.transport
+   7  library        dll.path, dll.name, dll.signed ("true"/"false"), dll.signature_status
+   8  thread         target.process.*, thread.start_function, thread.start_module
+  10  process_access target.process.*, process_access.granted_access (lower-case hex)
+  11  file           file.path, file.name, file.extension
+  13  registry       registry.path, registry.data.strings
+  17  pipe           pipe.name (18 = pipe connected; both use `pipe.action`)
+  22  dns            dns.question.name
+  25  tamper         tamper.type
+Events 7, 8, 10, 17/18 and 25 only appear if the VM's Sysmon configuration logs them.
+"""
 from __future__ import annotations
 import re, ntpath
 import xml.etree.ElementTree as ET
@@ -31,6 +46,8 @@ def to_ecs(eid: int, d: dict):
     if eid == 1:
         p = _proc('Image', 'CommandLine', d, 'ProcessGuid')
         p['pe'] = {'original_file_name': d.get('OriginalFileName')}
+        p['working_directory'] = d.get('CurrentDirectory')
+        p['integrity_level'] = d.get('IntegrityLevel')
         par = _proc('ParentImage', 'ParentCommandLine', d, 'ParentProcessGuid')
         p['parent'] = par
         return {'_category': 'process', 'event': {'action': 'start', 'type': 'start'}, 'process': p,
@@ -49,9 +66,38 @@ def to_ecs(eid: int, d: dict):
                 'process': _proc('Image', '', d, 'ProcessGuid'),
                 'dns': {'question': {'name': d.get('QueryName', '')}}}
     if eid == 3:
+        port = d.get('DestinationPort')
         return {'_category': 'network', 'event': {'action': 'connection_attempted'},
                 'process': _proc('Image', '', d, 'ProcessGuid'),
-                'destination': {'ip': d.get('DestinationIp'), 'port': d.get('DestinationPort')}}
+                'destination': {'ip': d.get('DestinationIp'),
+                                'port': int(port) if port and port.isdigit() else port,
+                                'domain': d.get('DestinationHostname')},
+                'network': {'transport': (d.get('Protocol') or '').lower()}}
+    if eid == 7:
+        path = d.get('ImageLoaded', '')
+        return {'_category': 'library', 'event': {'action': 'load'},
+                'process': _proc('Image', '', d, 'ProcessGuid'),
+                'dll': {'path': path, 'name': ntpath.basename(path),
+                        'signed': (d.get('Signed') or '').lower(),
+                        'signature_status': d.get('SignatureStatus')}}
+    if eid == 8:
+        return {'_category': 'thread', 'event': {'action': 'remote_thread'},
+                'process': _proc('SourceImage', '', d, 'SourceProcessGuid'),
+                'target': {'process': _proc('TargetImage', '', d, 'TargetProcessGuid')},
+                'thread': {'start_function': d.get('StartFunction'), 'start_module': d.get('StartModule')}}
+    if eid == 10:
+        return {'_category': 'process_access', 'event': {'action': 'access'},
+                'process': _proc('SourceImage', '', d, 'SourceProcessGUID'),
+                'target': {'process': _proc('TargetImage', '', d, 'TargetProcessGUID')},
+                'process_access': {'granted_access': (d.get('GrantedAccess') or '').lower()}}
+    if eid in (17, 18):
+        return {'_category': 'pipe', 'event': {'action': 'pipe_created' if eid == 17 else 'pipe_connected'},
+                'process': _proc('Image', '', d, 'ProcessGuid'),
+                'pipe': {'name': d.get('PipeName', ''), 'action': 'created' if eid == 17 else 'connected'}}
+    if eid == 25:
+        return {'_category': 'tamper', 'event': {'action': 'process_tampering'},
+                'process': _proc('Image', '', d, 'ProcessGuid'),
+                'tamper': {'type': d.get('Type')}}
     return None
 
 def sample_tree_events(xml_text: str, sample_marker: str):
@@ -75,7 +121,10 @@ def sample_tree_events(xml_text: str, sample_marker: str):
     # processes can use the same cmd.exe/wscript.exe as a sample.
     out = []
     for eid, d in raw:
-        if d.get('ProcessGuid') in tree_guids:
+        # Most events name the acting process ProcessGuid; remote-thread and
+        # process-access events name it SourceProcessGuid / SourceProcessGUID.
+        actor = d.get('ProcessGuid') or d.get('SourceProcessGuid') or d.get('SourceProcessGUID')
+        if actor in tree_guids:
             e = to_ecs(eid, d)
             if e: out.append(e)
     return out

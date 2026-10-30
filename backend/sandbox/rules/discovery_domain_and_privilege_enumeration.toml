@@ -1,0 +1,56 @@
+[rule]
+id = "etap-041"
+name = "Domain, Trust or Privilege Enumeration"
+description = "Commands that list domain admins, domain trusts or the current user's privileges, used to plan the next move."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''process where
+  (process.name in~ ("nltest.exe") and process.command_line : ("/domain_trusts", "/dclist", "/trusted_domains"))
+  or (process.name in~ ("net.exe", "net1.exe") and process.command_line : ("group", "user ") and process.command_line : ("/domain", "domain admins", "enterprise admins"))
+  or (process.name in~ ("whoami.exe") and process.command_line : ("/priv", "/groups", "/all"))
+  or process.name in~ ("dsquery.exe", "adfind.exe", "sharphound.exe", "bloodhound.exe")
+'''
+
+[[threat]]
+tactic.name = "Discovery"
+[[threat.technique]]
+id = "T1087.002"
+name = "Account Discovery: Domain Account"
+[[threat.technique]]
+id = "T1482"
+name = "Domain Trust Discovery"
+[[threat.technique]]
+id = "T1033"
+name = "System Owner/User Discovery"
+
+[[tests]]
+name = "nltest"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "nltest.exe", executable = "C:\\Windows\\System32\\nltest.exe", command_line = "nltest.exe /domain_trusts" } }
+
+[[tests]]
+name = "domain admins"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "net.exe", executable = "C:\\Windows\\System32\\net.exe", command_line = "net.exe group \"domain admins\" /domain" } }
+
+[[tests]]
+name = "whoami priv"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "whoami.exe", executable = "C:\\Windows\\System32\\whoami.exe", command_line = "whoami.exe /priv" } }
+
+[[tests]]
+name = "adfind"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "adfind.exe", executable = "C:\\Windows\\System32\\adfind.exe", command_line = "adfind -f objectcategory=person" } }
+
+[[tests]]
+name = "plain whoami"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "whoami.exe", executable = "C:\\Windows\\System32\\whoami.exe", command_line = "whoami.exe" } }
+
+[[tests]]
+name = "map a drive"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "net.exe", executable = "C:\\Windows\\System32\\net.exe", command_line = "net.exe use Z: \\\\srv\\share" } }

@@ -1,0 +1,41 @@
+[rule]
+id = "etap-062"
+name = "Ransom Note File Created"
+description = "Files named like the ransom notes dropped by ransomware (HOW_TO_DECRYPT, RESTORE_FILES, YOUR_FILES_ARE_ENCRYPTED and similar)."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''file where
+  file.name : ("HOW_TO_DECRYPT", "HOW_TO_RECOVER", "DECRYPT_INSTRUCTION", "RESTORE_FILES", "READ_ME_FOR_DECRYPT",
+               "@Please_Read_Me@", "_readme_decrypt", "YOUR_FILES_ARE_ENCRYPTED", "DECRYPT-FILES", "recover-my-files")
+'''
+
+[[actions]]
+action = "kill_process"
+
+[[threat]]
+tactic.name = "Impact"
+[[threat.technique]]
+id = "T1486"
+name = "Data Encrypted for Impact"
+
+[[tests]]
+name = "how to decrypt"
+expect = "match"
+event = { _category = "file", event = { action = "creation" }, process = { name = "x.exe", executable = "C:\\Windows\\System32\\x.exe", command_line = "x.exe" }, file = { path = "C:\\Users\\bob\\Desktop\\HOW_TO_DECRYPT.txt", name = "HOW_TO_DECRYPT.txt", extension = "txt" } }
+
+[[tests]]
+name = "please read me"
+expect = "match"
+event = { _category = "file", event = { action = "creation" }, process = { name = "x.exe", executable = "C:\\Windows\\System32\\x.exe", command_line = "x.exe" }, file = { path = "C:\\Users\\bob\\@Please_Read_Me@.txt", name = "@Please_Read_Me@.txt", extension = "txt" } }
+
+[[tests]]
+name = "ordinary readme"
+expect = "no_match"
+event = { _category = "file", event = { action = "creation" }, process = { name = "x.exe", executable = "C:\\Windows\\System32\\x.exe", command_line = "x.exe" }, file = { path = "C:\\Users\\bob\\Desktop\\README.txt", name = "README.txt", extension = "txt" } }
+
+[[tests]]
+name = "ordinary note"
+expect = "no_match"
+event = { _category = "file", event = { action = "creation" }, process = { name = "notepad.exe", executable = "C:\\Windows\\System32\\notepad.exe", command_line = "notepad.exe" }, file = { path = "C:\\Users\\bob\\Desktop\\notes.txt", name = "notes.txt", extension = "txt" } }

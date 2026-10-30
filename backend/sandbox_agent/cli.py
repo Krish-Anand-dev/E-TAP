@@ -5,7 +5,7 @@ sandbox_agent.cli -- `python -m sandbox_agent [command]`.
   setup   check this computer and choose the VM to use
   pair    show a pairing code to enter in the E-TAP extension or dashboard
   run     wait for deeper-analysis jobs (the agent must be paired)
-  check   read-only preflight: VirtualBox, snapshot, VM isolation, Hyper-V (VM is not started)
+  check   read-only preflight: VirtualBox or VMware, snapshot, VM isolation, Hyper-V (VM is not started)
   test    restore the VM once and confirm the guest and Sysmon answer
   status  show the saved settings and whether the server sees this agent
   forget  delete this agent's saved settings
@@ -26,7 +26,8 @@ from pathlib import Path
 
 from . import __version__, config as cfgmod
 from .client import Client, ServerError
-from .recon import hypervisor_present, preflight_checks, read_env_file, system_checks, vm_health
+from .recon import (hypervisor_present, preflight_checks, read_env_file, system_checks, vm_health,
+                    vmware_preflight_checks, vmware_system_checks, vmware_vm_health)
 
 POLL_SECONDS = 5
 HEALTH_SECONDS = 20   # how often the VM's health is re-read and reported to the server
@@ -74,6 +75,63 @@ def print_checks(checks) -> None:
             say(f"        Fix: {check.fix}")
 
 
+# -- which hypervisor ------------------------------------------------------------
+
+def _is_vmware(config: cfgmod.AgentConfig) -> bool:
+    return getattr(config.vm, "provider", "virtualbox") == "vmware"
+
+
+def _product(config: cfgmod.AgentConfig) -> str:
+    return "VMware Workstation" if _is_vmware(config) else "VirtualBox"
+
+
+def _tools_name(config: cfgmod.AgentConfig) -> str:
+    return "VMware Tools" if _is_vmware(config) else "VirtualBox Guest Additions"
+
+
+def _health(config: cfgmod.AgentConfig) -> dict:
+    vm = config.vm
+    if _is_vmware(config):
+        return vmware_vm_health(vm.vmx_path, vm.snapshot, vm.vmrun or None, vm.login_verified)
+    return vm_health(vm.name, vm.snapshot, vm.vboxmanage or None, vm.login_verified)
+
+
+def _preflight(config: cfgmod.AgentConfig) -> list:
+    vm = config.vm
+    if _is_vmware(config):
+        return vmware_preflight_checks(vm.vmx_path, vm.snapshot, vm.vmrun or None, hypervisor_present())
+    return preflight_checks(vm.name, vm.snapshot, vm.vboxmanage or None, hypervisor_present())
+
+
+def _wanted_provider(args, config: cfgmod.AgentConfig, imported: dict) -> str | None:
+    """The hypervisor the user asked for (--provider, an .env file or an earlier setup), else None to detect."""
+    asked = getattr(args, "provider", None) or imported.get("provider")
+    if asked in cfgmod.PROVIDERS:
+        return asked
+    if config.vm.name and config.vm.provider in cfgmod.PROVIDERS:
+        return config.vm.provider
+    return None
+
+
+def _pick_vmware_vm(config: cfgmod.AgentConfig, imported: dict, vms: dict[str, str]) -> None:
+    """Choose the VMware VM (by name from the found list, or by typing its .vmx path)."""
+    vm = config.vm
+    other = "Another VM (type the path of its .vmx file)"
+    wanted = imported.get("vmx_path") or ""
+    if not wanted and imported.get("name") in vms:
+        wanted = vms[imported["name"]]
+    if not wanted:
+        say("\nWhich VM should open attachments? Use a dedicated, isolated VM, never your everyday one.")
+        names = list(vms) + [other]
+        current = next((n for n, p in vms.items() if p == vm.vmx_path), None)
+        picked = choose("VM", names, current)
+        wanted = vms.get(picked) or input("Full path of the .vmx file: ").strip().strip('"')
+    if not wanted.lower().endswith(".vmx") or not Path(wanted).is_file():
+        raise SystemExit(f"\n'{wanted}' is not an existing .vmx file. Run setup again with the path of the VM's .vmx file.")
+    vm.vmx_path = wanted
+    vm.name = next((n for n, p in vms.items() if p == wanted), Path(wanted).stem)
+
+
 # -- setup ----------------------------------------------------------------------
 
 def verify_guest(config: cfgmod.AgentConfig) -> tuple[bool, str]:
@@ -91,10 +149,10 @@ def verify_guest(config: cfgmod.AgentConfig) -> tuple[bool, str]:
         return False, (f"Windows in the VM rejected the user '{config.vm.guest_user}' or its password. "
                        "Use the Windows account you sign in with inside the VM (not your PC's account).")
     except TimeoutError:
-        return False, ("The VM started but Windows did not answer within 4 minutes. Check that VirtualBox Guest "
-                       "Additions are installed in the VM and that the snapshot was taken after signing in.")
+        return False, ("The VM started but Windows did not answer within 4 minutes. Check that "
+                       f"{_tools_name(config)} are installed in the VM and that the snapshot was taken after signing in.")
     except VBoxError as exc:
-        return False, f"VirtualBox reported a problem: {exc}"
+        return False, f"{_product(config)} reported a problem: {exc}"
     finally:
         try:
             vbox.restore()
@@ -105,7 +163,7 @@ def verify_guest(config: cfgmod.AgentConfig) -> tuple[bool, str]:
 def cmd_setup(args, config: cfgmod.AgentConfig) -> cfgmod.AgentConfig:
     say("E-TAP Sandbox Agent setup")
     say("This will:")
-    say("  - look at this computer for VirtualBox and its VMs (read-only)")
+    say("  - look at this computer for VirtualBox or VMware Workstation and their VMs (read-only)")
     say("  - save the VM you choose and its guest login in your user profile,")
     say(f"    protected by Windows ({cfgmod.config_path()})")
     say(f"  - connect to the E-TAP server at {args.server or config.server_url}")
@@ -121,26 +179,49 @@ def cmd_setup(args, config: cfgmod.AgentConfig) -> cfgmod.AgentConfig:
         say(f"Using the VM settings from {args.from_env} (the password is not shown).")
 
     say("\nChecking this computer:")
-    checks, vms = system_checks(imported.get("vboxmanage") or config.vm.vboxmanage or None)
-    print_checks(checks)
-    if not any(c.ok for c in checks if c.name == "VirtualBox"):
-        raise SystemExit("\nVirtualBox is needed for deeper analysis. Install it, create a Windows VM with Sysmon "
-                         "and a clean snapshot, then run setup again.")
-    if not vms:
-        raise SystemExit("\nNo VirtualBox VM found for this Windows user.")
-
+    provider = _wanted_provider(args, config, imported)
     vm = config.vm
-    if imported.get("vboxmanage"):
-        vm.vboxmanage = imported["vboxmanage"]
-    if imported.get("name") in vms:
-        vm.name = imported["name"]
+    vms: list[str] = []
+    vmware_vms: dict[str, str] = {}
+    if provider != "vmware":
+        checks, vms = system_checks(imported.get("vboxmanage") or config.vm.vboxmanage or None)
+        print_checks(checks)
+        if not any(c.ok for c in checks if c.name == "VirtualBox") and provider is None:
+            # No VirtualBox: see whether VMware Workstation is installed instead.
+            vmware_checks, vmware_vms = vmware_system_checks(imported.get("vmrun") or config.vm.vmrun or None)
+            if any(c.ok for c in vmware_checks if c.name == "VMware Workstation"):
+                say("\nVirtualBox was not found, but VMware Workstation was; using VMware Workstation.")
+                provider = "vmware"
+        elif provider is None:
+            say("(VMware Workstation Pro works too: run `setup --provider vmware` to use it instead.)")
+    if provider == "vmware":
+        checks, vmware_vms = vmware_system_checks(imported.get("vmrun") or config.vm.vmrun or None)
+        print_checks(checks)
+        if not any(c.ok for c in checks if c.name == "VMware Workstation"):
+            raise SystemExit("\nVMware Workstation Pro is needed for this choice. Install it, create a Windows VM with "
+                             "Sysmon and VMware Tools and a clean snapshot, then run setup again.")
+        vm.provider = "vmware"
+        if imported.get("vmrun"):
+            vm.vmrun = imported["vmrun"]
+        _pick_vmware_vm(config, imported, vmware_vms)
     else:
-        say("\nWhich VM should open attachments? Use a dedicated, isolated VM, never your everyday one.")
-        vm.name = choose("VM", vms, vm.name if vm.name in vms else None)
+        if not any(c.ok for c in checks if c.name == "VirtualBox"):
+            raise SystemExit("\nVirtualBox (or VMware Workstation Pro) is needed for deeper analysis. Install one, create "
+                             "a Windows VM with Sysmon and a clean snapshot, then run setup again.")
+        if not vms:
+            raise SystemExit("\nNo VirtualBox VM found for this Windows user. If your VM is in VMware Workstation, run setup --provider vmware.")
+        vm.provider = "virtualbox"
+        if imported.get("vboxmanage"):
+            vm.vboxmanage = imported["vboxmanage"]
+        if imported.get("name") in vms:
+            vm.name = imported["name"]
+        else:
+            say("\nWhich VM should open attachments? Use a dedicated, isolated VM, never your everyday one.")
+            vm.name = choose("VM", vms, vm.name if vm.name in vms else None)
     vm.snapshot = imported.get("snapshot") or (
         args.yes and vm.snapshot) or input(f"Clean snapshot name [{vm.snapshot}]: ").strip() or vm.snapshot
     say("\nChecking the VM (read-only; it is not started):")
-    print_checks(preflight_checks(vm.name, vm.snapshot, vm.vboxmanage or None, hypervisor_present()))
+    print_checks(_preflight(config))
     say("A '--' above is a warning, not a stop. Run `check` any time to see this list again.")
     if imported.get("dwell_seconds"):
         vm.dwell_seconds = int(imported["dwell_seconds"])
@@ -192,6 +273,10 @@ def cmd_setup(args, config: cfgmod.AgentConfig) -> cfgmod.AgentConfig:
 # -- pairing ----------------------------------------------------------------------
 
 def _vm_summary(config: cfgmod.AgentConfig) -> dict:
+    if _is_vmware(config):
+        from .vmware import vmrun_version
+        return {"name": config.vm.name, "snapshot": config.vm.snapshot, "provider": "vmware",
+                "provider_version": vmrun_version(config.vm.vmrun or None) or ""}
     from .vbox import vboxmanage_version
     return {"name": config.vm.name, "snapshot": config.vm.snapshot, "provider": "virtualbox",
             "provider_version": vboxmanage_version(config.vm.vboxmanage or None) or ""}
@@ -249,8 +334,13 @@ def cmd_pair(args, config: cfgmod.AgentConfig) -> cfgmod.AgentConfig:
 # -- jobs --------------------------------------------------------------------------
 
 def _vbox(config: cfgmod.AgentConfig):
-    from .vbox import VBox
+    """The VM provider for the saved settings: VMware or VirtualBox (name kept for older callers)."""
     vm = config.vm
+    if _is_vmware(config):
+        from .vmware import VMware
+        return VMware(vm=vm.vmx_path, snapshot=vm.snapshot, user=vm.guest_user, password=vm.guest_password,
+                      dwell=vm.dwell_seconds, exe=vm.vmrun or None)
+    from .vbox import VBox
     return VBox(vm=vm.name, snapshot=vm.snapshot, user=vm.guest_user, password=vm.guest_password,
                 dwell=vm.dwell_seconds, exe=vm.vboxmanage or None)
 
@@ -352,7 +442,7 @@ def cmd_run(args, config: cfgmod.AgentConfig) -> None:
         # "Online" on the dashboard must mean the VM is usable, not just that this window
         # is open, so the VM's health is re-read every few seconds and sent with each poll.
         if health is None or time.time() - health_at >= HEALTH_SECONDS:
-            health = vm_health(config.vm.name, config.vm.snapshot, config.vm.vboxmanage or None, config.vm.login_verified)
+            health = _health(config)
             health_at = time.time()
             if health["reason"] != last_reason:
                 last_reason = health["reason"]
@@ -389,10 +479,13 @@ def cmd_check(args, config: cfgmod.AgentConfig) -> None:
     """Read-only preflight: nothing is started, restored or changed."""
     if not config.is_set_up:
         raise SystemExit("Run `setup` first.")
-    say(f"Checking this computer and VM '{config.vm.name}' (read-only; the VM is not started):")
-    checks, _vms = system_checks(config.vm.vboxmanage or None)
+    say(f"Checking this computer and VM '{config.vm.name}' ({_product(config)}; read-only; the VM is not started):")
+    if _is_vmware(config):
+        checks, _vms = vmware_system_checks(config.vm.vmrun or None)
+    else:
+        checks, _vms = system_checks(config.vm.vboxmanage or None)
     checks = [c for c in checks if not c.name.startswith("Windows Sandbox")]
-    checks += preflight_checks(config.vm.name, config.vm.snapshot, config.vm.vboxmanage or None, hypervisor_present())
+    checks += _preflight(config)
     print_checks(checks)
     needs_attention = [c for c in checks if not c.ok]
     say(f"\n{len(checks) - len(needs_attention)} of {len(checks)} checks passed."
@@ -445,7 +538,10 @@ def cmd_test(args, config: cfgmod.AgentConfig) -> None:
 def cmd_status(args, config: cfgmod.AgentConfig) -> None:
     say(f"Settings file: {cfgmod.config_path()}")
     say(f"Server: {config.server_url}")
+    say(f"Hypervisor: {_product(config)}")
     say(f"VM: {config.vm.name or '(not set)'} / snapshot '{config.vm.snapshot}' / user {config.vm.guest_user or '(not set)'}")
+    if _is_vmware(config):
+        say(f"VM file: {config.vm.vmx_path or '(not set)'}")
     say(f"VM login: {'verified' if config.vm.login_verified else 'NOT verified (run setup)'}")
     say(f"Open attachments automatically: {'yes' if config.auto_run else 'ask each time'}")
     if not config.is_registered:
@@ -482,6 +578,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("command", nargs="?", default="start",
                         choices=["start", "setup", "pair", "run", "check", "test", "status", "forget"])
     parser.add_argument("--server", help=f"E-TAP server URL (default {cfgmod.DEFAULT_SERVER})")
+    parser.add_argument("--provider", choices=list(cfgmod.PROVIDERS),
+                        help="which hypervisor runs the VM (default: VirtualBox if installed, else VMware Workstation)")
     parser.add_argument("--from-env", metavar="PATH", help="read the VM settings from an E-TAP .env file")
     parser.add_argument("--yes", action="store_true", help="answer yes to every question")
     parser.add_argument("--once", action="store_true", help="exit after one job")

@@ -80,7 +80,7 @@ export default function SandboxPairing({ compact = false, onChange }) {
       ) : (
         <>
           <ol className="pair-steps">
-            <li><span>1</span><div><a href={agentDownloadUrl()} target="_blank" rel="noopener noreferrer">Download the E-TAP Sandbox Agent</a> and extract it (right-click the zip, <b>Extract All</b>) on the PC that has your VirtualBox VM.</div></li>
+            <li><span>1</span><div><a href={agentDownloadUrl()} target="_blank" rel="noopener noreferrer">Download the E-TAP Sandbox Agent</a> and extract it (right-click the zip, <b>Extract All</b>) on the PC that has your VirtualBox or VMware VM.</div></li>
             <li><span>2</span><div>Double-click <b>start-agent.cmd</b>. It checks your computer, asks before each step and shows a pairing code.</div></li>
             <li><span>3</span><div>Enter the code below. You only do this once.</div></li>
           </ol>
@@ -88,7 +88,7 @@ export default function SandboxPairing({ compact = false, onChange }) {
             <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="ABCD-1234" aria-label="Pairing code" maxLength={12} spellCheck={false} autoComplete="off" />
             <button type="submit" className="btn-primary-action" disabled={busy || code.replace(/[^a-z0-9]/gi, '').length !== 8}>Pair</button>
           </form>
-          <p className="pair-req"><Icon name="alert" size={14} />Optional. You need Python 3.10 or newer and a Windows virtual machine in VirtualBox, set up with the agent's guide. Windows Sandbox (Windows Pro) support is planned. Without these, Standard analysis still checks everything except opening the attachments.</p>
+          <p className="pair-req"><Icon name="alert" size={14} />Optional. You need Python 3.10 or newer and a Windows virtual machine in VirtualBox or VMware Workstation, set up with the agent's guide. Windows Sandbox (Windows Pro) support is planned. Without these, Standard analysis still checks everything except opening the attachments.</p>
         </>
       )}
       {message && <p className={`settings-msg ${message.tone}`} role="status">{message.text}</p>}

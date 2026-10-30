@@ -36,7 +36,8 @@ class GuestLoginError(VBoxError):
     """The guest rejected the Windows user name or password."""
 
 
-_LOGIN_FAILURE = ("VERR_AUTHENTICATION_FAILURE", "not able to logon", "user name or password", "logon failure")
+_LOGIN_FAILURE = ("VERR_AUTHENTICATION_FAILURE", "not able to logon", "user name or password", "logon failure",
+                  "guest authentication")   # the last two phrasings come from VMware's vmrun
 
 
 def is_login_failure(message: str) -> bool:
@@ -162,6 +163,10 @@ class VBox:
                 rejected = 0
             time.sleep(3 if rejected else 5)
         raise TimeoutError(f"Guest did not become ready within {limit}s")
+
+    def make_dirs(self, *paths: str):
+        """Create guest folders, with their parents."""
+        self._gc("mkdir", "--parents", *paths)
 
     def copy_to(self, host_file: str, guest_dir: str):
         """Copy a file from host to guest. guest_dir must end with backslash."""

@@ -3,6 +3,8 @@ id = "etap-004"
 name = "Suspicious Script Host Execution of Script File"
 description = "Detects wscript or cscript executing script files (.js, .vbs, .wsf) from user-writable directories, common in phishing payloads."
 version = "1"
+author = "E-TAP team"
+license = "MIT"
 os_list = ["windows"]
 query = '''process where
   process.name : ("wscript.exe", "cscript.exe")
@@ -20,3 +22,13 @@ name = "Visual Basic"
 [[threat.technique]]
 id = "T1059.007"
 name = "JavaScript"
+
+[[tests]]
+name = "script from sandbox folder"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "wscript.exe", executable = "C:\\Windows\\System32\\wscript.exe", command_line = "wscript.exe C:\\sandbox\\in\\invoice.js" } }
+
+[[tests]]
+name = "script from system folder"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "wscript.exe", executable = "C:\\Windows\\System32\\wscript.exe", command_line = "wscript.exe C:\\Windows\\System32\\x.vbs" } }

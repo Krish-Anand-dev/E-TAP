@@ -104,6 +104,19 @@ async def unpair(request: Request) -> dict:
     return {"unpaired": queue.unpair_client(request.headers.get("x-etap-sandbox-token") or "")}
 
 
+def _public_base_url(request: Request) -> str:
+    """The address this server is reached at, so a downloaded agent connects back to it.
+
+    PUBLIC_API_URL wins when set; otherwise the proxy headers, then the request itself."""
+    import os
+    configured = os.getenv("PUBLIC_API_URL", "").strip().rstrip("/")
+    if configured.startswith(("http://", "https://")):
+        return configured
+    proto = (request.headers.get("x-forwarded-proto") or request.url.scheme).split(",")[0].strip()
+    host = (request.headers.get("x-forwarded-host") or request.headers.get("host") or request.url.netloc).split(",")[0].strip()
+    return f"{proto}://{host}"
+
+
 @router.get("/sandbox/agent/download")
 @limiter.limit("10/minute")
 async def download_agent(request: Request) -> Response:
@@ -120,6 +133,8 @@ async def download_agent(request: Request) -> Response:
                     archive.write(path, f"E-TAP Sandbox Agent/{relative}")
                 else:
                     archive.write(path, f"E-TAP Sandbox Agent/sandbox_agent/{relative.as_posix()}")
+        # The agent reads this on start, so it pairs with the server it was downloaded from.
+        archive.writestr("E-TAP Sandbox Agent/sandbox_agent/server_url.txt", _public_base_url(request) + "\n")
     return Response(buffer.getvalue(), media_type="application/zip",
                     headers={"Content-Disposition": 'attachment; filename="etap-sandbox-agent.zip"'})
 

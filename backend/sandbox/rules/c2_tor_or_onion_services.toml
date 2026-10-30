@@ -1,0 +1,32 @@
+[rule]
+id = "etap-047"
+name = "Lookup of a Tor or Onion Service"
+description = "A DNS lookup of an .onion address or a Tor gateway, used to hide command-and-control traffic."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''dns where
+  dns.question.name : (".onion", "tor2web", "torproject.org", "onion.to")
+'''
+
+[[threat]]
+tactic.name = "Command and Control"
+[[threat.technique]]
+id = "T1090.003"
+name = "Proxy: Multi-hop Proxy"
+
+[[tests]]
+name = "onion"
+expect = "match"
+event = { _category = "dns", event = { action = "lookup_requested" }, process = { name = "powershell.exe", executable = "C:\\Windows\\System32\\powershell.exe", command_line = "powershell.exe" }, dns = { question = { name = "abcdefghij234567.onion" } } }
+
+[[tests]]
+name = "tor project"
+expect = "match"
+event = { _category = "dns", event = { action = "lookup_requested" }, process = { name = "cmd.exe", executable = "C:\\Windows\\System32\\cmd.exe", command_line = "cmd.exe" }, dns = { question = { name = "www.torproject.org" } } }
+
+[[tests]]
+name = "ordinary site"
+expect = "no_match"
+event = { _category = "dns", event = { action = "lookup_requested" }, process = { name = "powershell.exe", executable = "C:\\Windows\\System32\\powershell.exe", command_line = "powershell.exe" }, dns = { question = { name = "history.org" } } }

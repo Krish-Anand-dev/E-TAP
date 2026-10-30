@@ -1,0 +1,35 @@
+[rule]
+id = "etap-033"
+name = "WMI Event Subscription Persistence"
+description = "Command text that creates a WMI event filter or consumer, which can run code again on a schedule or event."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''process where
+  process.command_line : ("__EventFilter", "CommandLineEventConsumer", "ActiveScriptEventConsumer", "__FilterToConsumerBinding")
+'''
+
+[[actions]]
+action = "kill_process"
+
+[[threat]]
+tactic.name = "Persistence"
+[[threat.technique]]
+id = "T1546.003"
+name = "Event Triggered Execution: Windows Management Instrumentation Event Subscription"
+
+[[tests]]
+name = "event filter"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "powershell.exe", executable = "C:\\Windows\\System32\\powershell.exe", command_line = "powershell Set-WmiInstance -Class __EventFilter -Namespace root\\subscription" } }
+
+[[tests]]
+name = "script consumer"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "powershell.exe", executable = "C:\\Windows\\System32\\powershell.exe", command_line = "powershell New-CimInstance -ClassName ActiveScriptEventConsumer" } }
+
+[[tests]]
+name = "ordinary query"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "wmic.exe", executable = "C:\\Windows\\System32\\wmic.exe", command_line = "wmic os get caption" } }

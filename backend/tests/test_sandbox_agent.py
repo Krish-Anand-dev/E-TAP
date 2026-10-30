@@ -314,6 +314,39 @@ class SandboxAgentTests(unittest.TestCase):
         self.assertIn("E-TAP Sandbox Agent/sandbox_agent/runner.py", names)
         self.assertIn("E-TAP Sandbox Agent/start-agent.cmd", names)
 
+    def test_agent_download_carries_the_server_it_came_from(self):
+        import io
+        import zipfile
+        with patch.dict(os.environ, {"PUBLIC_API_URL": ""}):
+            response = self.client.get("/sandbox/agent/download", headers={"x-forwarded-proto": "https",
+                                                                          "x-forwarded-host": "api.example.test"})
+        archive = zipfile.ZipFile(io.BytesIO(response.content))
+        self.assertEqual(archive.read("E-TAP Sandbox Agent/sandbox_agent/server_url.txt").decode().strip(),
+                         "https://api.example.test")
+
+    def test_public_api_url_overrides_the_request_host(self):
+        import io
+        import zipfile
+        with patch.dict(os.environ, {"PUBLIC_API_URL": "https://etap.example.test/"}):
+            response = self.client.get("/sandbox/agent/download", headers={"x-forwarded-host": "other.test"})
+        archive = zipfile.ZipFile(io.BytesIO(response.content))
+        self.assertEqual(archive.read("E-TAP Sandbox Agent/sandbox_agent/server_url.txt").decode().strip(),
+                         "https://etap.example.test")
+
+    def test_agent_uses_the_bundled_server_url(self):
+        import tempfile
+        from pathlib import Path
+        from sandbox_agent import config as cfg
+        self.assertEqual(cfg.bundled_server(), cfg.FALLBACK_SERVER)  # a source checkout has no server_url.txt
+        with tempfile.TemporaryDirectory() as tmp:
+            fake = Path(tmp) / "config.py"
+            (Path(tmp) / "server_url.txt").write_text("https://etap.example.test/\n", encoding="utf-8")
+            with patch.object(cfg, "__file__", str(fake)):
+                self.assertEqual(cfg.bundled_server(), "https://etap.example.test")
+            (Path(tmp) / "server_url.txt").write_text("not a url", encoding="utf-8")
+            with patch.object(cfg, "__file__", str(fake)):
+                self.assertEqual(cfg.bundled_server(), cfg.FALLBACK_SERVER)
+
 
 if __name__ == "__main__":
     unittest.main()
