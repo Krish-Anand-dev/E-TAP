@@ -32,3 +32,11 @@ Design choices and why:
 
 ## Verification
 Backend suite 226 passed (11 new tests for the store with the network mocked: off by default, URL parsing, signature rule, upload, images only, failure handling, add-on retry, the 3-image cap, deletion, privacy flow). Frontend tests 18 passed and the build succeeds. Live: one real upload through the hosted site stored `rickroll qr.png` in Cloudinary and recorded it on the report.
+
+## Addendum, 2026-10-30: shareable result card
+A second use of Cloudinary, for the "relative forwards a suspicious message and asks if it is real" case. Every report gets a picture card with the verdict, score, one to three fixed reasons, a next step and the date.
+- **How:** `backend/share_card.py` keeps four plain base images in Cloudinary (`etap/templates/card_danger|caution|safe|limited`, uploaded once, never overwritten). A card is a delivery URL that writes text layers onto the matching base image, so nothing is stored per email and there is nothing extra to delete.
+- **Privacy:** no subject, sender, link, file name or quoted text. Reasons are fixed sentences chosen by evidence type (`att.`, `link.`, `qr.`, `rep.`, `corr.`, `ai.`, `hdr.`); text is limited to letters, digits, space, dot and hyphen.
+- **Honesty rules:** a good result says "No problems found", never "Safe"; if headers, reputation lookups or the AI review could not run, it becomes a grey "Limited check" card. Missing checks never soften a caution or danger card.
+- **Where:** `pipeline.py` returns `share_card`; `app.py` rebuilds it on each stored-report read so a sandbox-raised score shows; UI is the **Share card** section (`ShareCard.jsx`) with Download and Copy link.
+- **Verification:** 12 new tests (`test_share_card.py`, network mocked); backend 238 passed, frontend 18 passed, build succeeds. Not yet seen against live Cloudinary at the time of writing.

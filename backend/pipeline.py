@@ -17,6 +17,7 @@ from typing import Any
 from email_parser import parse_email, parse_email_from_upload
 from forensics.header_forensics import analyze_headers
 from cloudinary_store import upload_attachment_images
+from share_card import for_report as share_card_for_report
 from forensics.attachment_forensics import analyze_attachments
 from forensics.ioc_extraction import extract_iocs
 from forensics.link_analysis import analyze_links
@@ -525,6 +526,9 @@ def _run_parsed_pipeline(parsed_email, source: str | None = None, progress=None,
         provenance=analysis_provenance,
         attachments=attachment_analysis.get("attachments") or [],
     )
+    share_card = share_card_for_report(
+        label=decision["verdict"], band=decision["verdict_band"], score=decision["risk_score"],
+        evidence_report=evidence_report, ensure=True)
     analysis_duration_ms = round((time.perf_counter() - started_at) * 1000)
     analysis_provenance["analysis_duration_ms"] = analysis_duration_ms
     provider_status["analysis_duration_ms"] = analysis_duration_ms
@@ -579,6 +583,7 @@ def _run_parsed_pipeline(parsed_email, source: str | None = None, progress=None,
         "link_analysis": link_analysis,
         "qr_trace": qr_trace,
         "privacy_report": privacy_report,
+        "share_card": share_card,
         "provider_status": provider_status,
         "email": context["email"],
         "headers": header_analysis,

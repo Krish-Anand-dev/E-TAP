@@ -120,6 +120,7 @@ E-TAP/
 │   ├── evidence.py           evidence ledger + evidence_report (schema v2)
 │   ├── privacy.py            URL lookup policy, Gemini sanitizer, privacy report
 │   ├── cloudinary_store.py   optional Cloudinary image evidence store: upload, blurred previews, optional OCR/moderation add-ons, delete
+│   ├── share_card.py         optional shareable result card: a Cloudinary text-overlay URL on a plain base image (verdict, score, fixed reasons, date; no message content)
 │   ├── provider_status.py    per-provider coverage object
 │   ├── workflow_c.py         APIRouter: review, retention, share, analytics, baselines…
 │   ├── sandbox_api.py        APIRouter: per-email sandbox status, pairing, agent job endpoints

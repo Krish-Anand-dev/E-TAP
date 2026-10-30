@@ -129,6 +129,34 @@ def upload_image(raw: bytes, filename: str) -> dict | None:
     return summary
 
 
+def cloud_name() -> str | None:
+    creds = _credentials()
+    return creds[0] if creds else None
+
+
+def upload_shared_png(public_id: str, png: bytes, tags: str = "etap") -> bool:
+    """
+    Save one fixed, non-private image (a share-card template) under a known id.
+    overwrite=false makes this a cheap no-op when the image is already there.
+    """
+    creds = _credentials()
+    if not creds or not png:
+        return False
+    cloud, key, secret = creds
+    params = {"public_id": public_id, "overwrite": "false", "tags": tags, "timestamp": int(time.time())}
+    data = dict(params, api_key=key, signature=_sign(params, secret))
+    try:
+        response = requests.post(f"https://api.cloudinary.com/v1_1/{cloud}/image/upload",
+                                 data=data, files={"file": (public_id.rsplit("/", 1)[-1] + ".png", png)}, timeout=TIMEOUT_S)
+    except requests.RequestException as exc:
+        logger.warning("Cloudinary template upload error: %s", exc)
+        return False
+    if response.status_code >= 400:
+        logger.warning("Cloudinary template upload failed: %s", response.text[:200])
+        return False
+    return True
+
+
 def upload_attachment_images(raw_attachments: list, results: list) -> dict:
     """
     Save the image attachments and add a `cloudinary` entry to their result dicts

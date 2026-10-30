@@ -29,6 +29,7 @@ from email_parser.unified_parser import UnsupportedFileTypeError
 from pipeline import analyze_email_upload, VALID_SOURCES
 from verdicts import finalize_verdict
 from evidence import build_for_stored_record
+from share_card import for_report as share_card_for_report
 
 logger = logging.getLogger("E-TAP.api")
 
@@ -394,6 +395,10 @@ async def get_investigation(request: Request, email_id: str) -> dict:
         conclusion = (mapped_doc.get("evidence_report") or {}).get("conclusion")
         if isinstance(conclusion, dict) and conclusion.get("risk_score") != decision["risk_score"]:
             conclusion.update(label=decision["verdict"], band=decision["verdict_band"], risk_score=decision["risk_score"])
+        # Built from the final decision, so a score raised by the sandbox shows on the card too.
+        mapped_doc["share_card"] = share_card_for_report(
+            label=decision["verdict"], band=decision["verdict_band"], score=decision["risk_score"],
+            evidence_report=mapped_doc.get("evidence_report"), analyzed_at=doc.get("analyzed_at"))
         return mapped_doc
     except HTTPException:
         raise

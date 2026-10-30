@@ -263,7 +263,7 @@ We would rather say these than have anyone find them.
 
 - Use the live app above; standard analysis needs no sign-up.
 - Run it yourself: copy `.env.example` to `.env`, set `USE_FAKE_DB=1` for a zero-setup start, `pip install -r backend/requirements.txt`, run the backend with Uvicorn, then `npm install` and `npm run dev` in the `frontend` folder. Cloudinary is optional: set `CLOUDINARY_URL` to switch image evidence on.
-- Tests: 226 backend tests, 18 frontend tests and 27 extension tests pass.
+- Tests: 238 backend tests, 18 frontend tests and 27 extension tests pass.
 - Contributions are welcome, especially detection rules and translations.
 
 ## 14. Screenshots to add to this page

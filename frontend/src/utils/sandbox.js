@@ -27,6 +27,7 @@ export function mergeSandboxReport(current, updated) {
     verdict: updated.verdict || current.verdict,
     verdict_band: updated.verdict_band || current.verdict_band,
     evidence_report: updated.evidence_report || current.evidence_report,
+    share_card: updated.share_card ?? current.share_card,
     ai_analysis: { ...current.ai_analysis, ...updated.ai_analysis },
     mitre_attack: updated.mitre_attack ?? current.mitre_attack,
     stage_status: { ...current.stage_status, S: updated.sandbox.status },
