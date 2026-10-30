@@ -89,6 +89,22 @@ class SandboxAgentTests(unittest.TestCase):
         self.assertNotIn(agent["agent_token"], json.dumps(list(self.db["sandbox_agents"].find()), default=str))
         self.assertEqual(self.client.get("/sandbox/agent/me", headers={"Authorization": "Bearer eta_wrong"}).status_code, 401)
 
+    def test_a_second_claim_cannot_replace_the_token_that_was_saved(self):
+        agent = self.register()
+        first = self.client.post("/sandbox/pair", json={"code": agent["pairing_code"]})
+        second = self.client.post("/sandbox/pair", json={"code": agent["pairing_code"]})
+        self.assertEqual((first.status_code, second.status_code), (200, 404))
+        # The token the browser keeps is the one the server stored, and it stays paired on every later read.
+        mine = {"X-ETAP-Sandbox-Token": first.json()["sandbox_token"]}
+        for _ in range(3):
+            self.assertTrue(self.client.get("/sandbox/pairing", headers=mine).json()["paired"])
+
+    def test_expired_pairing_code_is_refused_and_pairs_nothing(self):
+        agent = self.register()
+        self.db["sandbox_agents"].update_one({"agent_id": agent["agent_id"]}, {"$set": {"pairing_expires_ts": 1}})
+        self.assertEqual(self.client.post("/sandbox/pair", json={"code": agent["pairing_code"]}).status_code, 404)
+        self.assertEqual(self.db["sandbox_agents"].find_one({"agent_id": agent["agent_id"]})["client_token_hashes"], [])
+
     def test_status_reports_online_agent(self):
         auth, client = self.pair()
         status = self.client.get("/sandbox/pairing", headers=client).json()

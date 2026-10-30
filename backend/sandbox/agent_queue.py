@@ -181,15 +181,17 @@ def claim_pairing_code(code: str) -> dict:
     if not re.fullmatch(r"[A-Z0-9]{4}-[A-Z0-9]{4}", code):
         raise AgentError("Pairing codes look like ABCD-1234.")
     agents = _db()[AGENTS]
-    agent = agents.find_one({"pairing_code": code})
-    if not agent or (agent.get("pairing_expires_ts") or 0) < _now():
+    # Single use, and atomic: only one request can take the code, so two quick
+    # submissions can never both be told "paired" while only one token is saved.
+    agent = agents.find_one_and_update(
+        {"pairing_code": code, "pairing_expires_ts": {"$gte": _now()}},
+        {"$set": {"pairing_code": None, "pairing_expires_ts": None}})
+    if not agent:
         raise AgentError("That pairing code is wrong or has expired. Ask the agent for a new one.", 404)
     token = f"ets_{secrets.token_urlsafe(32)}"
     hashes = (list(agent.get("client_token_hashes") or []) + [_hash(token)])[-MAX_CLIENT_TOKENS:]
-    # Single use: the code is cleared in the same update that adds the token.
-    agents.update_one({"agent_id": agent["agent_id"], "pairing_code": code}, {"$set": {
-        "client_token_hashes": hashes, "pairing_code": None, "pairing_expires_ts": None,
-        "paired_ts": agent.get("paired_ts") or _now()}})
+    agents.update_one({"agent_id": agent["agent_id"]}, {"$set": {
+        "client_token_hashes": hashes, "paired_ts": agent.get("paired_ts") or _now()}})
     logger.info("Sandbox agent %s paired with a client", agent["agent_id"])
     return {"sandbox_token": token, **public_agent(agent)}
 
