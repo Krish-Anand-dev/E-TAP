@@ -44,7 +44,7 @@ COLOURS = {
 HEADLINES = {"safe": "NO PROBLEMS FOUND", "limited": "LIMITED CHECK"}
 
 NEXT_STEP = {
-    "danger": "Do not click, open or reply. Report it, then delete it.",
+    "danger": "Do not click or open anything. Do not reply. Delete it.",
     "caution": "Do not act yet. Confirm using a number you already have.",
     "safe": "Still be careful with unexpected requests for money or codes.",
     "limited": "This was a partial check. Confirm before you act on it.",

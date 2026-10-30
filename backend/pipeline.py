@@ -35,9 +35,14 @@ logger = logging.getLogger("E-TAP.pipeline")
 
 # How the message reached us. "quick_content_check" = rebuilt from the text
 # visible in a mail client (no original headers/attachments/HTML links).
+# "forwarded_message" = text the user pasted (an SMS or chat message) with any
+# attachments added separately: no email headers exist, so the sender and
+# authentication checks do not apply, but links, QR codes and attachments are
+# inspected exactly as they are for an email.
 SOURCE_FULL_MESSAGE = "full_message"
 SOURCE_QUICK_CHECK = "quick_content_check"
-VALID_SOURCES = frozenset({SOURCE_FULL_MESSAGE, SOURCE_QUICK_CHECK})
+SOURCE_FORWARDED = "forwarded_message"
+VALID_SOURCES = frozenset({SOURCE_FULL_MESSAGE, SOURCE_QUICK_CHECK, SOURCE_FORWARDED})
 
 
 def _env_truthy(name: str, default: str = "0") -> bool:
@@ -199,10 +204,14 @@ def _run_parsed_pipeline(parsed_email, source: str | None = None, progress=None,
     data = parsed_email.to_dict()
     source = source if source in VALID_SOURCES else SOURCE_FULL_MESSAGE
     quick_check = source == SOURCE_QUICK_CHECK
+    forwarded = source == SOURCE_FORWARDED
+    no_headers = quick_check or forwarded
 
     progress("headers", "running")
-    header_analysis = analyze_headers(parsed_email, headers_available=not quick_check)
-    if quick_check:
+    header_analysis = analyze_headers(parsed_email, headers_available=not no_headers, not_an_email=forwarded)
+    if forwarded:
+        progress("headers", "skipped", "Not applicable: this is a pasted message, not an email")
+    elif quick_check:
         progress("headers", "skipped", "Original headers were not available")
     else:
         flags = len(header_analysis.get("red_flags") or [])
@@ -342,6 +351,9 @@ def _run_parsed_pipeline(parsed_email, source: str | None = None, progress=None,
     progress("ai", "running")
     # Stage C' -- Fast Metadata Triage Pre-Filter (XGBoost)
     try:
+        if forwarded:
+            # The model reads header features; a pasted message has none, so it is not asked.
+            raise RuntimeError("metadata triage does not apply to a pasted message")
         from ai_engine.triage_model import extract_features, predict_triage
         triage_features = extract_features(
             email=email_summary,
@@ -379,7 +391,7 @@ def _run_parsed_pipeline(parsed_email, source: str | None = None, progress=None,
 
     # A quick content check has no real headers, so the metadata-only XGBoost
     # pre-filter has nothing trustworthy to judge. Always do the content review.
-    if quick_check:
+    if no_headers:
         force_gemini = True
 
     # If any attachment is flagged suspicious (macros, type mismatch,
@@ -473,7 +485,7 @@ def _run_parsed_pipeline(parsed_email, source: str | None = None, progress=None,
         fallback_reason = None
     analysis_provenance = {
         "input_mode": source,
-        "headers_available": not quick_check,
+        "headers_available": not no_headers,
         "threat_intel_mode": "live" if threat_intel_live else "offline_placeholder",
         "threat_intel_lookups": ti_total,
         "threat_intel_unavailable": ti_failed,
@@ -535,7 +547,7 @@ def _run_parsed_pipeline(parsed_email, source: str | None = None, progress=None,
 
     stage_status = {
         "A": "complete",
-        "B": "complete" if not quick_check else "headers_unavailable",
+        "B": "not_applicable" if forwarded else ("complete" if not quick_check else "headers_unavailable"),
         "B2": "complete",
         "D": "complete",
         "E": "live" if threat_intel_live else "offline_placeholder",

@@ -7,6 +7,7 @@ import { agentDownloadUrl, getSandboxPairing, sandboxStateLabel, sandboxStateTon
 import { getAnimationSpeed } from '../utils/animationSpeed';
 import { previewEmailFile, whyNotOpened } from '../utils/attachmentPreview';
 import SandboxPairing from '../components/settings/SandboxPairing';
+import MessageComposer from '../components/upload/MessageComposer';
 
 const REAL_SAMPLE_PHISHING_EML = `From: IT Helpdesk <support@northfield-logisitcs-helpdesk.com>
 To: priya.nair@northfield-logistics.com
@@ -274,6 +275,16 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
     previewEmailFile(file).then((found) => setPreview(found));
   };
 
+  // A message the user pasted, packaged as an .eml with no headers (see utils/composeMessage.js).
+  const stageMessage = (file) => {
+    setFileError(null);
+    setRunFinished(false);
+    setSelectedFile(file);
+    setPreflight(null);
+    setPreview(null);
+    previewEmailFile(file).then((found) => setPreview(found));
+  };
+
   // Clicking Analyze on a deeper run first asks the server, right now, whether the sandbox
   // is usable and whether this email has anything it can open, and says so before any
   // analysis starts. Standard analysis never waits on any of this.
@@ -372,6 +383,8 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
         </div>
       )}
 
+      {!showTimeline && <MessageComposer onReady={stageMessage} disabled={backendOnline === false} />}
+
       {fileError && !showTimeline && (
         <p className="choice-note" role="alert"><Icon name="alert" size={14} />{fileError}</p>
       )}
@@ -379,14 +392,14 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
       {selectedFile && !showTimeline && (
         <div className="staged-file-card">
           <div className="file-meta-left">
-            <span className="file-tag">{selectedFile.name.split('.').pop()?.toUpperCase()}</span>
-            <div><div className="file-name">{selectedFile.name}</div><div className="file-size">{(selectedFile.size / 1024).toFixed(1)} KB</div></div>
+            <span className="file-tag">{selectedFile.etapSource ? 'MSG' : selectedFile.name.split('.').pop()?.toUpperCase()}</span>
+            <div><div className="file-name">{selectedFile.etapSource ? 'Pasted message' : selectedFile.name}</div><div className="file-size">{(selectedFile.size / 1024).toFixed(1)} KB</div></div>
           </div>
           <div className="staged-actions">
             <button type="button" className="btn-ghost" onClick={() => { setSelectedFile(null); setPreflight(null); setPreview(null); }}>Clear</button>
             <button type="button" id="execute-pipeline-btn" className="btn-primary-action" onClick={() => analyze(selectedFile)}
               disabled={backendOnline === false || deepBlocked || checking}>
-              {checking ? 'Checking your sandbox…' : deep ? 'Run deeper analysis' : 'Analyze email'}
+              {checking ? 'Checking your sandbox…' : deep ? 'Run deeper analysis' : selectedFile.etapSource ? 'Analyze message' : 'Analyze email'}
             </button>
           </div>
         </div>
@@ -411,12 +424,12 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
 
       {selectedFile && !showTimeline && (
         <section className="analysis-choice" aria-label="Type of analysis">
-          <span className="eyebrow">HOW SHOULD E-TAP CHECK THIS EMAIL?</span>
+          <span className="eyebrow">{selectedFile.etapSource ? 'HOW SHOULD E-TAP CHECK THIS MESSAGE?' : 'HOW SHOULD E-TAP CHECK THIS EMAIL?'}</span>
           <div className="choice-cards">
             <button type="button" className={`choice-card ${deep ? '' : 'selected'}`} aria-pressed={!deep} onClick={() => setDeep(false)}>
               <span className="choice-icon"><Icon name="shield" size={20} /></span>
               <strong>Standard analysis</strong>
-              <span>Sender, headers, links, reputation, history and AI. Attachments are inspected without being opened.</span>
+              <span>{selectedFile.etapSource ? 'Links, QR codes, reputation, history and AI. Attachments are inspected without being opened.' : 'Sender, headers, links, reputation, history and AI. Attachments are inspected without being opened.'}</span>
               <span className="choice-req ok">Nothing to set up.</span>
             </button>
             <button type="button" className={`choice-card ${deep ? 'selected' : ''}`} aria-pressed={deep}
@@ -468,7 +481,7 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
           <div className="analysis-run-head">
             <div>
               <span className="eyebrow">{isWorking ? 'ANALYSIS IN PROGRESS' : status === 'error' ? 'ANALYSIS STOPPED' : 'ANALYSIS COMPLETE'}</span>
-              <h2>{selectedFile?.name || 'Email analysis'}</h2>
+              <h2>{selectedFile?.etapSource ? 'Pasted message' : (selectedFile?.name || 'Email analysis')}</h2>
             </div>
             {isWorking && <span className="elapsed"><Icon name="clock" size={16} />{elapsed}s</span>}
           </div>

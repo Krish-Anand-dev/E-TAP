@@ -634,3 +634,16 @@ button.risk-tag:hover { transform: translateY(-1px); }
 @media (prefers-reduced-motion: reduce) {
   .sb-running-dot, .sb-step.active .sb-step-mark, .sb-dots i { animation: none; }
 }
+
+/* Paste-a-message box (the other way into an analysis) */
+.message-composer { display: grid; gap: 12px; margin-top: 16px; }
+.message-composer-head { display: flex; gap: 12px; align-items: flex-start; }
+.message-composer-head strong { display: block; font-size: 15px; }
+.message-composer-head p { margin: 4px 0 0; color: var(--ink-3); font-size: 13px; line-height: 1.5; }
+.message-composer textarea { width: 100%; box-sizing: border-box; resize: vertical; min-height: 120px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink); font: inherit; font-size: 13.5px; line-height: 1.5; }
+.message-composer textarea:focus { outline: none; border-color: var(--ink); }
+.message-composer-files { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.message-file-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 6px 5px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--card-2); font-size: 12.5px; }
+.message-file-chip button { display: grid; place-items: center; width: 20px; height: 20px; border: 0; border-radius: 50%; background: transparent; color: var(--ink-3); cursor: pointer; }
+.message-file-chip button:hover { background: var(--line); color: var(--ink); }
+.message-composer-actions { display: flex; justify-content: flex-end; }

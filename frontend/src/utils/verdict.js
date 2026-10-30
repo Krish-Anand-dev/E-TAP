@@ -84,6 +84,9 @@ export function provenanceChips(provenance, stageStatus) {
   const chips = [];
   const p = provenance || {};
 
+  if (p.input_mode === 'forwarded_message') {
+    chips.push({ key: 'input', tone: 'caution', text: 'Pasted message: no email headers, so sender checks do not apply' });
+  }
   if (p.input_mode === 'quick_content_check') {
     chips.push({ key: 'input', tone: 'caution', text: 'Quick Content Check — original headers not available' });
   }

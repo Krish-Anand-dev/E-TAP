@@ -66,6 +66,9 @@ class HeaderAnalysis:
     # then reported as "not_available" instead of being guessed.
     available: bool = True
     unavailable_reason: Optional[str] = None
+    # True for a pasted message that was never an email: there is nothing to
+    # check and nothing may count for or against it (see `not_an_email`).
+    not_applicable: bool = False
 
     red_flags: List[str] = field(default_factory=list)
     risk_indicator_count: int = 0
@@ -77,7 +80,7 @@ class HeaderAnalysis:
 NOT_AVAILABLE = "not_available"
 
 
-def analyze_headers(parsed_email, headers_available: bool = True) -> dict:
+def analyze_headers(parsed_email, headers_available: bool = True, not_an_email: bool = False) -> dict:
     """
     parsed_email: a ParsedEmail object from Stage A (email_parser).
     Returns a plain dict (JSON-serializable) — the Stage B output that
@@ -89,9 +92,23 @@ def analyze_headers(parsed_email, headers_available: bool = True) -> dict:
     the live-DNS fallback, against headers that do not exist would produce
     misleading SPF/DKIM/DMARC results. Sender-identity checks that only need
     the From address (lookalike domains, Reply-To mismatch) still run.
+
+    not_an_email=True is a message the user pasted (an SMS, a chat message):
+    it never had headers or a sender we can trust, so every header and sender
+    check is skipped, nothing is flagged, and the result is marked
+    `not_applicable` so scoring and the report leave it out entirely.
     """
     data = parsed_email.to_dict() if hasattr(parsed_email, "to_dict") else parsed_email
     all_headers = data.get("all_headers", {})
+
+    if not_an_email:
+        reason = ("This is a pasted message, not an email, so there are no email headers: "
+                  "sender and authentication checks do not apply.")
+        return HeaderAnalysis(
+            spf=NOT_AVAILABLE, dkim=NOT_AVAILABLE, dmarc=NOT_AVAILABLE,
+            auth_details={"available": False, "reason": reason},
+            available=False, unavailable_reason=reason, not_applicable=True,
+        ).to_dict()
 
     result = HeaderAnalysis(
         sender_email=data.get("from_email"),

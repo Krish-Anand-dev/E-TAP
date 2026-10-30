@@ -13,7 +13,7 @@ export default function SandboxRunning({ sandbox }) {
         <strong>{waiting ? 'Waiting' : 'Running'}</strong>
         <span>
           {waiting
-            ? `Waiting for ${sandboxPlace(sandbox)} to pick this up. Keep the E-TAP Sandbox Agent running.`
+            ? `Waiting for ${sandboxPlace(sandbox)} to pick this up.${sandbox?.mode === 'agent' ? ' Keep the E-TAP Sandbox Agent running.' : ''}`
             : `${current?.title || 'Working'} in ${sandboxPlace(sandbox)}`}
         </span>
       </div>

@@ -136,6 +136,7 @@ export function keyStats(report = {}) {
     headerFlags: (headers.red_flags || []).length,
     auth: { spf: headers.spf, dkim: headers.dkim, dmarc: headers.dmarc },
     headersAvailable: headers.available !== false,
+    headersNotApplicable: headers.not_applicable === true,
     attachments: attachments.length,
     suspiciousAttachments: attachments.filter((a) => a.suspicious).length,
     macros: attachments.filter((a) => a.has_macro).length,
@@ -216,13 +217,16 @@ export function stageSummaries(report = {}) {
   return [
     {
       key: 'parse', title: 'Reading the email', icon: 'mail', status: 'good',
-      summary: `“${email.subject || '(no subject)'}” from ${email.from_email || 'an unknown sender'}`,
+      summary: report.analysis_provenance?.input_mode === 'forwarded_message'
+        ? `Pasted message: “${email.subject || '(no subject)'}”`
+        : `“${email.subject || '(no subject)'}” from ${email.from_email || 'an unknown sender'}`,
       metrics: [['Format', String(email.source_format || 'eml').toUpperCase()], ['Attachments', s.attachments]],
     },
     {
       key: 'headers', title: 'Sender & headers', icon: 'user',
       status: !s.headersAvailable ? 'skipped' : authFails.length ? 'bad' : s.headerFlags ? 'warn' : 'good',
-      summary: !s.headersAvailable ? 'Original headers were not available, so the sender could not be verified.'
+      summary: s.headersNotApplicable ? 'A pasted message has no email headers, so sender and authentication checks do not apply and add nothing to the score.'
+        : !s.headersAvailable ? 'Original headers were not available, so the sender could not be verified.'
         : authFails.length ? `Sender authentication failed (${authFails.map((k) => k.toUpperCase()).join(', ')}).`
           : s.headerFlags ? `${s.headerFlags} warning sign(s) in the sender details.` : 'Sender checks passed with no warning signs.',
       metrics: [['SPF', authText(s.auth.spf)], ['DKIM', authText(s.auth.dkim)], ['DMARC', authText(s.auth.dmarc)], ['Red flags', s.headerFlags]],

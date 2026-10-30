@@ -40,3 +40,11 @@ A second use of Cloudinary, for the "relative forwards a suspicious message and 
 - **Honesty rules:** a good result says "No problems found", never "Safe"; if headers, reputation lookups or the AI review could not run, it becomes a grey "Limited check" card. Missing checks never soften a caution or danger card.
 - **Where:** `pipeline.py` returns `share_card`; `app.py` rebuilds it on each stored-report read so a sandbox-raised score shows; UI is the **Share card** section (`ShareCard.jsx`) with Download and Copy link.
 - **Verification:** 12 new tests (`test_share_card.py`, network mocked); backend 238 passed, frontend 18 passed, build succeeds. Not yet seen against live Cloudinary at the time of writing.
+
+## Addendum, 2026-10-31: pasting a message instead of uploading an email
+A second way into the same analysis, for text that never was an email (an SMS, a WhatsApp message) with its attachments added separately.
+- **Why:** the people E-TAP is for mostly receive scams as chat messages, and the share card is how the answer goes back to them.
+- **How:** the Analyze page has a "paste a message" box. The browser packages the text (plain and link-ified HTML) and the files into an .eml with no sender, date or route lines and sends it with source `forwarded_message`.
+- **What changes:** header and sender checks are skipped and marked not applicable, and nothing about them can add to the score (rule-based scoring and the AI prompt both ignore them). XGBoost triage, which reads header features, is not run. The report says so, and a good result becomes the grey "Limited check" share card rather than "No problems found".
+- **What stays the same:** link text versus destination, QR decoding, OCR, hashes and VirusTotal, Cloudinary previews, the AI review and the sandbox.
+- **Verification:** 8 new backend tests and 5 frontend tests; backend 246, frontend 26, extension 27 pass. A browser-built message for the demo text and `invoice.js` scored "Likely phishing" 75 offline with no header contribution. Checked in a local browser; the sandbox part was not re-run against a real VM today.

@@ -171,7 +171,8 @@ export function DashboardPage({ navigate }) {
             <div>
               <strong>No locations to plot</strong>
               <p>
-                {!s.headersAvailable ? 'Original headers were not available for this email, so its route cannot be traced.'
+                {s.headersNotApplicable ? 'This is a pasted message, not an email, so there is no mail route to trace.'
+                  : !s.headersAvailable ? 'Original headers were not available for this email, so its route cannot be traced.'
                   : threat_intel.lookup_mode !== 'live'
                     ? `${origin.true_origin_ip || headers.originating_ip ? `The email was first handed on by ${origin.true_origin_ip || headers.originating_ip}, but` : 'Live'} location lookups are turned off for this analysis, so it cannot be placed on the map.`
                     : origin.explanation || 'No public mail-server addresses with a known location were found in this email.'}

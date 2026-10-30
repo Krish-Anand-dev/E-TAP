@@ -356,6 +356,8 @@ def build_privacy_report(
                 "a simplified message reconstructed from visible sender/subject/body text by the Gmail extension",
                 "not the original raw message, original authentication/routing headers, link targets or attachments",
             ] if (provenance or {}).get("input_mode") == "quick_content_check" else [
+                "the message text the user pasted and any attachments added to it (packaged as a message with no email headers)",
+            ] if (provenance or {}).get("input_mode") == "forwarded_message" else [
                 "the uploaded .eml/.msg artifact, including available headers, body and attachments",
             ]),
             "notes": ["The browser sends the selected content to the E-TAP backend over HTTPS. Parsing and forensic checks run on the E-TAP server."],

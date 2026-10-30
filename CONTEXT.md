@@ -80,7 +80,7 @@ The orchestrator is `backend/pipeline.py::_run_parsed_pipeline`. Both the HTTP A
 
 **Exact execution order inside `_run_parsed_pipeline`:**
 
-1. `analyze_headers` (B) — skipped auth/routing when `source=quick_content_check`
+1. `analyze_headers` (B) — skipped auth/routing when `source=quick_content_check`; skipped entirely (`not_applicable`) when `source=forwarded_message`
 2. `analyze_attachments` (B2)
 3. `extract_iocs` (D) — consumes B and B2 output
 4. `analyze_links` (B5) on the HTML body; `build_qr_trace` (B6) on image attachments
@@ -214,6 +214,7 @@ E-TAP/
 `pipeline.VALID_SOURCES`:
 
 - `full_message` (default) — the original message; every stage runs.
+- `forwarded_message` — text the user pasted on the Analyze page (an SMS or chat message) with any attachments added separately, packaged in the browser as an .eml with no From/To/Date/Received. All header and sender checks are skipped and marked `not_applicable` (`headers.not_applicable`), they add nothing to the offline score or the AI prompt, XGBoost triage is not run and Gemini is always called. Links, QR codes, OCR, hashes, Cloudinary and the sandbox run as for an email; the evidence report lists the limitation, so the share card is at best the grey "Limited check".
 - `quick_content_check` — the message was rebuilt from text visible in a mail client (extension fallback). Header auth/routing are marked `not_available` (no live DNS guessing), XGBoost bypass is disabled, and the evidence report lists the limitation.
 
 ### Stage A — Parsing (`backend/email_parser/`)
@@ -465,7 +466,7 @@ All access goes through `db/repository.py`; every function takes `db` explicitly
 | `GET /`, `HEAD /` | service index |
 | `GET /health` | liveness |
 | `GET /ready` | DB ping; 503 when unavailable |
-| `POST /analyze` (10/min) | multipart `file` + optional `source` (`full_message`, `quick_content_check`) and `deep_analysis=1` (with header `X-ETAP-Sandbox-Token`) → full report (used by the extension) |
+| `POST /analyze` (10/min) | multipart `file` + optional `source` (`full_message`, `quick_content_check`, `forwarded_message`) and `deep_analysis=1` (with header `X-ETAP-Sandbox-Token`) → full report (used by the extension) |
 | `POST /analyze/jobs` (10/min) | same input; returns `{job_id, stages}` at once and analyses in the background |
 | `GET /analyze/jobs/{id}` | live stage list (state + detail per stage), `status` (`running`/`done`/`error`), then the report; 404 once expired |
 | `POST /chat` (30/min) | `{question, email_id?}`; client `email_context` is rejected (400) |
