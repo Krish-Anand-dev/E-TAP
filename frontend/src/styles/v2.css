@@ -612,3 +612,25 @@ button.risk-tag:hover { transform: translateY(-1px); }
 .agent-help a, .link-button { color: #ad3845; font-weight: 600; text-decoration: underline; background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
 .choice-note.stacked { display: grid; gap: 4px; }
 .choice-note.stacked > span { display: inline-flex; align-items: center; gap: 7px; }
+
+/* Sandbox: live "Running" box with the steps of the VM run */
+.sb-running { border: 2px solid var(--caution); background: #fffaf0; border-radius: 18px; padding: 18px 20px; display: grid; gap: 16px; }
+.sb-running-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.sb-running-head strong { font-size: 28px; font-weight: 800; letter-spacing: -0.6px; color: var(--caution); text-transform: uppercase; }
+.sb-running-head > span:last-child { color: var(--ink-3); font-size: 13.5px; font-weight: 600; }
+.sb-running-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--caution); animation: tl-pulse 1.6s ease-in-out infinite; }
+.sb-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+.sb-step { display: flex; gap: 10px; align-items: flex-start; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255, 255, 255, .7); color: var(--ink-3); }
+.sb-step b { display: block; font-size: 14px; color: inherit; }
+.sb-step div > span { display: block; margin-top: 3px; font-size: 12px; line-height: 1.45; }
+.sb-step-mark { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 800; background: var(--card-2); color: var(--ink-3); }
+.sb-step.done { color: var(--ink); }
+.sb-step.done .sb-step-mark { background: var(--safe-bg); color: var(--safe); }
+.sb-step.active { border-color: var(--caution); background: #fff; color: var(--ink); box-shadow: 0 6px 18px rgba(201, 138, 28, .18); }
+.sb-step.active .sb-step-mark { background: var(--caution); color: #fff; animation: tl-pulse 1.6s ease-in-out infinite; }
+.sb-dots i { font-style: normal; animation: blink 1.2s infinite; }
+.sb-dots i:nth-child(2) { animation-delay: .2s; }
+.sb-dots i:nth-child(3) { animation-delay: .4s; }
+@media (prefers-reduced-motion: reduce) {
+  .sb-running-dot, .sb-step.active .sb-step-mark, .sb-dots i { animation: none; }
+}

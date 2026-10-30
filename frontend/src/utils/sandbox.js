@@ -44,6 +44,27 @@ export function needsSandboxRefresh(sandbox) {
   return TERMINAL_SANDBOX_STATUSES.has(sandbox.status) && !Array.isArray(sandbox.items);
 }
 
+/** The steps of a run, in the order the agent reports them, in plain words. */
+export const SANDBOX_STEPS = [
+  { key: 'starting', title: 'Opening the virtual machine', detail: 'Restoring a clean snapshot and starting it.' },
+  { key: 'interacting', title: 'Opening the attachment', detail: 'Launching the file inside the VM, away from your PC.' },
+  { key: 'collecting', title: 'Recording what it does', detail: 'Collecting Sysmon activity and Windows Defender events.' },
+  { key: 'restoring', title: 'Cleaning up', detail: 'Putting the VM back to its clean snapshot.' },
+  { key: 'evaluating', title: 'Checking the behaviour', detail: 'Matching what happened against detection rules.' },
+];
+
+/**
+ * Where a run is right now. `waiting` is true until the agent has picked the job up;
+ * each step is `done`, `active` or `pending`.
+ */
+export function sandboxProgress(status) {
+  const at = SANDBOX_STEPS.findIndex((step) => step.key === status);
+  return {
+    waiting: at < 0,
+    steps: SANDBOX_STEPS.map((step, i) => ({ ...step, state: at < 0 ? 'pending' : i < at ? 'done' : i === at ? 'active' : 'pending' })),
+  };
+}
+
 /** Plain-language summary of a sandbox result for timelines and cards. */
 export function sandboxSummary(sandbox) {
   const s = sandbox || {};

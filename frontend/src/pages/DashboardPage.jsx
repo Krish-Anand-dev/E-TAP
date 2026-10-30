@@ -22,7 +22,8 @@ import Icon from '../components/common/Icon';
 import { fetchInvestigation } from '../api/analyze';
 import { getGeoMapData } from '../utils/geo.js';
 import { keyStats, hasSandbox } from '../utils/reportSummary';
-import { TERMINAL_SANDBOX_STATUSES, mergeSandboxReport, sandboxSummary, sandboxOutcome, sandboxPlace, needsSandboxRefresh } from '../utils/sandbox';
+import SandboxRunning from '../components/report/SandboxRunning';
+import { ACTIVE_SANDBOX_STATUSES, TERMINAL_SANDBOX_STATUSES,mergeSandboxReport, sandboxSummary, sandboxOutcome, sandboxPlace, needsSandboxRefresh } from '../utils/sandbox';
 
 const SECTIONS = [
   ['sec-summary', 'Summary'],
@@ -141,6 +142,7 @@ export function DashboardPage({ navigate }) {
           {(() => {
             const sb = sandboxSummary(data.sandbox);
             const outcome = sandboxOutcome(data.sandbox);
+            if (ACTIVE_SANDBOX_STATUSES.has(data.sandbox.status)) return <SandboxRunning sandbox={data.sandbox} />;
             return (
               <div className="hero-numbers sandbox-numbers">
                 <div className={`hero-number tone-${outcome.tone}`} title={outcome.note}><strong>{outcome.label}</strong><span>VM result</span></div>
@@ -152,7 +154,7 @@ export function DashboardPage({ navigate }) {
               </div>
             );
           })()}
-          {['Not tested', 'Waiting'].includes(sandboxOutcome(data.sandbox).label) && (
+          {sandboxOutcome(data.sandbox).label === 'Not tested' && (
             <div className="trusted-note warn sandbox-note"><Icon name="alert" size={16} />{sandboxOutcome(data.sandbox).note}{sandboxOutcome(data.sandbox).label === 'Not tested' ? '. The file was copied into the VM but not opened, so this is not a result either way.' : ''}</div>
           )}
           <SandboxPanel sandbox={data.sandbox} />
