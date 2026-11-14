@@ -438,3 +438,6 @@ app.include_router(sandbox_router)
 
 from login import router as login_router
 app.include_router(login_router)
+
+from whatsapp import router as whatsapp_router
+app.include_router(whatsapp_router)
