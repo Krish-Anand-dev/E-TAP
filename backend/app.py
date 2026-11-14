@@ -174,7 +174,11 @@ async def analyze(
         report = await asyncio.to_thread(analyze_email_upload, filename, bytes(raw_bytes), source,
                                          None, _sandbox_request(request, deep_analysis))
         from workflow_c import finish_analysis
-        return await asyncio.to_thread(finish_analysis, report)
+        from login import current_user, tag_owner
+        owner = current_user(request)
+        final = await asyncio.to_thread(finish_analysis, report)
+        tag_owner(final.get("email_id"), owner)
+        return final
 
     except UnsupportedFileTypeError as exc:
         # Clean 400 with descriptive client error
@@ -227,9 +231,10 @@ async def start_analysis_job(
     if source is not None and source not in VALID_SOURCES:
         raise HTTPException(status_code=400, detail="Unsupported analysis source.")
     from analysis_jobs import start_job
+    from login import current_user
     raw_bytes = await _read_upload(file)
     return start_job(file.filename or "uploaded_email.eml", raw_bytes, source,
-                     _sandbox_request(request, deep_analysis))
+                     _sandbox_request(request, deep_analysis), owner=current_user(request))
 
 
 @app.get("/analyze/jobs/{job_id}", response_model=None)
@@ -252,13 +257,21 @@ class ChatRequest(BaseModel):
 
 
 @app.get('/investigations')
-async def investigations(request: Request, offset: int = 0, limit: int = 50):
+async def investigations(request: Request, offset: int = 0, limit: int = 50, mine: bool = False):
     from db.connection import get_db
+    from login import current_user
     if offset < 0 or offset > 5000 or not 1 <= limit <= 100:
         raise HTTPException(400, 'Invalid page')
+    query: dict = {}
+    if mine:
+        # Optional sign-in: only "my reports" needs it; the default list stays open.
+        owner = current_user(request)
+        if not owner:
+            raise HTTPException(401, 'Sign in to see your own reports.')
+        query = {'owner_email': owner}
     fields = {'subject': 1, 'verdict': 1, 'risk_score': 1, 'verdict_band': 1, 'analyzed_at': 1, 'from_email': 1,
               'campaign_id': 1, 'workflow.state': 1, 'content_analysis.attack_type': 1}
-    docs = list(get_db()['analyzed_emails'].find({}, fields).sort('analyzed_at', -1))
+    docs = list(get_db()['analyzed_emails'].find(query, fields).sort('analyzed_at', -1))
     out = []
     for d in docs[offset:offset+limit]:
         decision = finalize_verdict(d.get('verdict'), d.get('risk_score') or 0)
@@ -422,3 +435,6 @@ app.include_router(workflow_router)
 
 from sandbox_api import router as sandbox_router
 app.include_router(sandbox_router)
+
+from login import router as login_router
+app.include_router(login_router)
