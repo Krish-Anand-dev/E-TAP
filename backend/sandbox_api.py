@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import io
 import logging
-import os
 import zipfile
 from pathlib import Path
 from typing import Any, Optional
@@ -109,6 +108,7 @@ def _public_base_url(request: Request) -> str:
     """The address this server is reached at, so a downloaded agent connects back to it.
 
     PUBLIC_API_URL wins when set; otherwise the proxy headers, then the request itself."""
+    import os
     configured = os.getenv("PUBLIC_API_URL", "").strip().rstrip("/")
     if configured.startswith(("http://", "https://")):
         return configured

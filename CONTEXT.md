@@ -2,7 +2,7 @@
 
 This is the single technical reference for E-TAP. It is written so that a person or an LLM with no prior knowledge can understand the whole system: what it does, how every stage works, which file does what, which libraries are used and why, how data is shaped, how it is configured and deployed, and what is known to be incomplete.
 
-The short, user-facing overview lives in [README.md](README.md). When this document and the code disagree, the code wins — update this file. Last updated 2026-10-25 (standard analysis first: one-click extension, optional deeper analysis, animation setting, agent preflight; before that deeper attachment analysis through a paired sandbox agent, and the frontend revamp, live analysis jobs, verified trusted domains and Re-analyze).
+The short, user-facing overview lives in [README.md](README.md). When this document and the code disagree, the code wins — update this file. Last updated 2026-10-25 (Cloudinary image evidence and the move to the Hacktober HackDays deployment; before that standard analysis first: one-click extension, optional deeper analysis, animation setting, agent preflight; before that deeper attachment analysis through a paired sandbox agent, and the frontend revamp, live analysis jobs, verified trusted domains and Re-analyze).
 
 This is the only codebase. Dynamic attachment analysis (stage S) is part of it: attachments are opened in a VM the user owns, reached through the paired **E-TAP Sandbox Agent** (§4, Stage S). The older sibling folder E-TAP Local is kept only as the reference implementation the sandbox code came from. History and decisions: [`Development notes and iterations/`](Development%20notes%20and%20iterations/README.md).
 
@@ -80,7 +80,7 @@ The orchestrator is `backend/pipeline.py::_run_parsed_pipeline`. Both the HTTP A
 
 **Exact execution order inside `_run_parsed_pipeline`:**
 
-1. `analyze_headers` (B) — skipped auth/routing when `source=quick_content_check`
+1. `analyze_headers` (B) — skipped auth/routing when `source=quick_content_check`; skipped entirely (`not_applicable`) when `source=forwarded_message`
 2. `analyze_attachments` (B2)
 3. `extract_iocs` (D) — consumes B and B2 output
 4. `analyze_links` (B5) on the HTML body; `build_qr_trace` (B6) on image attachments
@@ -118,6 +118,8 @@ E-TAP/
 │   ├── verdicts.py           canonical labels, thresholds, bands, finalize_verdict()
 │   ├── evidence.py           evidence ledger + evidence_report (schema v2)
 │   ├── privacy.py            URL lookup policy, Gemini sanitizer, privacy report
+│   ├── cloudinary_store.py   optional Cloudinary image evidence store: upload, blurred previews, optional OCR/moderation add-ons, delete
+│   ├── share_card.py         optional shareable result card: a Cloudinary text-overlay URL on a plain base image (verdict, score, fixed reasons, date; no message content)
 │   ├── provider_status.py    per-provider coverage object
 │   ├── workflow_c.py         APIRouter: review, retention, share, analytics, baselines…
 │   ├── sandbox_api.py        APIRouter: per-email sandbox status, pairing, agent job endpoints
@@ -127,11 +129,11 @@ E-TAP/
 │   │   ├── analysis.py       shared: evaluate rules per sample, item verdicts, store + raise score
 │   │   ├── worker.py         in-process queue when the VM is on the server's own machine
 │   │   ├── replay.py         recorded Sysmon traces (demos, rule tests)
-│   │   ├── policy.py, archives.py, ecs_convert.py, rule_engine.py, scoring.py, rules/ (53 original TOML rules, each with tests; README.md = catalogue and provenance)
+│   │   ├── policy.py, archives.py, ecs_convert.py, rule_engine.py, scoring.py, rules/ (63 original MIT TOML rules, each with tests)
 │   ├── sandbox_agent/        the E-TAP Sandbox Agent (runs on the user's PC; stdlib only)
 │   │   ├── cli.py            start / setup / pair / run / check / test / status / forget
 │   │   ├── runner.py         one VM run: restore, open samples, export Sysmon + Defender, restore
-│   │   ├── vbox.py / vmware.py  VBoxManage and vmrun wrappers (one provider interface); launchers.py file-type launchers
+│   │   ├── vbox.py           VBoxManage wrapper; launchers.py file-type launchers
 │   │   ├── recon.py          read-only system checks; config.py + protect.py (DPAPI) settings
 │   │   └── start-agent.cmd, README.md
 │   ├── recovery.py           fixed "I clicked / I entered my password…" checklists
@@ -191,7 +193,7 @@ E-TAP/
 │   │   ├── repository.py     every read/write
 │   │   └── schema.py         collection names + indexes
 │   ├── eval/                 labelled-corpus evaluation harness (+ results/)
-│   └── tests/                36 pytest files, 270 tests (all pass)
+│   └── tests/                34 pytest files, 198 tests (all pass)
 ├── frontend/                 React 18 + Vite (see §11)
 ├── extension/                Gmail Manifest V3 extension (see §12)
 ├── docs/
@@ -211,6 +213,7 @@ E-TAP/
 `pipeline.VALID_SOURCES`:
 
 - `full_message` (default) — the original message; every stage runs.
+- `forwarded_message` — text the user pasted on the Analyze page (an SMS or chat message) with any attachments added separately, packaged in the browser as an .eml with no From/To/Date/Received. All header and sender checks are skipped and marked `not_applicable` (`headers.not_applicable`), they add nothing to the offline score or the AI prompt, XGBoost triage is not run and Gemini is always called. Links, QR codes, OCR, hashes, Cloudinary and the sandbox run as for an email; the evidence report lists the limitation, so the share card is at best the grey "Limited check".
 - `quick_content_check` — the message was rebuilt from text visible in a mail client (extension fallback). Header auth/routing are marked `not_available` (no live DNS guessing), XGBoost bypass is disabled, and the evidence report lists the limitation.
 
 ### Stage A — Parsing (`backend/email_parser/`)
@@ -261,7 +264,7 @@ Red flags: `spf_fail|softfail`, `dkim_fail|key_not_found|misaligned`, `dmarc_fai
 
 ### Stage B2 — Attachment forensics (`forensics/attachment_forensics.py`)
 
-`analyze_attachment` per file, result fields: `filename, declared_type, sha256, size_bytes, actual_type, type_mismatch, has_macro, macro_behavior, suspicious, flags, ocr_text, qr_urls, qr_payloads, qr_status, is_image`.
+`analyze_attachment` per file, result fields: `filename, declared_type, sha256, size_bytes, actual_type, type_mismatch, has_macro, macro_behavior, suspicious, flags, ocr_text, qr_urls, qr_payloads, qr_status, is_image`, plus `cloudinary` (added by `cloudinary_store.upload_attachment_images` right after this stage when Cloudinary is configured).
 
 - **Type detection** (`file_signatures.detect_actual_type`): `MZ` is always `application/x-msdownload`; then libmagic (`python-magic`, if installed and not `octet-stream`); then a hand-rolled table (PDF, ZIP, OLE, JPEG, PNG, GIF, PostScript, ELF, gzip, RAR, 7z, RTF). ZIPs are refined to docx/xlsx/pptx by looking for `word/`, `xl/`, `ppt/` in the first 4 KB.
 - **Mismatch** (`types_conflict`): lenient — `octet-stream` declarations and the whole Office family (legacy, OOXML, OLE, zip) are treated as equivalent.
@@ -270,12 +273,13 @@ Red flags: `spf_fail|softfail`, `dkim_fail|key_not_found|misaligned`, `dmarc_fai
 - **Macros** (`macro_scan.analyze_macro_behavior`, oletools `VBA_Parser`): only for Office names/types. Never executes. Categories from `analyze_macros()`: `AutoExec` → `autoexec_triggers`, `Suspicious` → `suspicious_actions`, `IOC` → `referenced_iocs`. Parse failure (password-protected/corrupt) → suspicious.
 - **Images** (`image_forensics.scan_image_attachment`): decode with OpenCV and PIL; QR via pyzbar, then OpenCV `QRCodeDetector` (multi then single); `qr_status` ∈ `decoded | no_qr_found | decoder_unavailable | image_unreadable | scan_failed`; QR payloads kept (URL or other), URLs extracted. OCR via pytesseract on the grayscale image (hard-coded Windows path `C:\Program Files\Tesseract-OCR\tesseract.exe` is used if it exists).
 - `suspicious = mismatch or has_macro or double_ext or disguised_exe or qr_urls`.
+- **Cloudinary image evidence** (`cloudinary_store.py`, called from `pipeline.py` straight after `analyze_attachments`): off unless `CLOUDINARY_URL` (or the three `CLOUDINARY_*` values) is set. Image attachments whose real type is `image/*` (at most 3 per email, at most 8 MB each; never other file types) are uploaded in parallel with a signed request and a random public id (`etap/<20 hex>`). The stored `cloudinary` object holds `public_id, url, preview_url, blurred_url, width, height, bytes, format` and, when the add-ons are on, `ocr_text` and `moderation`. `preview_url` and `blurred_url` are Cloudinary transformations of the same asset (`c_fill,w_360,h_240`, plus `e_blur:1500`). Cloudinary OCR text fills `ocr_text` only when the local Tesseract found none. A failed or slow upload (8 s timeout) is ignored and never stops the analysis. `CLOUDINARY_OCR=1` and `CLOUDINARY_MODERATION=1` request the `adv_ocr` and `aws_rek` add-ons; an add-on error retries the upload without them. Images are deleted with the report (`workflow_c.delete_record`, `delete_all`, retention purge) via `delete_assets` and `public_ids_of`.
 
 ### Stage S — Deeper attachment analysis (`sandbox/`, `sandbox_agent/`, `sandbox_api.py`)
 
 Optional dynamic analysis: eligible attachments are opened inside an isolated Windows VM, Sysmon records what they do, and behavioural rules can **raise** the score (never lower it). Detailed VM setup and the rule inventory are in `backend/sandbox/README.md`; this section is the architecture.
 
-- **Backends** (`SANDBOX_BACKEND`): `agent` (default: the user's own VM through a paired agent), `virtualbox` (the VM is on the server's own machine; in-process queue in `worker.py`; no pairing), `replay` (recorded traces in `sandbox/replays/`) and `none` (off). The server-side `virtualbox` backend is VirtualBox only; the paired agent runs the user's VM in **VirtualBox or VMware Workstation Pro** (see "VM providers" below). Every backend runs only when the caller asks for a deeper analysis (`deep_analysis=1`); the dashboard's Analyze page and the extension both ask Standard or Deeper before running, and the Analyze page pairs inline when needed.
+- **Backends** (`SANDBOX_BACKEND`): `agent` (default: the user's own VM through a paired agent), `virtualbox` (the VM is on the server's own machine; in-process queue in `worker.py`; no pairing), `replay` (recorded traces in `sandbox/replays/`) and `none` (off). Every backend runs only when the caller asks for a deeper analysis (`deep_analysis=1`); the dashboard's Analyze page and the extension both ask Standard or Deeper before running, and the Analyze page pairs inline when needed.
 - **Selection** (`policy.py`, `archives.py`): up to 3 attachments of at most 10 MB each. Scripts and executables go first, then shortcuts, documents, PDFs, HTML and archives. ZIP members are expanded one by one, with path, size and encryption checks. Anything not opened stays in the report as "inspection incomplete".
 - **Running** (`sandbox_agent/runner.py`, used by both the agent and the local worker):
   1. restore the clean snapshot and start the VM headless;
@@ -284,7 +288,7 @@ Optional dynamic analysis: eligible attachments are opened inside an isolated Wi
   4. export the Sysmon log and new Defender events;
   5. restore the snapshot.
 - **Findings** (`analysis.py`):
-  - Rules (`rule_engine.py`, an EQL-style query subset) run against the sample's process tree, matched by ProcessGuid (or SourceProcessGuid for remote-thread and process-access events) from the marker. There are 53 rules, all original E-TAP work under MIT and all evaluable, each carrying its own `[[tests]]`; `tests/test_sandbox_rules.py` checks every one. A High rule (`kill_process`) lifts the score to at least 85, a Medium rule to at least 65. `ecs_convert.py` turns Sysmon events 1, 3, 7, 8, 10, 11, 13, 17/18, 22 and 25 into the categories `process`, `network`, `library`, `thread`, `process_access`, `file`, `registry`, `pipe`, `dns` and `tamper`. See `backend/sandbox/rules/README.md` for the catalogue, provenance and the rule format.
+  - Rules (`rule_engine.py`, an EQL subset over Sysmon events 1, 3, 7, 8, 10, 11, 13, 17/18, 22 and 25: all 63 rules evaluable) run against the sample's process tree, matched by ProcessGuid from the marker.
   - Each item gets a verdict: `behavior_observed`, `blocked_by_security_control`, `no_behavior_observed_inconclusive`, `inspection_incomplete` or `error`.
   - The job status is `done`, `partial` or `error`.
   - `scoring.apply_sandbox` raises the floor to 65 for any match and to 85 for a prevention-grade match, adds MITRE techniques and evidence lines, and re-finalises the verdict.
@@ -292,14 +296,13 @@ Optional dynamic analysis: eligible attachments are opened inside an isolated Wi
   1. The agent registers (`/sandbox/agent/register`) and gets a secret agent token plus a single-use pairing code (`ABCD-1234`, 10 minutes).
   2. The user enters the code in the extension or on Settings (`POST /sandbox/pair`), which returns that client's sandbox token. Up to 5 clients can be paired per agent.
   3. An analysis sent with `deep_analysis=1` and `X-ETAP-Sandbox-Token` queues a job for that agent.
-  4. The agent polls `POST /sandbox/agent/jobs/next` every 5 s. This is also its heartbeat and carries its VM health (`{ok, reason}`: VirtualBox or VMware answers, VM and clean snapshot exist, login verified; re-read every 20 s). `online` means seen within 30 s, or running a job; `ready` means online and healthy; `problem` is the agent's reason when not (the UI calls that *needs attention*). Setup refuses a guest login the VM does not accept (`verify_guest` starts the VM once; `login_verified` in the agent config), and a login rejected during a run clears it, downloads each sample, reports progress and uploads the record: the Sysmon events **trimmed on the agent to each sample's own process tree** (`sandbox_agent/trim.py`; the full log can be hundreds of MB and never leaves the PC), Defender events and item launch notes. If the upload fails, it sends a short note so the report closes as incomplete instead of waiting.
+  4. The agent polls `POST /sandbox/agent/jobs/next` every 5 s. This is also its heartbeat and carries its VM health (`{ok, reason}`: VirtualBox answers, VM and clean snapshot exist, login verified; re-read every 20 s). `online` means seen within 30 s, or running a job; `ready` means online and healthy; `problem` is the agent's reason when not (the UI calls that *needs attention*). Setup refuses a guest login the VM does not accept (`verify_guest` starts the VM once; `login_verified` in the agent config), and a login rejected during a run clears it, downloads each sample, reports progress and uploads the record: the Sysmon events **trimmed on the agent to each sample's own process tree** (`sandbox_agent/trim.py`; the full log can be hundreds of MB and never leaves the PC), Defender events and item launch notes. If the upload fails, it sends a short note so the report closes as incomplete instead of waiting.
   5. The server evaluates it, as above.
 - **Security rules:**
   - Only SHA-256 hashes of tokens are stored.
   - Jobs are scoped to one agent.
   - Samples are deleted when a job finishes or expires: 30 minutes queued, or 15 minutes running without a result. Expiry is also enforced without anyone polling: queuing a new job sweeps stale jobs and orphaned samples (`purge_orphan_samples`), and a daemon thread started at API startup (`start_housekeeping`, every 10 minutes, `agent` backend only) does the same.
   - `sandbox_agent/recon.py` holds the agent's read-only preflight, run at the end of `setup` and by `check`: VirtualBox, snapshot, VM isolation from `showvminfo --machinereadable` (network adapter, shared clipboard, drag and drop, shared folders; an unreadable setting counts as not isolated) and a Hyper-V/WSL2 warning (`Win32_ComputerSystem.HypervisorPresent`). Warnings never block setup. Only `test` starts the VM (it checks the guest login, Sysmon and Defender).
-  - **VM providers.** `runner.run_job` drives the VM through a provider object (parameter still named `vbox`): `vbox.VBox` (VBoxManage) or `vmware.VMware` (vmrun), both offering restore, start, wait_ready, make_dirs, copy_to/copy_from, run_exe, run_cmd_ps, clear_sysmon, export_sysmon, plus `dwell` and `vm`. `cli._vbox(config)` picks one from `VMSettings.provider` (`virtualbox` default, `vmware`; older settings files have no provider and load as VirtualBox). VMware specifics: the VM is identified by its `.vmx` path (`vmx_path`), `vmrun` is found via `VMRUN_PATH`, the PATH or the usual install folder, authentication flags (`-T ws -gu -gp`) precede every command, `runProgramInGuest` does not return program output so `run_exe` wraps each command in a PowerShell script that writes `{rc, out, err}` as JSON under `C:\sandbox\out` and copies it back, a program still running at the time limit raises `GuestProcessTimeout` and is left running, and `start` also resumes a VM that a snapshot revert left suspended. `recon.py` has the VMware equivalents (`vmware_system_checks`, `vmware_preflight_checks` reading isolation from the `.vmx` file, `vmware_vm_health`). `setup` uses VirtualBox if installed unless `--provider vmware` (or an earlier choice) says otherwise, and falls back to VMware if VirtualBox is missing. The server-side local worker (`SANDBOX_BACKEND=virtualbox`) stays VirtualBox-only.
   - The agent's item fields are cleaned and the issued file names and hashes win.
   - Sysmon uploads are size-capped (64 MB expanded), and any DTD is refused.
   - The agent only makes outbound requests. It stores its token and the guest password sealed with Windows DPAPI.
@@ -426,7 +429,7 @@ Produces the response (also persisted): `email_id, risk_score, verdict, verdict_
 - **At parse time:** PII masking (§4 A).
 - **VirusTotal URL policy** (`privacy.plan_url_lookup`): `skip` if the URL has credentials, a private/internal host (`.local`, `.internal`, `.corp`, RFC1918…), an email address, a sensitive parameter name (`token, sid, code, otp, email, user, reset, session, jwt…`, matched as whole camel/snake tokens), a token-like value (hex ≥ 16, UUID, high-entropy base64), or a high-entropy path segment; `trimmed` (scheme://host/path) if it only has a query/fragment; else `full`. Skipped → `skipped_privacy`, shown as "not looked up for privacy", never clean.
 - **Gemini context** (`sanitize_for_external_ai`): recursively rewrites every URL in strings and dict keys (`…/[sensitive destination details omitted]` or trimmed), then re-applies PII masking. The original evidence stays server-side. The RAG chat uses the same sanitizer.
-- **Privacy report** (`build_privacy_report`): describes, from what the code actually did, where content went (backend processing, DB storage, VirusTotal full/trimmed/skipped/cached counts, AbuseIPDB, WHOIS, geolocation, Gemini used/skipped).
+- **Privacy report** (`build_privacy_report`): describes, from what the code actually did, where content went (backend processing, DB storage, VirusTotal full/trimmed/skipped/cached counts, AbuseIPDB, WHOIS, geolocation, Gemini used/skipped, Cloudinary image count: `sent`, `nothing_to_send` or `off`). Image attachments are the only thing sent to Cloudinary, under an unguessable (not signed) link, which is a deliberate trade-off for a hackathon build.
 - **Logs:** pipeline debug logs record counts only; provider errors are type-only; `_short_reason` scrubs `AIza…` keys and `key=` parameters.
 - **SSRF guard:** private/loopback/link-local/reserved IPs are never sent to providers.
 - **Share pack** (`workflow_c.share_pack`): strict allowlist — verdict, score, enumerated SPF/DKIM/DMARC values, hex hashes, evidence id/kind/status. No body, addresses, filenames, URLs, domains or model text.
@@ -462,7 +465,7 @@ All access goes through `db/repository.py`; every function takes `db` explicitly
 | `GET /`, `HEAD /` | service index |
 | `GET /health` | liveness |
 | `GET /ready` | DB ping; 503 when unavailable |
-| `POST /analyze` (10/min) | multipart `file` + optional `source` (`full_message`, `quick_content_check`) and `deep_analysis=1` (with header `X-ETAP-Sandbox-Token`) → full report (used by the extension) |
+| `POST /analyze` (10/min) | multipart `file` + optional `source` (`full_message`, `quick_content_check`, `forwarded_message`) and `deep_analysis=1` (with header `X-ETAP-Sandbox-Token`) → full report (used by the extension) |
 | `POST /analyze/jobs` (10/min) | same input; returns `{job_id, stages}` at once and analyses in the background |
 | `GET /analyze/jobs/{id}` | live stage list (state + detail per stage), `status` (`running`/`done`/`error`), then the report; 404 once expired |
 | `POST /chat` (30/min) | `{question, email_id?}`; client `email_context` is rejected (400) |
@@ -526,10 +529,11 @@ Location `frontend/`. React 18, Vite 8 (`@vitejs/plugin-react`), Node >= 22.12. 
 **Pages**
 - **Dashboard** (`pages/OverviewPage.jsx`) — numbers from all stored investigations (`GET /investigations`, falling back to the browser session): emails analysed (and last 7 days), high risk, suspicious, low risk, average risk; risk-over-time area chart, verdict donut, top threat types, and a recent-investigations table whose rows open the report.
 - **Analyze email** (`pages/UploadPage.jsx`) — drag-and-drop or two sample emails. `startAnalysis` posts to `/analyze/jobs` and polls every 0.6 s; `PipelineTimeline` lights up the stages with their detail lines and a progress bar; the *Dynamic attachment analysis* row is shown only for a deeper run (`showSandbox`), so a standard run has eight rows. `usePacedStages` shows each finished stage for a minimum, randomised time (`MIN_STAGE_MS`, 0.7–2.3 s, about 12 s in total) so fast local runs remain readable; real slow stages are never delayed further. That is the default **Full** animation. **Fast** (Settings → Analysis animation, saved per browser in `localStorage` key `etap.animationSpeed` by `utils/animationSpeed.js`, or forced by building with `VITE_TIMELINE_PACING=off`) shows the real backend progress with no added delay. Two cards are shown before a run, **Standard analysis** (selected by default) and **Deeper attachment analysis**, which carries a visible "Needs a Windows VM in VirtualBox…" line. If the sandbox status call fails, that card is greyed out ("Couldn't check right now") and Standard stays available; Analyze is never left disabled without a visible reason. The result card shows score and verdict with **Open full report**, **Re-analyze** and **Analyze another**.
-- **Current investigation** (`pages/DashboardPage.jsx`) — one sticky tab bar (Summary, Why it was flagged, Remediation, Sender route, Threat analysis, Technical details, Past emails, Analyst tools):
+- **Current investigation** (`pages/DashboardPage.jsx`) — one sticky tab bar (Summary, Why it was flagged, Remediation, Image evidence (only when images were saved), Sender route, Threat analysis, Technical details, Past emails, Analyst tools):
   - `VerdictHero` — animated score ring, canonical verdict, headline, "why it was risky" tags per category with counts, number tiles (same counts as the category cards), trusted-sender note, PDF/JSON export and **Re-analyze this email**.
   - `RiskBreakdown` — category bars and cards (Sender & headers, Attachments, Links, Reputation, Past emails, Message content) with serious findings first, "+N more", reassuring signs and "not checked" counts.
   - `Remediation` — "Do this now" (evidence-specific), "Recommended steps" (policy) and "AI suggestions".
+  - Image evidence (`ImageEvidence.jsx`, only when an attachment has a `cloudinary` object) — one card per saved image: a blurred Cloudinary preview that is revealed by a click, the hidden QR link or OCR text, moderation result, size and a link to the full image.
   - Sender route — `GeoMap` when any hop has coordinates, otherwise a card explaining why (headers unavailable, live lookups off, no public hop).
   - Threat analysis — `EvidenceBreakdown` (multi-vector radar + score bars per angle) beside `MitreCards`.
   - Technical details — collapsible `HeaderAnalysis`, `AttachmentTable`, `ContentAnalysis`, `IocTable`.
@@ -606,7 +610,7 @@ Dev: `pytest`, `httpx` (`requirements-dev.txt`).
 
 ### External services
 
-Google Gemini, VirusTotal API v3 (free tier 4 req/min, 500/day), AbuseIPDB API v2, ip-api.com batch (free, no key, HTTP only, 15 req/min), WHOIS servers, DNS, ArcGIS map tiles, MongoDB Atlas, Render, Vercel.
+Google Gemini, VirusTotal API v3 (free tier 4 req/min, 500/day), AbuseIPDB API v2, ip-api.com batch (free, no key, HTTP only, 15 req/min), WHOIS servers, DNS, ArcGIS map tiles, Cloudinary (optional image storage and previews, free plan), MongoDB Atlas, Render, Vercel.
 
 ---
 
@@ -639,9 +643,11 @@ Backend (`.env` at repo root locally; host settings in production — never in t
 | `SANDBOX_BACKEND` | `agent` | `agent` (paired user VMs), `virtualbox` (VM on this machine), `replay`, `none` (off) |
 | `SANDBOX_AGENT_JOB_TTL_SECONDS`, `SANDBOX_AGENT_RUN_TIMEOUT_SECONDS` | `1800`, `900` | how long a job waits for the agent / may run without a result |
 | `SANDBOX_DWELL_SECONDS` | `30` | observation time per sample (local worker; the agent has its own setting) |
-| `SANDBOX_PROVIDER`, `SANDBOX_VMX`, `VMRUN_PATH` | — | Agent only, read from a `.env` by `--from-env`: `virtualbox` or `vmware`, the VMware VM's `.vmx` path, and the path of `vmrun.exe` (`VMRUN_PATH` is also read from the environment; `VMRUN_HOST_TYPE` defaults to `ws`) |
 | `SANDBOX_VM_NAME`, `SANDBOX_SNAPSHOT`, `SANDBOX_GUEST_USER`, `SANDBOX_GUEST_PASSWORD`, `VBOXMANAGE_PATH`, `SANDBOX_PDF_VIEWER` | — | VM settings for `virtualbox` mode (the agent keeps its own copy, sealed, in `%APPDATA%\E-TAP Sandbox Agent`) |
 | `SANDBOX_RULES_DIR`, `SANDBOX_WORK_DIR` | `sandbox/rules`, `sandbox/work` | rule and scratch folders |
+| `CLOUDINARY_URL` (or `CLOUDINARY_CLOUD_NAME` + `CLOUDINARY_API_KEY` + `CLOUDINARY_API_SECRET`) | — | enables `backend/cloudinary_store.py`: image attachments (max 3 per email) are uploaded under a random public id; the report shows blurred previews; images are deleted with the report (`workflow_c.delete_record`). Failures never break an analysis |
+| `CLOUDINARY_ENABLED` | `1` | `0` switches the store off even when credentials exist |
+| `CLOUDINARY_OCR`, `CLOUDINARY_MODERATION` | `0` | request the `adv_ocr` / `aws_rek` add-ons on upload; leave off unless installed in the Cloudinary console (an add-on error retries the upload without add-ons) |
 
 Frontend: `VITE_API_BASE_URL` (empty in dev to use the proxy; the Render URL on Vercel) and `VITE_TIMELINE_PACING` (`off` builds with the Fast animation and locks the Settings choice; otherwise each user picks Full or Fast in Settings, default Full).
 Extension: constants in `extension/config.js` and host permissions in `manifest.json`.
@@ -677,6 +683,7 @@ Test suites cover: parsing (`test_parse_any`, `test_single_email`), headers/orig
 
 ## 16. Deployment
 
+- **Hacktober HackDays edition (2026-10-25):** the project now runs on the team's own accounts, backend `https://etap-clean-backend.onrender.com` (service `etap-backend`) and frontend `https://e-tap-clean.vercel.app`, with its own Atlas cluster. Extra Render variable for image evidence: `CLOUDINARY_URL` (see §14). The older deployment at `etap-backend-od1c.onrender.com` / `e-tap-lac.vercel.app` belongs to another account and is no longer referenced. The agent launcher (`start-agent.cmd`) and `sandbox_agent/config.py` point at the new backend; an agent paired with the old server is moved over by running the launcher, which keeps the VM settings and asks for a new pairing code.
 - **Backend → Render** (Docker): root/build context `backend`, `backend/Dockerfile` (python:3.11-slim + `tesseract-ocr`, `tesseract-ocr-eng`, `libtesseract-dev`, `libzbar0`; `uvicorn app:app --host 0.0.0.0 --port ${PORT:-5000}`), health check `/health`. Set `MONGODB_URI, MONGO_DB_NAME=etap, USE_FAKE_DB=0, AUTO_FALLBACK_DB=0, THREAT_INTEL_LIVE=1, GEMINI_API_KEY, GEMINI_MODEL, VIRUSTOTAL_API_KEY, ABUSEIPDB_API_KEY, ALLOWED_ORIGINS` (include the Vercel origin). Don't set `PORT`. Current: `https://etap-clean-backend.onrender.com`.
 - **Frontend → Vercel**: root `frontend`, Vite preset, `npm ci`, `npm run build`, output `dist`, env `VITE_API_BASE_URL=https://etap-clean-backend.onrender.com` (no trailing slash; redeploy after changes). Current: `https://e-tap-clean.vercel.app`.
 - **Database → MongoDB Atlas**: least-privilege user, database `etap`, network access limited to Render egress where possible.
@@ -690,8 +697,9 @@ Test suites cover: parsing (`test_parse_any`, `test_single_email`), headers/orig
 - **Open API.** No authentication or multi-tenancy; anyone with the URL can analyse, read, share and delete (including `DELETE /investigations`). Per-IP limits see Render's proxy unless forwarded-for handling is added. The earlier bearer-key/role/owner-scoping implementation (`security.py`, `provision_key.py`, `db/scoped.py`, `migrate_workflow_c.py` and their tests) was deleted on 2026-10-24; the extension's API-key options page and the `/me` dev-proxy entry were removed with it. Only the `owner_id` index names remain. The original design is in git history (earlier notes cite a tag `pre-auth-removal`, which is not present in this clone). Future direction: OAuth/OIDC, `owner_id` scoping in one place, Atlas vector filter on `owner_id`, shared quota store.
 - **`dnspython` not in requirements**, so the live-DNS auth tier is inactive in the Docker image unless added; header-reported results still work.
 - **sentence-transformers not in requirements**; hosted RAG uses lexical hash embeddings, not semantic ones.
-- **Dynamic analysis coverage.** The 53 bundled rules are original and all evaluable, but they only see what Sysmon in the VM logs: events 7, 8, 10, 17/18 and 25 depend on the VM's Sysmon configuration, and those rule paths are covered only by synthetic Sysmon XML in tests, not yet by a real VM run. Severity is coarse (High = 85 floor, Medium = 65 floor; 23 High, 30 Medium). `etap-006` (DNS lookup by a script host or LOLBin) and `etap-007` (Run-key write by an unlisted program) were lowered to Medium on 2026-10-25. `etap-004` is still High and also matches the harness folder `\sandbox\`, so any script host run from there fires it; that is how the live demo and a round-trip test match, so it was left alone, but it means a script sample that does nothing still scores 85 (Sigma/YARA are the planned engine). Nothing clicks inside documents, so Office files and click-triggered PDFs usually come back inconclusive. Windows Sandbox support, a signed agent build and an agent auto-start are not built yet. The agent has been run end to end on only one real VM (the author's, 2026-10-24); a first-time setup on a fresh machine following the README has not been tried, and VirtualBox on a Hyper-V host (the agent only warns about it) has not been tested. **VMware Workstation support has never run against a real VMware VM**: it is covered by tests against a stand-in for `vmrun` (including the real PowerShell output-capture wrapper), so details such as how a snapshot taken while running resumes, VMware Tools timing and the Guest Isolation `.vmx` keys are unconfirmed; the first `test` run on a real VM is the real check. Agent jobs are scoped by pairing token only, like the rest of the open API.
-- **XGBoost model** lineage is undocumented; features are coarse (e.g. SPF pass is mostly unknown for text-only training data). Treat as a triage aid.
+- **Dynamic analysis coverage.** The 63 behaviour rules are original and MIT-licensed (the third-party Elastic rules were removed on 2026-10-31: 127 of 157 could never run and the licence is not open source). They are tested with synthetic events; only etap-004 has been seen on a real VM. Events 7, 8, 10, 17/18 and 25 exist only if the VM's Sysmon configuration logs them. VMware support (`sandbox_agent/vmware.py`) has been tried on a real machine only for its read-only parts and a headless start, and otherwise against a fake `vmrun`.py`) has only been tested against a fake `vmrun`, never a real VMware. Nothing clicks inside documents, so Office files and click-triggered PDFs usually come back inconclusive. Windows Sandbox support, a signed agent build and an agent auto-start are not built yet. The agent has been run end to end on only one real VM (the author's, 2026-10-24); a first-time setup on a fresh machine following the README has not been tried, and VirtualBox on a Hyper-V host (the agent only warns about it) has not been tested. Agent jobs are scoped by pairing token only, like the rest of the open API.
+- **Cloudinary.** Only the free plan was assumed. The OCR (`adv_ocr`) and Rekognition moderation (`aws_rek`) add-ons are separate installs with their own quotas, so they are off by default and untested against a live account. Image URLs are unguessable but not signed, so anyone holding a link can open the image until the report is deleted. Cloudinary deletion is best effort (a failed delete is not retried). Inline (CID) images in the HTML body are not uploaded, only real attachments.
+- **XGBoost model** was trained by a former member of the original team on a large corpus of phishing emails (the exact dataset and training script were not kept in this repository); features are coarse (e.g. SPF pass is mostly unknown for text-only training data). Treat as a triage aid.
 - **Evaluation** is not yet meaningful (see §15).
 - **Gmail extension** relies on Gmail's private web endpoints (no Gmail API/OAuth) and can break when Gmail changes.
 - **Caches and limiters are in-process** (lost on restart, wrong with multiple workers).

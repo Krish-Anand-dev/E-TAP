@@ -4,11 +4,11 @@ import { sandboxPlace } from '../../utils/sandbox';
 
 const STATUS_LABELS = {
   queued: 'Waiting for the sandbox',
-  starting: 'Starting VM…',
-  interacting: 'Interacting with attachment…',
-  collecting: 'Collecting telemetry…',
-  evaluating: 'Evaluating detection rules…',
-  restoring: 'Restoring clean VM…',
+  starting: 'Opening the virtual machine…',
+  interacting: 'Opening the attachment…',
+  collecting: 'Recording what it does…',
+  evaluating: 'Checking the behaviour…',
+  restoring: 'Cleaning up…',
   done: 'Complete',
   partial: 'Complete with inspection gaps',
   error: 'Error',
@@ -103,13 +103,6 @@ export function SandboxPanel({ sandbox }) {
       {sandbox.message && !isNotApplicable && (
         <p style={{ padding: '8px 16px', color: 'var(--text-secondary)', fontSize: 'var(--fs-xs)' }}>{sandbox.message}</p>
       )}
-      {sandbox.coverage && (
-        <div style={{ padding: '8px 16px', fontSize: '11px', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-hairline)' }}>
-          Rules: {sandbox.coverage.rules_loaded || 0} of {sandbox.coverage.rules_total_unique_windows || 0} evaluable
-          {sandbox.coverage.note && ` — ${sandbox.coverage.note}`}
-        </div>
-      )}
-
       {sandbox.defender_checked === false && (
         <div style={{ padding: '8px 16px', fontSize: '11px', color: '#8a5a08', borderBottom: '1px solid var(--border-hairline)' }}>
           {sandbox.defender_note || 'Windows Defender events could not be read in this run, so blocks by Defender were not checked.'}

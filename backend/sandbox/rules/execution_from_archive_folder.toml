@@ -1,0 +1,38 @@
+[rule]
+id = "etap-059"
+name = "Program Run Straight From an Opened Archive"
+description = "A script host, PowerShell, cmd, rundll32 or regsvr32 running a file that still sits inside a zip or rar extraction folder, meaning the user double-clicked a file inside an attachment."
+version = "1"
+author = "E-TAP team"
+license = "MIT"
+os_list = ["windows"]
+query = '''process where
+  process.name in~ ("wscript.exe", "cscript.exe", "mshta.exe", "powershell.exe", "pwsh.exe", "cmd.exe", "rundll32.exe", "regsvr32.exe")
+  and process.command_line : ("\\Temp\\Rar$", "\\Temp\\7z", "\\Temp1_", ".zip\\")
+'''
+
+[[threat]]
+tactic.name = "Execution"
+[[threat.technique]]
+id = "T1204.002"
+name = "User Execution: Malicious File"
+
+[[tests]]
+name = "windows zip folder"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "wscript.exe", executable = "C:\\Windows\\System32\\wscript.exe", command_line = "wscript.exe \"C:\\Users\\bob\\AppData\\Local\\Temp\\Temp1_invoice.zip\\invoice.js\"" } }
+
+[[tests]]
+name = "rar folder"
+expect = "match"
+event = { _category = "process", event = { action = "start" }, process = { name = "cmd.exe", executable = "C:\\Windows\\System32\\cmd.exe", command_line = "cmd.exe /c \"C:\\Users\\bob\\AppData\\Local\\Temp\\Rar$DIa0.123\\run.bat\"" } }
+
+[[tests]]
+name = "normal script"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "wscript.exe", executable = "C:\\Windows\\System32\\wscript.exe", command_line = "wscript.exe \"C:\\Tools\\backup.js\"" } }
+
+[[tests]]
+name = "other program"
+expect = "no_match"
+event = { _category = "process", event = { action = "start" }, process = { name = "notepad.exe", executable = "C:\\Windows\\System32\\notepad.exe", command_line = "notepad.exe C:\\Temp1_notes.txt" } }

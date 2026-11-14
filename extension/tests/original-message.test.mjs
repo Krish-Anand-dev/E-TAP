@@ -365,7 +365,7 @@ test('the banner offers Standard and Deeper up front, with what Deeper needs wri
     const text = allText(sandbox.rendered);
     assert.match(text, /Standard analysis/);
     assert.match(text, /Deeper attachment analysis/);
-    assert.match(text, /Needs a Windows VM in VirtualBox or VMware Workstation/);
+    assert.match(text, /Needs a Windows VM in VirtualBox/);
     assert.match(text, /Windows Sandbox \(Windows Pro\) is planned/);
     assert.ok(findChoice(sandbox.rendered, 'standard') && findChoice(sandbox.rendered, 'deep'));
     await new Promise((resolve) => setTimeout(resolve, 0));

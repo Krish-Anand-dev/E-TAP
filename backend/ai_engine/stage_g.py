@@ -353,12 +353,14 @@ def _offline_final_assessment(context: dict, content: dict) -> dict:
     })
     supporting_evidence.extend(content.get("reasons") or [])
 
-    header_flags = headers.get("red_flags") or []
+    # A pasted message has no headers: nothing about them may add to the score.
+    headers_apply = not headers.get("not_applicable")
+    header_flags = (headers.get("red_flags") or []) if headers_apply else []
     header_points = min(35, len(header_flags) * 6)
-    if headers.get("reply_to_mismatch"):
+    if headers_apply and headers.get("reply_to_mismatch"):
         header_points += 10
     for auth_key in ("spf", "dkim", "dmarc"):
-        if headers.get(auth_key) in {"fail", "softfail", "misaligned", "key_not_found"}:
+        if headers_apply and headers.get(auth_key) in {"fail", "softfail", "misaligned", "key_not_found"}:
             header_points += 8
     header_score = min(100, header_points * 2)
     score += min(35, header_points)
@@ -367,7 +369,8 @@ def _offline_final_assessment(context: dict, content: dict) -> dict:
     evidence_assessments.append({
         "source": "header_forensics",
         "risk_score": header_score,
-        "summary": f"{len(header_flags)} header red flag(s) found",
+        "summary": ("Not applicable: pasted message, no email headers" if headers.get("not_applicable")
+                    else f"{len(header_flags)} header red flag(s) found"),
         "evidence": list(header_flags),
     })
 
@@ -494,6 +497,12 @@ with stable ids (for example "hdr.auth" or "rep.url.flagged.0"). Fill
   * "evidence_ids": the ledger ids the statement rests on. Use ONLY ids that
     appear in the ledger. A statement about the message wording alone may use
     an empty list.
+PASTED MESSAGE: if header_forensics.not_applicable is true, the input is a message
+the user pasted (for example an SMS or chat message) with any attachments added
+separately. It has no email headers by nature. Do not treat missing headers, a
+missing sender or missing SPF/DKIM/DMARC as suspicious, and do not raise or lower
+the score because of them. Judge it only from its wording, links, attachments and
+reputation evidence, and say in the explanation that sender checks did not apply.
 Rules: items whose status is "unavailable" mean the check did not run. Treat
 them as unknown, never as clean or safe. Do not claim a link, file or sender
 is safe because nothing was found. Do not state facts that are not in the

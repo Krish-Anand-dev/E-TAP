@@ -1,12 +1,12 @@
 # E-TAP behaviour rules
 
-53 detection rules for the sandbox (stage S). Every rule is written by the E-TAP team, is licensed MIT like the rest of the project, and can be evaluated by our engine ([`../rule_engine.py`](../rule_engine.py)). Each file also carries its own tests.
+63 detection rules for the sandbox (stage S). Every rule is written by the E-TAP team, is licensed MIT like the rest of the project, and can be evaluated by our engine ([`../rule_engine.py`](../rule_engine.py)). Each file also carries its own tests.
 
 ## Where the rules come from
 
 - **Written from public descriptions, not copied.** The rules are authored from [MITRE ATT&CK](https://attack.mitre.org/) technique descriptions and Microsoft's [Sysmon event documentation](https://learn.microsoft.com/sysinternals/downloads/sysmon). We looked at [Atomic Red Team](https://github.com/redcanaryco/atomic-red-team) (MIT licence, Copyright (c) 2018 Red Canary, Inc.) to see what these techniques look like on a real command line, such as the arguments of `vssadmin`, `regsvr32` or `procdump`. No Atomic Red Team file and no text from any other rule collection is included here.
-- **History.** Until 2026-10-25 this folder also held 157 rules taken from a third-party collection published under the Elastic License v2, which is not an open-source licence in the OSI sense. They were removed to keep the project cleanly MIT. 128 of the 164 rules then in the folder could never run in our engine anyway, because they needed telemetry E-TAP does not collect.
-- `etap-001` to `etap-007` are the original in-house rules. `etap-002` (Defender service tampering) had a malformed query and was silently skipped until 2026-10-25; it loads and is tested now.
+- **History.** Until 2026-10-31 this folder also held 157 rules taken from a third-party collection published under the Elastic License v2, which is not an open-source licence in the OSI sense. They were removed to keep the project cleanly MIT (a choice first made in a sibling copy of the project and adopted here). 128 of the 164 rules then in the folder could never run in our engine anyway, because they needed telemetry E-TAP does not collect.
+- `etap-001` to `etap-007` are the original in-house rules. `etap-002` (Defender service tampering) had a malformed query and was silently skipped until 2026-10-25; it loads and is tested now. `etap-008` to `etap-053` came from a sibling copy of the project, and `etap-054` to `etap-063` were added on 2026-10-31.
 
 ## How severity works
 
@@ -14,7 +14,7 @@
 - **Medium** (no action) means suspicious and worth a look. A Medium match raises the score to **at least 65**.
 - The sandbox can only raise a score, never lower it, and "no rule matched" is reported as *inconclusive*, never as safe.
 
-Today 23 rules are High and 30 are Medium.
+Today 27 rules are High and 36 are Medium.
 
 ## What the rules can see
 
@@ -72,7 +72,7 @@ Do not copy rules from other collections. Check the licence first, and if in dou
 
 ## Catalogue
 
-Coverage by ATT&CK tactic: Defense Evasion (22), Command and Control (11), Execution (11), Persistence (8), Credential Access (3), Discovery (3), Collection (1), Exfiltration (1), Impact (1), Privilege Escalation (1).
+Coverage by ATT&CK tactic: Defense Evasion (22), Execution (11), Persistence (10), Command and Control (9), Impact (3), Credential Access (3), Discovery (3), Privilege Escalation (1), Collection (1).
 
 | ID | Rule | Event | Severity | ATT&CK |
 |---|---|---|---|---|
@@ -129,3 +129,13 @@ Coverage by ATT&CK tactic: Defense Evasion (22), Command and Control (11), Execu
 | etap-051 | Remote Thread Injected Into Another Process | thread | High | T1055 |
 | etap-052 | Disk Image (ISO, IMG or VHD) Mounted by a Script or Program | process | Medium | T1553.005 |
 | etap-053 | Clipboard Contents Read by a Script | process | Medium | T1115 |
+| etap-054 | Certutil Decoding a File | process | Medium | T1140 |
+| etap-055 | Msiexec Installing a Package From the Internet | process | Medium | T1218.007 |
+| etap-056 | Local User Account Created | process | Medium | T1136.001 |
+| etap-057 | User Added to a Privileged Local Group | process | Medium | T1098 |
+| etap-058 | PDF Reader Starting a Shell or Script Host | process | High | T1204.002, T1059 |
+| etap-059 | Program Run Straight From an Opened Archive | process | Medium | T1204.002 |
+| etap-060 | File With a Disguised Double Extension Created | file | Medium | T1036.007 |
+| etap-061 | File Renamed With a Ransomware Extension | file | High | T1486 |
+| etap-062 | Ransom Note File Created | file | High | T1486 |
+| etap-063 | Windows System Process Running From the Wrong Place | process | High | T1036.005 |

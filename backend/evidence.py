@@ -935,7 +935,10 @@ def _limitations(
     triage: Optional[dict],
 ) -> list[str]:
     out: list[str] = []
-    if headers.get("available") is False or input_mode == "quick_content_check":
+    if headers.get("not_applicable"):
+        out.append("This is a pasted message, not an email, so sender and authentication checks "
+                   "do not apply. The score can be lower than the same content would get as an email.")
+    elif headers.get("available") is False or input_mode == "quick_content_check":
         out.append("Original email headers were not available, so sender authentication "
                    "and mail routing were not checked.")
     if input_mode == "quick_content_check":

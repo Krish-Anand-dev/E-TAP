@@ -1,17 +1,12 @@
 """
-sandbox_agent.runner -- one sandbox run inside a VirtualBox or VMware VM.
-=========================================================================
+sandbox_agent.runner -- one sandbox run inside a VirtualBox VM.
+================================================================
 restore clean snapshot -> start -> copy each sample in -> open it ->
 wait -> export Sysmon and Defender events -> restore clean snapshot.
 
 Shared by the paired E-TAP Sandbox Agent and the server's in-process
 local worker (SANDBOX_BACKEND=virtualbox). It only *records* what
 happened; rule evaluation and scoring run on the E-TAP server.
-
-The VM is driven through a small provider object (the parameter is still
-called `vbox` for compatibility): vbox.VBox or vmware.VMware. A provider
-offers restore, start, wait_ready, make_dirs, copy_to, copy_from, run_exe,
-run_cmd_ps, clear_sysmon, export_sysmon and the attributes `dwell`, `vm`.
 """
 
 from __future__ import annotations

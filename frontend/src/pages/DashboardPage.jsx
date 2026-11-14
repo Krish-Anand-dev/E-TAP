@@ -6,6 +6,8 @@ import RiskBreakdown from '../components/report/RiskBreakdown';
 import Remediation from '../components/report/Remediation';
 import HeaderAnalysis from '../components/report/HeaderAnalysis';
 import AttachmentTable from '../components/report/AttachmentTable';
+import ImageEvidence, { hasImageEvidence } from '../components/report/ImageEvidence';
+import ShareCard, { hasShareCard } from '../components/report/ShareCard';
 import ContentAnalysis from '../components/report/ContentAnalysis';
 import IocTable from '../components/report/IocTable';
 import ThreatGraph from '../components/report/ThreatGraph';
@@ -20,12 +22,15 @@ import Icon from '../components/common/Icon';
 import { fetchInvestigation } from '../api/analyze';
 import { getGeoMapData } from '../utils/geo.js';
 import { keyStats, hasSandbox } from '../utils/reportSummary';
-import { TERMINAL_SANDBOX_STATUSES, mergeSandboxReport, sandboxSummary, sandboxOutcome, sandboxPlace, needsSandboxRefresh } from '../utils/sandbox';
+import SandboxRunning from '../components/report/SandboxRunning';
+import { ACTIVE_SANDBOX_STATUSES, TERMINAL_SANDBOX_STATUSES,mergeSandboxReport, sandboxSummary, sandboxOutcome, sandboxPlace, needsSandboxRefresh } from '../utils/sandbox';
 
 const SECTIONS = [
   ['sec-summary', 'Summary'],
   ['sec-why', 'Why it was flagged'],
   ['sec-remediation', 'Remediation'],
+  ['sec-share', 'Share card'],
+  ['sec-images', 'Image evidence'],
   ['sec-sandbox', 'Sandbox'],
   ['sec-map', 'Sender route'],
   ['sec-analysis', 'Threat analysis'],
@@ -119,7 +124,7 @@ export function DashboardPage({ navigate }) {
   return (
     <div className="v2-page report-page">
       <nav className="report-tabs" aria-label="Report sections">
-        {SECTIONS.filter(([id]) => id !== 'sec-sandbox' || hasSandbox(data)).map(([id, label]) => (
+        {SECTIONS.filter(([id]) => (id !== 'sec-sandbox' || hasSandbox(data)) && (id !== 'sec-images' || hasImageEvidence(attachments)) && (id !== 'sec-share' || hasShareCard(data))).map(([id, label]) => (
           <button key={id} type="button" className={active === id ? 'active' : ''} onClick={() => jump(id)}>{label}</button>
         ))}
       </nav>
@@ -128,6 +133,8 @@ export function DashboardPage({ navigate }) {
         onReanalyze={() => { const file = getSourceFile(data.email_id); if (file) { requestReanalysis(file); navigate('upload'); } }} />
       <RiskBreakdown data={data} />
       <Remediation data={data} />
+      <ShareCard data={data} />
+      <ImageEvidence attachments={attachments} />
 
       {hasSandbox(data) && (
         <section id="sec-sandbox" className="report-section">
@@ -135,6 +142,7 @@ export function DashboardPage({ navigate }) {
           {(() => {
             const sb = sandboxSummary(data.sandbox);
             const outcome = sandboxOutcome(data.sandbox);
+            if (ACTIVE_SANDBOX_STATUSES.has(data.sandbox.status)) return <SandboxRunning sandbox={data.sandbox} />;
             return (
               <div className="hero-numbers sandbox-numbers">
                 <div className={`hero-number tone-${outcome.tone}`} title={outcome.note}><strong>{outcome.label}</strong><span>VM result</span></div>
@@ -146,7 +154,7 @@ export function DashboardPage({ navigate }) {
               </div>
             );
           })()}
-          {['Not tested', 'Waiting'].includes(sandboxOutcome(data.sandbox).label) && (
+          {sandboxOutcome(data.sandbox).label === 'Not tested' && (
             <div className="trusted-note warn sandbox-note"><Icon name="alert" size={16} />{sandboxOutcome(data.sandbox).note}{sandboxOutcome(data.sandbox).label === 'Not tested' ? '. The file was copied into the VM but not opened, so this is not a result either way.' : ''}</div>
           )}
           <SandboxPanel sandbox={data.sandbox} />
@@ -163,7 +171,8 @@ export function DashboardPage({ navigate }) {
             <div>
               <strong>No locations to plot</strong>
               <p>
-                {!s.headersAvailable ? 'Original headers were not available for this email, so its route cannot be traced.'
+                {s.headersNotApplicable ? 'This is a pasted message, not an email, so there is no mail route to trace.'
+                  : !s.headersAvailable ? 'Original headers were not available for this email, so its route cannot be traced.'
                   : threat_intel.lookup_mode !== 'live'
                     ? `${origin.true_origin_ip || headers.originating_ip ? `The email was first handed on by ${origin.true_origin_ip || headers.originating_ip}, but` : 'Live'} location lookups are turned off for this analysis, so it cannot be placed on the map.`
                     : origin.explanation || 'No public mail-server addresses with a known location were found in this email.'}

@@ -10,7 +10,7 @@ This README describes the server-side local VirtualBox worker (`SANDBOX_BACKEND=
 
 Since 2026-10-24 the VM run itself lives in `../sandbox_agent/runner.py` (shared by the paired agent and the local worker) and rule evaluation in `analysis.py`; see CONTEXT.md, Stage S, for the architecture. The status notes below come from the local development of this module.
 
-It copies the attachment into a disposable VirtualBox Windows 11 VM, opens it with the appropriate application, watches what happens via Sysmon for 30 seconds, checks the activity against 51 original detection rules, and reports the results. If a rule matches, the risk score goes up. If no rule matches, the result is "inconclusive" — never "safe."
+It copies the attachment into a disposable VirtualBox Windows 11 VM, opens it with the appropriate application, watches what happens via Sysmon for 30 seconds, checks the activity against 63 original detection rules, and reports the results. If a rule matches, the risk score goes up. If no rule matches, the result is "inconclusive" — never "safe."
 
 ---
 
@@ -25,7 +25,7 @@ It copies the attachment into a disposable VirtualBox Windows 11 VM, opens it wi
 | VM isolation | ✅ Works | NIC disabled, clipboard off, drag-and-drop off |
 | Snapshot restore | ✅ Works | ~20 seconds (fresh snapshot taken 2026-10-18) |
 | Guest control | ✅ Works | run, copyto, copyfrom all verified |
-| Rule engine | ✅ Works | 51 original Windows rules, all evaluable, each with its own tests (new event types verified with synthetic Sysmon XML only) |
+| Rule engine | ✅ Works | 63 original Windows rules, all evaluable, each with its own tests (new event types verified with synthetic Sysmon XML only) |
 | ECS converter | ✅ Works | Parses Sysmon XML, filters to sample process tree |
 | Scoring | ✅ Works | Never-lowers-risk logic verified |
 | Pipeline integration | ✅ Works | sandbox.submit() called after correlation, result in API response |
@@ -108,7 +108,7 @@ Host (your laptop)                         Guest (VirtualBox VM)
 6. Dwell time (30 seconds) while Sysmon observes
 7. Sysmon log exported as XML → copied to host
 8. Events filtered to sample's process tree only
-9. 51 detection rules evaluated against filtered events
+9. 63 detection rules evaluated against filtered events
 10. New Defender events checked for sample-related detections/blocks
 11. VM restored to clean state → results stored in MongoDB → risk score updated (only raised, never lowered)
 
@@ -138,9 +138,9 @@ For a sample expected to spawn a process without being blocked, use `--expect-pr
 
 ### Sources
 
-All **51 rules are original E-TAP work under the MIT licence** (`etap-001` to `etap-007` in-house earlier, `etap-008` to `etap-051` written on 2026-10-25 from MITRE ATT&CK technique descriptions and the Sysmon event documentation, with Atomic Red Team, MIT, used only as a reference for what techniques look like on a command line). The full catalogue, the provenance notes, how severity maps to the score floors (High = 85, Medium = 65), the rule file format and the list of Sysmon event types that are converted are in [`rules/README.md`](rules/README.md).
+All **63 rules are original E-TAP work under the MIT licence** (`etap-001` to `etap-007` in-house earlier, `etap-008` to `etap-053` written on 2026-10-25 and `etap-054` to `etap-063` on 2026-10-31 from MITRE ATT&CK technique descriptions and the Sysmon event documentation, with Atomic Red Team, MIT, used only as a reference for what techniques look like on a command line). The full catalogue, the provenance notes, how severity maps to the score floors (High = 85, Medium = 65), the rule file format and the list of Sysmon event types that are converted are in [`rules/README.md`](rules/README.md).
 
-An earlier version of this folder bundled 157 rules from a collection published under the Elastic License v2. They were removed on 2026-10-25 because that licence is not open source in the OSI sense; 128 of the 164 rules then present could not run in our engine anyway.
+An earlier version of this folder bundled 157 rules from a collection published under the Elastic License v2. They were removed on 2026-10-31 because that licence is not open source in the OSI sense; 128 of the 164 rules then present could not run in our engine anyway.
 
 ### What Rules Can Detect
 
@@ -262,7 +262,7 @@ backend/sandbox/
 ├── scoring.py           Risk scoring (never lowers)
 ├── replay.py            Recorded-trace fallback
 ├── README.md            This file
-├── rules/               51 original detection rules (.toml, each with tests) + README catalogue
+├── rules/               63 original detection rules (.toml, each with tests) + README catalogue
 ├── replays/             Recorded Sysmon traces (empty)
 └── work/                Temp job files (git-ignored)
 ```

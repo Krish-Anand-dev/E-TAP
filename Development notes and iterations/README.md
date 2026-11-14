@@ -9,28 +9,28 @@ How E-TAP got to where it is: the main iterations, the research behind the bigge
 | 2026-10-23 | [Hosted dynamic attachment analysis](2026-10-23%20Hosted%20dynamic%20attachment%20analysis/report.md) (with [research notes](2026-10-23%20Hosted%20dynamic%20attachment%20analysis/research%20notes/)) | Research |
 | 2026-10-24 | [Sandbox agent direction](2026-10-24%20Sandbox%20agent%20direction.md) | Decision |
 | 2026-10-25 | [Standard analysis first](2026-10-25%20Standard%20analysis%20first.md) | Decision and implementation |
-| 2026-10-25 | [An original, fully evaluable rule set](2026-10-25%20Original%20detection%20rules.md) | Decision and implementation |
-| 2026-10-25 | [VMware Workstation Pro as a second VM provider](2026-10-25%20VMware%20Workstation%20support.md) | Implementation |
 | 2026-10-25 | [Getting the sandbox working: the iterations](2026-10-25%20Getting%20the%20sandbox%20working.md) | Implementation log |
+| 2026-10-25 | [Hacktober HackDays: Cloudinary image evidence and our own deployment](2026-10-25%20Hacktober%20HackDays%20Cloudinary%20and%20deployment.md) | Decision and implementation |
+| 2026-10-31 | [63 original detection rules and VMware in the agent](2026-10-31%20Fifty%20detection%20rules%20and%20VMware.md) | Implementation |
 
 ## Project timeline
 
 ### 1. Static forensic pipeline
 The first version parsed `.eml`/`.msg` files and ran a fixed chain of checks: header forensics (SPF/DKIM/DMARC, Received chain, lookalike domains), static attachment forensics (file signatures, macros, QR codes, OCR), IOC extraction, live threat-intelligence lookups (VirusTotal, AbuseIPDB, WHOIS, IP geolocation), campaign correlation in MongoDB, graph diffusion, an XGBoost metadata pre-filter and a Gemini assessment with MITRE ATT&CK mapping. A React dashboard showed the report, and an early Gmail extension sent visible message text for a quick check.
 
-### 2. Workflow B: truthfulness, evidence and privacy (B0â€“B11)
+### 2. Workflow B: truthfulness, evidence and privacy (B0–B11)
 - One canonical verdict scale and score bands shared by every client (`verdicts.py`).
 - An evidence ledger separating what was **observed**, what a **reputation service** said and what the **AI inferred**, with explicit "not checked" states, so a failed lookup is never shown as clean.
 - Link text versus real destination (B5), QR-code destinations (B6), a privacy policy for what may be sent to external services (B10), and per-provider status and timeouts (B11).
 
-### 3. Workflow C: trust and response (C1â€“C14)
+### 3. Workflow C: trust and response (C1–C14)
 Retention and deletion, a review workflow, recovery checklists, a redacted share pack, case marking, trusted-domain context, analytics, and scaffolds for webhooks and original-message retrieval. An API-key authentication layer was built and then removed to keep the demo zero-configuration (its dead code and obsolete tests were deleted on 2026-10-24); restoring proper sign-in is future work.
 
 ### 4. Sender origin and the Gmail extension
 Received-chain hops are classified (provider relay, anonymiser, private, relay) so a Gmail or Outlook relay is not mistaken for the attacker, and each hop is geolocated for the sender map. The extension now downloads the original Gmail message (headers and attachments) when it can, and labels a text-only fallback honestly.
 
 ### 5. Local sandbox edition
-A separate local build added dynamic attachment analysis: eligible attachments are opened inside an isolated, snapshot-restored VirtualBox Windows 11 VM, Sysmon records what they do, and behavioural rules (an EQL-style subset; at that time only 36 of 164 bundled definitions could be evaluated, see item 13) raise the score. Verified end to end on a script-in-ZIP sample that Windows Defender blocked. PDFs later gained a launcher; click-triggered documents remain out of reach without UI automation.
+A separate local build added dynamic attachment analysis: eligible attachments are opened inside an isolated, snapshot-restored VirtualBox Windows 11 VM, Sysmon records what they do, and behavioural rules (an EQL subset; 36 of 164 definitions evaluable) raise the score. Verified end to end on a script-in-ZIP sample that Windows Defender blocked. PDFs later gained a launcher; click-triggered documents remain out of reach without UI automation.
 
 ### 6. Documentation consolidation (2026-10-20)
 Fourteen scattered notes were replaced by one `README.md` and one technical `CONTEXT.md` per edition.
@@ -63,9 +63,8 @@ The principle that nothing we build may hinder a normal user. The extension bann
 ### 12. Getting the sandbox working (2026-10-24 to 2026-10-25)
 About a dozen rounds of testing as a normal user turned a sandbox that worked on one machine into one that works through the hosted site and a paired agent. Each round started with something that went wrong: a silent Defender timeout, a launcher run from inside a zip, a wrong password that was accepted, an "online" label that was not true, a deeper run that quietly opened nothing, and a result that was too big to upload. The sequence, the causes and the lessons are in [the iterations log](2026-10-25%20Getting%20the%20sandbox%20working.md).
 
+### 13. Hacktober HackDays: our own deployment and Cloudinary (2026-10-25)
+The project moved to the team's own repo and hosting (Atlas, Render, Vercel), every hard-coded old URL was replaced, and the Cloudinary requirement was met with an image evidence store: image attachments are saved to Cloudinary, shown as blurred previews in their own report section, optionally read a second time by Cloudinary OCR, and deleted with the report. See [the entry](2026-10-25%20Hacktober%20HackDays%20Cloudinary%20and%20deployment.md).
 
-### 13. An original, fully evaluable rule set (2026-10-25, hackathon copy)
-The 157 behaviour rules taken from a collection under the Elastic License v2 were removed to keep the project cleanly MIT, and replaced by 51 original rules (our seven plus 44 new ones) written from MITRE ATT&CK and the Sysmon documentation. All 51 can run in our engine and each carries its own tests; the sandbox converter now understands five more Sysmon event types. This also fixed one of our own rules that had never loaded. See [the entry](2026-10-25%20Original%20detection%20rules.md).
-
-### 14. VMware Workstation Pro support (2026-10-25, hackathon copy)
-The sandbox agent can now run its VM in VMware Workstation Pro as well as VirtualBox, through a second provider with the same interface and a PowerShell wrapper that brings back program output. VirtualBox stays the default and behaves as before; the VMware path is tested against a stand-in for mrun and has not yet run on a real VMware VM. See [the entry](2026-10-25%20VMware%20Workstation%20support.md).
+### 14. 63 original detection rules and VMware (2026-10-31)
+The first folder we looked in held neither extra rules nor VMware code, so both were written fresh; the right folder, a sibling copy with 53 tested MIT rules, an extended engine and a VMware provider, was then compared and adopted, with ten rules of ours added. The third-party Elastic rules were removed (licence, and 127 of 157 never ran), a rule that had never loaded (etap-002) is fixed, and the agent can drive VMware Workstation as well as VirtualBox. Details: [2026-10-31 63 detection rules and VMware](2026-10-31%20Fifty%20detection%20rules%20and%20VMware.md).

@@ -26,6 +26,8 @@ import re
 from typing import Any, Optional
 from urllib.parse import parse_qsl, unquote, urlsplit
 
+import cloudinary_store
+
 # Query keys that name a secret or a person. Matched against whole tokens of
 # the key (split on _ - . and camelCase), so "sid" matches but "inside" does not.
 _SENSITIVE_KEY_TOKENS = frozenset({
@@ -336,6 +338,16 @@ def build_privacy_report(
             "notes": flow_notes,
         }
 
+    n_images = sum(1 for a in attachments or [] if isinstance(a, dict) and a.get("cloudinary"))
+    cloudinary_flow = {
+        "id": "cloudinary", "name": "Cloudinary (image evidence storage)",
+        "status": "sent" if n_images else ("nothing_to_send" if cloudinary_store.enabled() else "off"),
+        "sends": ["image attachments only (screenshots, QR codes, scanned documents), up to 3 per email; other file types are never uploaded"],
+        "count": n_images,
+        "notes": ["Images are stored under a random, unguessable name and are deleted when the report is deleted or expires.",
+                  "The report shows a blurred preview first."],
+    }
+
     flows = [
         {
             "id": "local_parsing", "name": "E-TAP backend (parsing and analysis)",
@@ -344,6 +356,8 @@ def build_privacy_report(
                 "a simplified message reconstructed from visible sender/subject/body text by the Gmail extension",
                 "not the original raw message, original authentication/routing headers, link targets or attachments",
             ] if (provenance or {}).get("input_mode") == "quick_content_check" else [
+                "the message text the user pasted and any attachments added to it (packaged as a message with no email headers)",
+            ] if (provenance or {}).get("input_mode") == "forwarded_message" else [
                 "the uploaded .eml/.msg artifact, including available headers, body and attachments",
             ]),
             "notes": ["The browser sends the selected content to the E-TAP backend over HTTPS. Parsing and forensic checks run on the E-TAP server."],
@@ -381,6 +395,7 @@ def build_privacy_report(
         ext("ip_geolocation", "IP geolocation", ["public IP addresses; geographic estimates, not attribution"],
             (threat_intel or {}).get("geo_lookup") or {},
             notes=["Geolocation estimates a network address; it does not prove a person's location or attacker identity."]),
+        cloudinary_flow,
     ]
     return {
         "schema_version": 1,

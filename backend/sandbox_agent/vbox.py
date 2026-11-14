@@ -132,10 +132,6 @@ class VBox:
             *rest, timeout=timeout
         )
 
-    def make_dirs(self, *dirs: str) -> None:
-        """Create guest folders (and their parents). Same call on every VM provider."""
-        self._gc("mkdir", "--parents", *dirs)
-
     def wait_ready(self, limit: int = 240) -> bool:
         """
         Wait until the guest is responsive via guestcontrol.
@@ -167,6 +163,10 @@ class VBox:
                 rejected = 0
             time.sleep(3 if rejected else 5)
         raise TimeoutError(f"Guest did not become ready within {limit}s")
+
+    def make_dirs(self, *paths: str):
+        """Create guest folders, with their parents."""
+        self._gc("mkdir", "--parents", *paths)
 
     def copy_to(self, host_file: str, guest_dir: str):
         """Copy a file from host to guest. guest_dir must end with backslash."""

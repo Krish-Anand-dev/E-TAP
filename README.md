@@ -2,7 +2,7 @@
 
 **One tap from a suspicious email to an evidence-backed verdict.**
 
-E-TAP takes a raw email (`.eml` / `.msg`, or a message opened in Gmail through the browser extension) and runs it through a multi-stage forensic pipeline: header and authentication forensics, sender-origin tracing with IP geolocation, static attachment forensics (file signatures, macros, QR codes, OCR), IOC extraction, live threat-intelligence lookups, historical campaign correlation, graph-based risk propagation, an XGBoost pre-filter and a Gemini-backed final assessment with MITRE ATT&CK mapping. For people who own a VirtualBox or VMware Workstation VM there is an optional **deeper attachment analysis** that opens the attachments in that VM and adds what they actually did to the report.
+E-TAP takes a raw email (`.eml` / `.msg`, or a message opened in Gmail through the browser extension) and runs it through a multi-stage forensic pipeline: header and authentication forensics, sender-origin tracing with IP geolocation, static attachment forensics (file signatures, macros, QR codes, OCR), IOC extraction, live threat-intelligence lookups, historical campaign correlation, graph-based risk propagation, an XGBoost pre-filter and a Gemini-backed final assessment with MITRE ATT&CK mapping. For people who own a VirtualBox VM there is an optional **deeper attachment analysis** that opens the attachments in that VM and adds what they actually did to the report.
 
 The result is one report that says **how risky the email is, why, and what to do**, written so a non-expert can act on it, with the full technical detail kept for security analysts.
 
@@ -10,6 +10,12 @@ The result is one report that says **how risky the email is, why, and what to do
 
 - **Live demo (frontend):** <https://e-tap-clean.vercel.app/>
 - **Backend API:** <https://etap-clean-backend.onrender.com> · [health](https://etap-clean-backend.onrender.com/health) · [docs](https://etap-clean-backend.onrender.com/docs)
+
+## Built for Hacktober HackDays: tech for social good
+
+Most people who receive a phishing email cannot judge it for themselves: families, small businesses, first-time email users. E-TAP is built for them first. The report says in plain words how risky an email is, why, and what to do next, and keeps the forensic detail for analysts. It is free, open source (MIT), and standard analysis needs nothing to be installed.
+
+**Cloudinary** is part of the analysis, not decoration. Phishing often hides in an image: a QR code that leads to a fake login page, or a screenshot of an "invoice". When Cloudinary is configured, E-TAP saves each image attachment to Cloudinary (images only, at most 3 per email, under a random name), shows a **blurred preview** that is revealed only when the reader clicks it, and can have Cloudinary read the text in the image a second time. The image is deleted when the report is deleted or expires, and the privacy record (in the exported PDF and the API) lists it as a data flow. With no Cloudinary settings the step is simply off.
 
 For the deep technical reference (every module, library, environment variable, data shape and design decision), read **[CONTEXT.md](CONTEXT.md)**.
 
@@ -79,10 +85,10 @@ Every input becomes the same `ParsedEmail` object. The file type is decided from
 - **Sender identity:** Reply-To domain mismatch, punycode and mixed-script (Cyrillic/Greek) homographs, typosquats and brand-plus-lure domains (`paypal-secure-login.com`) against an India-weighted brand list, and display-name impersonation ("PayPal Support" from an unrelated domain).
 
 ### Stage B2 — Attachment forensics (static, nothing is executed)
-For each attachment: SHA-256, true type from magic bytes (libmagic when installed, built-in signature table otherwise), declared-vs-actual type mismatch, double extensions (`invoice.pdf.exe`), executables disguised under harmless names, and password-protected/corrupt Office files. Office documents get **static VBA analysis with oletools**: auto-run triggers (`AutoOpen`), suspicious APIs (`Shell`, `CreateObject`, PowerShell) and referenced IOCs. Images are decoded for **QR codes** (pyzbar, OpenCV fallback) and **OCR text** (Tesseract); OCR text is appended to the content the AI reviews, so image-only phishing is not invisible.
+For each attachment: SHA-256, true type from magic bytes (libmagic when installed, built-in signature table otherwise), declared-vs-actual type mismatch, double extensions (`invoice.pdf.exe`), executables disguised under harmless names, and password-protected/corrupt Office files. Office documents get **static VBA analysis with oletools**: auto-run triggers (`AutoOpen`), suspicious APIs (`Shell`, `CreateObject`, PowerShell) and referenced IOCs. Images are decoded for **QR codes** (pyzbar, OpenCV fallback) and **OCR text** (Tesseract); OCR text is appended to the content the AI reviews, so image-only phishing is not invisible. With **Cloudinary** configured, image attachments (up to 3 per email, images only) are also saved to your Cloudinary account under a random name: the report shows a **blurred preview** you click to reveal, Cloudinary can read the text in the image a second time (OCR add-on), and the images are deleted when the report is deleted or expires. Without credentials this step is off and nothing is uploaded.
 
 ### Stage S — Deeper attachment analysis (optional, in your own sandbox)
-When you choose **Deeper attachment analysis**, eligible attachments (scripts, executables, shortcuts, documents, PDFs, ZIP members; up to 3 per email) are opened inside a Windows VM **you own** (VirtualBox or VMware Workstation Pro). The free **E-TAP Sandbox Agent** runs next to the VM and pairs once with a short code. For each job it:
+When you choose **Deeper attachment analysis**, eligible attachments (scripts, executables, shortcuts, documents, PDFs, ZIP members; up to 3 per email) are opened inside a Windows VM **you own** (VirtualBox or VMware Workstation). The free **E-TAP Sandbox Agent** runs next to the VM and pairs once with a short code. For each job it:
 1. restores the VM's clean snapshot;
 2. opens the files;
 3. records what happens with Sysmon and Windows Defender;
@@ -127,7 +133,7 @@ One function reconciles the label and the 0–100 score (the more severe wins) i
 
 - **Dashboard** — emails analysed, high risk / suspicious / low risk counts, average risk, risk-over-time chart, verdict breakdown, top threat types and recent investigations, from everything stored
 - **Analyze email** — a live timeline that lights up each stage as it runs (reading the email, sender & headers, static attachments, dynamic attachments, links & indicators, reputation, past emails, AI assessment, verdict), then the score, the verdict and **Re-analyze**. It shows two cards before anything runs: **Standard analysis** (selected by default, nothing to set up) and **Deeper attachment analysis** (says on the card that it needs a VirtualBox VM, and pairs your sandbox right there the first time). The timeline plays in full by default; **Settings → Analysis animation → Fast** removes the added delay so the report opens as soon as the analysis finishes
-- **Investigation report** — a big score ring and verdict, "why it was risky" tags (Header issues, Attachment issues, Suspicious links, Bad reputation, Seen before, Suspicious wording), category cards with the serious findings first, **Remediation**, the sender-route map, multi-vector analysis and MITRE ATT&CK, collapsible technical details, past emails and the threat graph, and analyst tools (review, case, sharing, retention) at the end
+- **Investigation report** — a big score ring and verdict, "why it was risky" tags (Header issues, Attachment issues, Suspicious links, Bad reputation, Seen before, Suspicious wording), category cards with the serious findings first, **Remediation**, **Image evidence** (blurred Cloudinary previews of image attachments, revealed on click), the sender-route map, multi-vector analysis and MITRE ATT&CK, collapsible technical details, past emails and the threat graph, and analyst tools (review, case, sharing, retention) at the end
 - **Reports** — every analysed email broken down stage by stage, searchable and filterable by risk
 - **Sandbox behaviour** — for deeper analyses, what each attachment did in your VM (rules matched, Defender blocks, processes), updating live while it runs
 - **Trusted domains** — senders you trust lower the risk only when SPF, DKIM and DMARC prove the email is genuine; the same page holds the analysis-animation setting and pairs your sandbox
@@ -141,7 +147,7 @@ A Manifest V3 extension adds **Analyze in E-TAP** above an opened Gmail message.
 
 ## Using deeper attachment analysis, step by step
 
-Standard analysis never opens an attachment, and it is all most people need. **Deeper attachment analysis** is optional and opens attachments inside a virtual machine **you own**, watches what it does and adds that to the report. If you have no VM, skip this whole section: nothing else in E-TAP depends on it. This is the whole journey for someone using the hosted E-TAP with a Windows VM in VirtualBox or VMware Workstation.
+Standard analysis never opens an attachment, and it is all most people need. **Deeper attachment analysis** is optional and opens attachments inside a virtual machine **you own**, watches what it does and adds that to the report. If you have no VM, skip this whole section: nothing else in E-TAP depends on it. This is the whole journey for someone using the hosted E-TAP with a Windows VM in VirtualBox.
 
 ### What runs where
 | On your PC | On the E-TAP server |
@@ -157,7 +163,7 @@ Standard analysis never opens an attachment, and it is all most people need. **D
 
 ### Before you start (once)
 Prepare a VM kept only for this, never your everyday one:
-- **VirtualBox** (with Guest Additions) or **VMware Workstation Pro** (with VMware Tools), and a Windows 10/11 VM in it. VirtualBox is used if both are installed; run `start-agent.cmd setup --provider vmware` to use VMware instead. The VMware support is covered by tests but has not yet been run against a real VMware VM;
+- **VirtualBox** (with **Guest Additions**) or **VMware Workstation** (with **VMware Tools**), and a Windows 10/11 VM in it;
 - **Sysmon** installed in the VM;
 - a Windows **user with a password** inside the VM;
 - a **snapshot taken in a clean state** (for example named `clean`). The VM goes back to it after every run.
@@ -174,10 +180,10 @@ The first time, it says **Your sandbox: not paired** and shows three steps.
 1. Click **Download the E-TAP Sandbox Agent**, right-click the zip and choose **Extract All** (do not run it from inside the zip), then open the extracted folder and double-click **`start-agent.cmd`**.
 2. The agent asks permission, then checks your computer:
    - Windows and Python;
-   - VirtualBox or VMware Workstation and its version;
+   - VirtualBox and its version, or VMware's `vmrun` (the agent asks which to use when both are installed; `start-agent.cmd setup --provider vmware` chooses VMware directly);
    - the VMs it finds and their snapshots;
    - whether the VM is cut off from your PC and the network (network adapter, clipboard, drag and drop and shared folders all off), with a one-line fix for each that is not;
-   - whether Windows is running its hypervisor (Hyper-V, WSL2, Windows Sandbox), which can make the VM slow;
+   - whether Windows is running its hypervisor (Hyper-V, WSL2, Windows Sandbox), which can make VirtualBox or VMware slow;
    - whether Windows Sandbox exists (optional).
    Nothing in the VM is changed during setup, and the VM is not started. A warning does not stop setup.
 3. Choose your VM, type the clean snapshot name, the guest Windows user and its password (hidden while typing). **The agent then starts the VM once and checks that Windows really accepts that login.** A wrong user or password is refused (it asks again, three tries) and is never saved as set up. The VM is restored to its clean snapshot afterwards.
@@ -188,7 +194,7 @@ Optional checks:
 - `start-agent.cmd check` repeats the read-only checks above at any time without starting the VM.
 - `start-agent.cmd test` restores the VM once and confirms that the guest login, Sysmon and the Defender log all work. The two checks are separate because only `test` starts the VM (setup also starts it once, to verify the login).
 
-**What "online" means.** While it runs, the agent re-checks every 20 seconds that VirtualBox or VMware answers, the VM still exists, the clean snapshot still exists and the login was verified, and tells E-TAP. The page shows **Your sandbox: online** only when all of that is true, **needs attention** (with the reason) when the agent runs but the VM is not usable, and **offline** within about 30 seconds of the agent window closing. The page refreshes this by itself. A VM that is merely powered off or aborted is fine: every run starts from the clean snapshot.
+**What "online" means.** While it runs, the agent re-checks every 20 seconds that VirtualBox (or VMware) answers, the VM still exists, the clean snapshot still exists and the login was verified, and tells E-TAP. The page shows **Your sandbox: online** only when all of that is true, **needs attention** (with the reason) when the agent runs but the VM is not usable, and **offline** within about 30 seconds of the agent window closing. The page refreshes this by itself. A VM that is merely powered off or aborted is fine: every run starts from the clean snapshot.
 
 ### 3. Pair (once)
 Type the code into the box on the website (or the extension's tab) and click **Pair**. The page shows **Your sandbox: online**, and the agent window says *Paired*. Keep the agent window open: it is your sandbox. The pairing is remembered, so you never enter a code again in that browser.
@@ -221,7 +227,7 @@ Double-click `start-agent.cmd`; it goes straight to *Your sandbox: online*. Then
 ### Good to know
 - **Limits:** up to 3 attachments per email, 10 MB each. Scripts and programs are opened first. ZIP files are unpacked and their files opened one by one.
 - **Documents:** nothing clicks inside documents yet, so Office files and PDFs that wait for a click usually come back inconclusive.
-- **Rule coverage:** 53 original behaviour rules (MIT licensed, all evaluable, each with its own tests) covering ten ATT&CK tactics; the list and how they were written are in [`backend/sandbox/rules/README.md`](backend/sandbox/rules/README.md).
+- **Rule coverage:** 36 of the 164 bundled behaviour rules can be evaluated today.
 - **Agent window:** the agent runs only while its window is open. There is no background service or Windows auto-start yet.
 - **Problems:**
   - Run `start-agent.cmd check` to see whether the VM is isolated and set up, and what to fix.
@@ -243,7 +249,7 @@ Double-click `start-agent.cmd`; it goes straight to *Your sandbox: online*. Then
 | Database | MongoDB / MongoDB Atlas (pymongo), in-memory fake DB for tests |
 | Frontend | React 18, Vite, axios, Leaflet / react-leaflet, react-force-graph-2d, Recharts, jsPDF |
 | Extension | Chrome Manifest V3, IndexedDB handoff store |
-| Dynamic analysis | VirtualBox (`VBoxManage`) or VMware Workstation Pro (`vmrun`), Sysmon and Windows Defender events, an EQL-subset behaviour-rule engine (Sigma and YARA planned), a standard-library-only Python agent with Windows-protected settings |
+| Dynamic analysis | VirtualBox (`VBoxManage`) or VMware Workstation (`vmrun`), Sysmon and Windows Defender events, an EQL-subset behaviour-rule engine with 63 original MIT-licensed rules, each with its own tests (Sigma and YARA planned), a standard-library-only Python agent with Windows-protected settings |
 | Hosting | Render (Docker backend), Vercel (frontend), MongoDB Atlas |
 
 ## Quick start (local)
@@ -298,7 +304,7 @@ Development notes and iterations/   Research, decisions and the history of how t
 
 ## Limitations
 
-- Dynamic analysis needs your own VirtualBox or VMware Workstation VM and the agent (VMware not yet run on a real VM); nothing clicks inside documents yet, so Office files and click-triggered PDFs are often inconclusive, and the 53 bundled behaviour rules only see what Sysmon in your VM logs (some need extra Sysmon event types switched on).
+- Dynamic analysis needs your own VirtualBox or VMware VM and the agent (VMware support is tested with a fake `vmrun`, not yet on a real VMware); nothing clicks inside documents yet, so Office files and click-triggered PDFs are often inconclusive, and the 63 behaviour rules are checked with synthetic events, not yet against a broad set of real samples.
 - The Gmail extension uses Gmail's web endpoints, not the official Gmail API.
 
 ## License

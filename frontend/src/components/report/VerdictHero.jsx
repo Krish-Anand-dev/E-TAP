@@ -32,6 +32,7 @@ export default function VerdictHero({ data, onJump, onReanalyze, canReanalyze })
   const email = data.email || {};
   const headline = data.evidence_report?.headline || data.ai_analysis?.final_assessment?.explanation || '';
   const trusted = data.baseline_context?.trusted_sender;
+  const pasted = data.analysis_provenance?.input_mode === 'forwarded_message';
 
   // Same counts as the "Why it was flagged" cards, so the numbers always agree.
   const tone = (c) => (c.severity === 'high' ? 'bad' : c.severity === 'medium' ? 'warn' : 'ok');
@@ -59,8 +60,14 @@ export default function VerdictHero({ data, onJump, onReanalyze, canReanalyze })
         <div className="verdict-hero-side">
           <dl className="mail-meta">
             <div><dt>Subject</dt><dd>{email.subject || '(no subject)'}</dd></div>
-            <div><dt>From</dt><dd className="mono-val">{email.from_email || email.from_raw || 'unknown'}</dd></div>
-            <div><dt>Received</dt><dd>{email.date || 'not stated'}</dd></div>
+            {pasted ? (
+              <div><dt>Source</dt><dd>Pasted message (no sender or date information)</dd></div>
+            ) : (
+              <>
+                <div><dt>From</dt><dd className="mono-val">{email.from_email || email.from_raw || 'unknown'}</dd></div>
+                <div><dt>Received</dt><dd>{email.date || 'not stated'}</dd></div>
+              </>
+            )}
           </dl>
           <ExportButton data={data} />
           <button type="button" className="btn-ghost reanalyze-button" onClick={onReanalyze} disabled={!canReanalyze}

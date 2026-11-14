@@ -279,7 +279,7 @@ export function InvestigationProvider({ children }) {
     setUploadProgress(0);
 
     try {
-      const job = await startAnalysisJob(file, undefined, options);
+      const job = await startAnalysisJob(file, options.source ?? file.etapSource, options);
       setJobStages(job.stages || []);
       setStatus('analyzing');
       // Follow live stage progress until the backend finishes the job.

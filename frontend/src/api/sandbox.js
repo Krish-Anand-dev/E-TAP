@@ -13,15 +13,25 @@ function saveToken(value) {
     else window.localStorage.removeItem(KEY);
   } catch { /* private mode: pairing lasts for this page only */ }
 }
-const headers = () => {
-  const token = sandboxToken();
-  return token ? { 'X-ETAP-Sandbox-Token': token } : {};
-};
+const headers = (token = sandboxToken()) => (token ? { 'X-ETAP-Sandbox-Token': token } : {});
 
-/** { available, paired, online, name, vm_name, last_seen_seconds, queued_jobs } */
+/**
+ * { available, paired, online, name, vm_name, last_seen_seconds, queued_jobs }
+ *
+ * A status request that was already in flight when the user paired was sent
+ * without the new token, so its "not paired" answer is out of date. It must
+ * neither be shown nor be allowed to wipe the token that pairing just saved;
+ * the status is read again with the current token instead.
+ */
 export async function getSandboxPairing() {
-  const response = await apiClient.get('/sandbox/pairing', { headers: headers(), timeout: 15000 });
-  if (response.data.available && !response.data.paired && sandboxToken()) saveToken(null);
+  let response;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const sent = sandboxToken();
+    response = await apiClient.get('/sandbox/pairing', { headers: headers(sent), timeout: 15000 });
+    if (sandboxToken() !== sent) continue;
+    if (response.data.available && !response.data.paired && sent) saveToken(null);
+    return response.data;
+  }
   return response.data;
 }
 
