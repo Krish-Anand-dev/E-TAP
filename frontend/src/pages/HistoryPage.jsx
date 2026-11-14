@@ -6,6 +6,7 @@ import { bandFor, displayLabel } from '../utils/verdict';
 import { stageSummaries, verdictOf, riskTags } from '../utils/reportSummary';
 import Icon from '../components/common/Icon';
 import { needsSandboxRefresh } from '../utils/sandbox';
+import { loginEmail } from '../api/session';
 
 const STATUS_TEXT = { good: 'Clear', warn: 'Check', bad: 'Problem', skipped: 'Skipped', not_run: 'Not run' };
 const FILTERS = [['all', 'All'], ['danger', 'High risk'], ['caution', 'Suspicious'], ['safe', 'Low risk']];
@@ -60,11 +61,23 @@ export function HistoryPage({ onOpenReport, navigate }) {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
 
+  const [signedIn, setSignedIn] = useState(Boolean(loginEmail()));
+  const [mine, setMine] = useState(false);
+
   useEffect(() => {
-    apiClient.get('/investigations?limit=100').then((r) => setStored(r.data)).catch(() => setStored([]));
+    const sync = () => { const on = Boolean(loginEmail()); setSignedIn(on); if (!on) setMine(false); };
+    window.addEventListener('etap-login-change', sync);
+    return () => window.removeEventListener('etap-login-change', sync);
   }, []);
 
-  const rows = useMemo(() => rowsFrom(stored, history), [stored, history]);
+  useEffect(() => {
+    apiClient.get(`/investigations?limit=100${mine ? '&mine=1' : ''}`)
+      .then((r) => setStored(r.data))
+      .catch(() => { setStored([]); if (mine) setMine(false); });
+  }, [mine]);
+
+  // "My reports" shows only what the server filed under this account, not this browser's session copies.
+  const rows = useMemo(() => rowsFrom(stored, mine ? [] : history), [stored, history, mine]);
   const visible = rows.filter((r) => (filter === 'all' || r.band === filter)
     && (!query || `${r.subject} ${r.from}`.toLowerCase().includes(query.toLowerCase())));
 
@@ -110,6 +123,11 @@ export function HistoryPage({ onOpenReport, navigate }) {
           <div className="reports-tools">
             <label className="search-box"><Icon name="search" size={16} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search subject or sender" aria-label="Search reports" /></label>
             <div className="filter-chips">
+              {signedIn && (
+                <button type="button" className={mine ? 'active' : ''} aria-pressed={mine} onClick={() => setMine((v) => !v)}>
+                  My reports
+                </button>
+              )}
               {FILTERS.map(([key, label]) => (
                 <button key={key} type="button" className={filter === key ? 'active' : ''} onClick={() => setFilter(key)}>
                   {label}<b>{key === 'all' ? rows.length : counts[key] || 0}</b>
