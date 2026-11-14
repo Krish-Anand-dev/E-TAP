@@ -1,0 +1,39 @@
+# Keeps the Render free-tier backend awake.
+# Render spins a free web service down after 15 minutes without inbound traffic; a cold start then takes
+# 30-60 s, which is bad for a live demo (and would make webhook-style integrations time out).
+# This pings the cheap, rate-limit-exempt /health liveness probe every 10 minutes.
+#
+# Notes:
+# - GitHub only runs scheduled workflows from the default branch, and may delay or skip a run under load.
+#   A second external pinger (UptimeRobot or cron-job.org on the same URL) is a good backup.
+# - A free Render service running 24/7 uses ~744 of the 750 free instance-hours a month, shared across the
+#   whole Render workspace. Disable this workflow (Actions tab, or delete the file) when no demo is coming.
+# - Override the target with the repository variable ETAP_HEALTH_URL if the backend URL changes.
+name: keep-alive
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: keep-alive
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping /health
+        env:
+          URL: ${{ vars.ETAP_HEALTH_URL || 'https://etap-clean-backend.onrender.com/health' }}
+        run: |
+          # --max-time is generous so a cold start (the very case we are preventing) can still finish.
+          curl --fail --silent --show-error \
+               --retry 3 --retry-delay 10 --retry-all-errors \
+               --max-time 90 \
+               --write-out '\nHTTP %{http_code} in %{time_total}s\n' \
+               "$URL"
