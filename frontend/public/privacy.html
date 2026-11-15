@@ -5,28 +5,37 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>E-TAP Privacy Policy</title>
   <meta name="description" content="How E-TAP handles the messages, files and WhatsApp messages you send it for checking." />
+  <!-- Same typeface and palette as the app: cream paper, navy ink, red brand (see src/styles/v2.css). -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
-    :root { --bg:#f8f6ef; --card:#ffffff; --ink:#1d2540; --ink2:#4a5270; --line:#e2dfd2; --accent:#d2342f; }
-    @media (prefers-color-scheme: dark) {
-      :root { --bg:#141a2e; --card:#1c2440; --ink:#eef0f8; --ink2:#b4bad2; --line:#2c3556; --accent:#ff6b66; }
-    }
+    :root { --ink:#101731; --ink-2:#3d4559; --ink-3:#6b7180; --paper:#fffef7; --card:#f6f5ee; --line:#e2e1d9; --brand:#cc3542; }
     * { box-sizing: border-box; }
-    body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-    main { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
-    .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding: 28px 24px; }
-    h1 { font-size: 28px; margin: 0 0 4px; }
-    h2 { font-size: 19px; margin: 28px 0 6px; }
-    p, li { color: var(--ink2); }
-    li { margin: 4px 0; }
-    .meta { font-size: 14px; color: var(--ink2); margin-bottom: 18px; }
-    a { color: var(--accent); }
-    code { background: var(--bg); border:1px solid var(--line); border-radius:6px; padding:1px 6px; font-size: 14px; }
-    nav a { font-weight: 600; text-decoration: none; }
+    body { margin:0; background:var(--paper); color:var(--ink); font:15px/1.7 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    main { max-width: 800px; margin: 0 auto; padding: 28px 18px 72px; }
+    .brand { display:flex; align-items:center; gap:12px; text-decoration:none; color:var(--ink); margin-bottom:26px; }
+    .brand-mark { width:38px; height:38px; border-radius:50%; background:var(--ink); color:var(--paper); display:grid; place-items:center; flex:none; }
+    .brand-word { font-size:24px; font-weight:750; font-style:italic; letter-spacing:-1px; line-height:1; }
+    .brand-word small { display:block; margin-top:4px; font-size:10px; font-style:normal; font-weight:600; letter-spacing:1.2px; color:var(--ink-3); }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:18px; padding: 30px 28px; }
+    h1 { font-size:26px; font-weight:750; letter-spacing:-0.4px; margin:0 0 4px; }
+    h2 { font-size:16px; font-weight:750; margin:30px 0 6px; }
+    p, li { color:var(--ink-2); }
+    strong { color:var(--ink); }
+    li { margin:5px 0; }
+    .meta { font-size:13px; color:var(--ink-3); margin:0 0 20px; }
+    a { color:var(--brand); }
+    .back { display:inline-block; margin-top:22px; font-weight:600; text-decoration:none; }
+    @media (max-width: 560px) { .card { padding:22px 18px; } }
   </style>
 </head>
 <body>
 <main>
-  <nav><a href="/">&larr; Back to E-TAP</a></nav>
+  <a class="brand" href="/" aria-label="E-TAP home">
+    <span class="brand-mark"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6z M8 12l3 3 5-6"/></svg></span>
+    <span class="brand-word">E-TAP<small>EMAIL THREAT ANALYSIS</small></span>
+  </a>
   <div class="card">
     <h1>E-TAP Privacy Policy</h1>
     <p class="meta">Last updated: 15 November 2026</p>
@@ -85,6 +94,7 @@
     <h2>Changes and contact</h2>
     <p>If this policy changes, the date at the top changes too. Questions or requests: open an issue at
     <a href="https://github.com/bhavitanand/E-TAP-clean/issues">github.com/bhavitanand/E-TAP-clean/issues</a>.</p>
+    <a class="back" href="/">&larr; Back to E-TAP</a>
   </div>
 </main>
 </body>
