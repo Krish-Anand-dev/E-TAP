@@ -67,11 +67,24 @@ Menu names change now and then, so follow the idea if a label differs slightly.
 
 ### Token that does not expire
 
-The temporary token from API Setup expires after about 24 hours, which would break a demo the next
-day. For a token that lasts: **Meta Business Settings > Users > System users**, add a system user,
-assign it your app with full control, then **Generate token** with the
-`whatsapp_business_messaging` and `whatsapp_business_management` permissions. Put that token in
-`META_ACCESS_TOKEN`.
+The temporary token from API Setup expires after about 24 hours and stops working the moment you press
+**Generate new token** again. Use a system-user token instead (this is what the live deployment uses):
+
+1. Open **business.facebook.com > Settings > Users > System users** (business portfolio settings).
+   The first time, Meta asks you to accept its advertising non-discrimination policy.
+2. **Add** a system user (for example `etap-whatsapp-bot`) with the **Admin** role.
+3. Select it, **Assign assets**: under **Apps** tick your app with **Manage app** (full access), and under
+   **WhatsApp accounts** tick your WhatsApp account with **Everything**.
+4. **Generate token**: pick the app, set expiry to **Never** (or 60 days), tick
+   `whatsapp_business_messaging` and `whatsapp_business_management`, then **Generate token**. Copy it
+   at once; Meta shows it only once.
+5. Paste it into `META_ACCESS_TOKEN` on Render and let it redeploy. Do not paste it into chats or commits.
+
+To revoke it later: System users > the user > **Revoke tokens**.
+
+**Symptoms of a bad token:** text messages still work, but files and photos never produce a report, and
+the Render log says `WhatsApp media lookup refused (status 400/401)`. Text does not need the token
+because the bot only reads what Meta posts to the webhook; downloading a file does.
 
 ### If something fails
 
