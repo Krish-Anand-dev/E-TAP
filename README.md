@@ -139,6 +139,12 @@ One function reconciles the label and the 0–100 score (the more severe wins) i
 - **Trusted domains** — senders you trust lower the risk only when SPF, DKIM and DMARC prove the email is genuine; the same page holds the analysis-animation setting and pairs your sandbox
 - **Ask E-TAP** — the SOC Assistant for the open report or all past investigations, plus **PDF/JSON export**
 
+## Optional sign-in and the WhatsApp bot
+
+- **Sign-in (optional, free).** Settings → Account: enter your email, then the 6-digit code we send. Signed-in users get a **My reports** filter; nobody has to sign in to check a message. Details in [CONTEXT.md](CONTEXT.md).
+- **WhatsApp bot (static analysis only).** Forward a message, link, image or document (up to 5 files, 25 MB) to the bot; it runs the same pipeline as the website and replies with the verdict, the main reasons and a link to the full report. Code and tests are done (`backend/whatsapp.py`, setup in [docs/whatsapp-bot.md](docs/whatsapp-bot.md)). **Status: waiting for Meta business verification.** The bot receives messages, but Meta locks replies (error 131031) for an unverified business, so it is not live yet. Until then the website's **Paste a message** mode shows the same flow; see [docs/demo-fallback.md](docs/demo-fallback.md).
+- [Privacy policy](frontend/public/privacy.html), served at `/privacy.html`.
+
 ## Gmail extension
 
 A Manifest V3 extension adds **Analyze in E-TAP** above an opened Gmail message. The banner shows two cards from the start: **Standard analysis** (nothing to set up) and **Deeper attachment analysis**, with what it needs written on the card (a Windows VM in VirtualBox and the free agent; Windows Sandbox on Windows Pro is planned). One click on a card starts that analysis. Choosing Deeper walks you through downloading the agent and entering its pairing code the first time, and only once the original email, with its attachments, has been retrieved. Nothing is sent, and no sandbox status is requested, until you click a card. The extension downloads the original RFC 822 message through the signed-in Gmail session (full headers and attachments) and submits it as `full_message`. If Gmail does not provide the original, it submits the visible sender/subject/body as a clearly labelled `quick_content_check`, where header checks are reported as unavailable. The report then opens in the web dashboard.
@@ -306,6 +312,7 @@ Development notes and iterations/   Research, decisions and the history of how t
 
 - Dynamic analysis needs your own VirtualBox or VMware VM and the agent (VMware support is tested with a fake `vmrun`, not yet on a real VMware); nothing clicks inside documents yet, so Office files and click-triggered PDFs are often inconclusive, and the 63 behaviour rules are checked with synthetic events, not yet against a broad set of real samples.
 - The Gmail extension uses Gmail's web endpoints, not the official Gmail API.
+- The WhatsApp bot cannot send replies until its Meta WhatsApp business account is verified (needs legal business documents) and has a payment method; inbound handling works. Big (25 MB) files are analysed one at a time on the free Render plan.
 
 ## License
 

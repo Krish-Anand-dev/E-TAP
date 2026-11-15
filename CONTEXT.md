@@ -488,9 +488,17 @@ All access goes through `db/repository.py`; every function takes `db` explicitly
 | `GET /sandbox/agent/download` | the agent as `etap-sandbox-agent.zip` |
 | `POST /sandbox/agent/register` (5/min), `GET /sandbox/agent/me`, `POST /sandbox/agent/pairing-code` | agent identity and pairing (agent routes use `Authorization: Bearer <agent token>`) |
 | `POST /sandbox/agent/jobs/next`, `GET …/jobs/{id}/samples/{n}`, `POST …/jobs/{id}/progress`, `POST …/jobs/{id}/result` | agent job loop |
+| `GET /auth/status`, `POST /auth/request-code`, `POST /auth/verify-code`, `GET /auth/me`, `POST /auth/logout` | optional email-code sign-in (`backend/login.py`): HMAC-hashed 6-digit codes (10 min, 5 attempts, 60 s cooldown, 5/h per email, 10/h per IP), opaque session tokens stored as SHA-256 (30 days), mail via Brevo or Resend HTTPS APIs (Render free blocks SMTP). `owner_email` is tagged on reports analysed while signed in; `GET /investigations?mine=true` filters to them (401 if not signed in) |
+| `GET/POST /whatsapp/meta`, `POST /whatsapp/twilio` | WhatsApp bot webhooks (`backend/whatsapp.py`, see below). Each is off until its secret is set |
 | `/docs` | Swagger UI |
 
-The API is **open**: no authentication or per-user scoping (see §17).
+The API is otherwise **open**: sign-in is optional and only adds an owner tag, not access control (see §17).
+
+### WhatsApp bot (`backend/whatsapp.py`)
+
+Static analysis only, never the sandbox. A forwarded text, link, image or document is packaged into an .eml (`build_eml`, chunked base64) and run through the normal pipeline as `source=forwarded_message` (sender checks skipped), then the reply carries the verdict (wording shared with `share_card`), the main reasons and a link `{PUBLIC_FRONTEND_URL}/?dossier=<email_id>`. Up to 5 files, 25 MB each and in total; media downloads only from Meta hosts; per-number limit `WHATSAPP_MAX_PER_HOUR` (10); message ids are de-duplicated; the Meta POST is verified with `X-Hub-Signature-256`. Analyses over 8 MB take turns (`heavy_gate.py`, shared with the website) because a 25 MB file needs about 325 MB of the free plan's 512 MB. Setup and limits: `docs/whatsapp-bot.md`. Tests: `tests/test_whatsapp.py`, `test_whatsapp_meta.py`, `test_whatsapp_large_files.py`, `test_login.py`.
+
+**Status (2026-11-15): blocked by Meta, not by code.** Inbound works (webhook 200, the app is subscribed to the WABA via `POST /{WABA}/subscribed_apps`; the Meta dashboard alone subscribed only Meta's own app). Every reply fails with status `failed`, code 131031 "Business Account locked", because the WABA's health shows `can_send_message: BLOCKED` (business not verified, business profile incomplete, no payment method). Publishing or unpublishing the app does not change it. Fix = Meta business verification with legal documents. Demo fallback: `docs/demo-fallback.md`.
 
 ---
 
@@ -647,6 +655,11 @@ Backend (`.env` at repo root locally; host settings in production — never in t
 | `SANDBOX_RULES_DIR`, `SANDBOX_WORK_DIR` | `sandbox/rules`, `sandbox/work` | rule and scratch folders |
 | `CLOUDINARY_URL` (or `CLOUDINARY_CLOUD_NAME` + `CLOUDINARY_API_KEY` + `CLOUDINARY_API_SECRET`) | — | enables `backend/cloudinary_store.py`: image attachments (max 3 per email) are uploaded under a random public id; the report shows blurred previews; images are deleted with the report (`workflow_c.delete_record`). Failures never break an analysis |
 | `CLOUDINARY_ENABLED` | `1` | `0` switches the store off even when credentials exist |
+| `AUTH_SECRET` | — | HMAC key for login codes (sign-in is off without it); `AUTH_DEV_ECHO=1` returns the code in the response for local testing only |
+| `BREVO_API_KEY` or `RESEND_API_KEY`, `LOGIN_FROM_EMAIL`, `LOGIN_FROM_NAME` | — | how login codes are emailed |
+| `META_PHONE_NUMBER_ID`, `META_ACCESS_TOKEN`, `META_APP_SECRET`, `META_VERIFY_TOKEN`, `META_GRAPH_VERSION` | — | Meta WhatsApp Cloud API route (use a system-user token; the temporary one expires in about a day) |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`, `PUBLIC_API_URL` | — | Twilio sandbox route (alternative; needs a paid account to set the incoming webhook) |
+| `PUBLIC_FRONTEND_URL`, `WHATSAPP_MAX_PER_HOUR` | —, `10` | report links in bot replies; per-number limit |
 | `CLOUDINARY_OCR`, `CLOUDINARY_MODERATION` | `0` | request the `adv_ocr` / `aws_rek` add-ons on upload; leave off unless installed in the Cloudinary console (an add-on error retries the upload without add-ons) |
 
 Frontend: `VITE_API_BASE_URL` (empty in dev to use the proxy; the Render URL on Vercel) and `VITE_TIMELINE_PACING` (`off` builds with the Fast animation and locks the Settings choice; otherwise each user picks Full or Fast in Settings, default Full).
@@ -695,6 +708,7 @@ Test suites cover: parsing (`test_parse_any`, `test_single_email`), headers/orig
 ## 17. Known gaps, quirks and future work
 
 - **Open API.** No authentication or multi-tenancy; anyone with the URL can analyse, read, share and delete (including `DELETE /investigations`). Per-IP limits see Render's proxy unless forwarded-for handling is added. The earlier bearer-key/role/owner-scoping implementation (`security.py`, `provision_key.py`, `db/scoped.py`, `migrate_workflow_c.py` and their tests) was deleted on 2026-10-24; the extension's API-key options page and the `/me` dev-proxy entry were removed with it. Only the `owner_id` index names remain. The original design is in git history (earlier notes cite a tag `pre-auth-removal`, which is not present in this clone). Future direction: OAuth/OIDC, `owner_id` scoping in one place, Atlas vector filter on `owner_id`, shared quota store.
+- **WhatsApp replies blocked by Meta (2026-11-15).** See §8: the bot receives messages but Meta rejects replies with 131031 until the business is verified. Not a code bug. Also: the temporary Meta token expires in about a day, the test number can message at most 5 added recipients, and big files are serialised on the free Render plan.
 - **`dnspython` not in requirements**, so the live-DNS auth tier is inactive in the Docker image unless added; header-reported results still work.
 - **sentence-transformers not in requirements**; hosted RAG uses lexical hash embeddings, not semantic ones.
 - **Dynamic analysis coverage.** The 63 behaviour rules are original and MIT-licensed (the third-party Elastic rules were removed on 2026-10-31: 127 of 157 could never run and the licence is not open source). They are tested with synthetic events; only etap-004 has been seen on a real VM. Events 7, 8, 10, 17/18 and 25 exist only if the VM's Sysmon configuration logs them. VMware support (`sandbox_agent/vmware.py`) has been tried on a real machine only for its read-only parts and a headless start, and otherwise against a fake `vmrun`.py`) has only been tested against a fake `vmrun`, never a real VMware. Nothing clicks inside documents, so Office files and click-triggered PDFs usually come back inconclusive. Windows Sandbox support, a signed agent build and an agent auto-start are not built yet. The agent has been run end to end on only one real VM (the author's, 2026-10-24); a first-time setup on a fresh machine following the README has not been tried, and VirtualBox on a Hyper-V host (the agent only warns about it) has not been tested. Agent jobs are scoped by pairing token only, like the rest of the open API.
