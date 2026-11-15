@@ -1,5 +1,8 @@
 """
-WhatsApp bot (Twilio sandbox).
+WhatsApp bot. Two providers share one worker: Meta's WhatsApp Cloud API (free test number,
+webhook set in the Meta developer dashboard: /whatsapp/meta) and the Twilio sandbox
+(/whatsapp/twilio, which needs a paid Twilio account to set its webhook). Each is off unless
+its own secret is configured.
 
 Forward a suspicious message or file to the bot's WhatsApp number. It answers at once
 ("checking"), runs the normal static analysis in the background, then sends the verdict, the
@@ -14,6 +17,14 @@ main reasons, what to do next and a link to the full report.
   * Every request must carry a valid X-Twilio-Signature. Without TWILIO_AUTH_TOKEN the route is off.
 
 Configuration (all environment variables)
+  Meta Cloud API:
+    META_ACCESS_TOKEN       token that may send WhatsApp messages (a permanent system-user token;
+                            the dashboard's temporary token lasts about a day)
+    META_PHONE_NUMBER_ID    the sending number's id, from the dashboard's API Setup page
+    META_VERIFY_TOKEN       any secret string you choose; typed into the webhook form too
+    META_APP_SECRET         the app's secret (App settings > Basic); used to check signatures
+    META_GRAPH_VERSION      optional, defaults to v23.0
+  Twilio:
   TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN   from the Twilio console
   TWILIO_WHATSAPP_FROM                    the sandbox number, e.g. whatsapp:+14155238886
   PUBLIC_API_URL                          this server's public address (used to check signatures)
@@ -207,35 +218,48 @@ FAILED_TEXT = "Sorry, I could not check that message. Please try again, or uploa
 
 # --- background work --------------------------------------------------------
 
-def _process(sender: str, text: str, media: list[tuple[str, str]], message_sid: str) -> None:
-    """Download files, analyse, and send the answer. Runs on a worker thread; never raises."""
+def _safe_filename(name: Optional[str]) -> str:
+    return re.sub(r"[^A-Za-z0-9._ -]", "_", str(name or "")).strip(" .")[:80]
+
+
+def _check_and_reply(text: str, items: list, fetch_one, send, message_sid: str) -> None:
+    """The provider-neutral worker: fetch files, analyse, answer. Never raises.
+
+    items: [(reference, content_type, filename_hint)]; fetch_one(reference) -> bytes or None;
+    send(body) delivers one reply to the person who wrote."""
     try:
         from pipeline import SOURCE_FORWARDED, analyze_email_upload
         from workflow_c import finish_analysis
 
         files: list[tuple[str, str, bytes]] = []
         total, skipped = 0, 0
-        for index, (url, content_type) in enumerate(media[:MAX_FILES], start=1):
-            data = fetch_media(url)
+        for index, (reference, content_type, hint) in enumerate(items[:MAX_FILES], start=1):
+            data = fetch_one(reference)
             if data is None or total + len(data) > MAX_TOTAL_BYTES:
                 skipped += 1
                 continue
             total += len(data)
             extension = mimetypes.guess_extension((content_type or "").split(";")[0].strip()) or ".bin"
-            files.append((f"whatsapp-file-{index}{extension}", content_type, data))
-        skipped += max(0, len(media) - MAX_FILES)
+            files.append((_safe_filename(hint) or f"whatsapp-file-{index}{extension}", content_type, data))
+        skipped += max(0, len(items) - MAX_FILES)
 
         if not text.strip() and not files:
-            send_whatsapp(sender, FAILED_TEXT)
+            send(FAILED_TEXT)
             return
         eml = build_eml(text, files, message_sid)
         report = analyze_email_upload("whatsapp-message.eml", eml, SOURCE_FORWARDED, None,
                                       {"requested": False, "token": None})
         report = finish_analysis(report)
-        send_whatsapp(sender, reply_text(report, skipped))
+        send(reply_text(report, skipped))
     except Exception as exc:
         logger.warning("WhatsApp analysis failed (%s)", type(exc).__name__)
-        send_whatsapp(sender, FAILED_TEXT)
+        send(FAILED_TEXT)
+
+
+def _process(sender: str, text: str, media: list[tuple[str, str]], message_sid: str) -> None:
+    """Twilio: files arrive as URLs, and the instant acknowledgement was already sent as TwiML."""
+    _check_and_reply(text, [(url, ctype, None) for url, ctype in media], fetch_media,
+                     lambda body: send_whatsapp(sender, body), message_sid)
 
 
 def _first_time(message_sid: str) -> bool:
@@ -298,3 +322,145 @@ async def twilio_webhook(request: Request) -> Response:
 
     _submit(_process, sender, text, media, message_sid)
     return _twiml(ACK_TEXT)
+
+
+# --- Meta WhatsApp Cloud API ------------------------------------------------
+
+UNSUPPORTED_TEXT = ("I can check text, links, images and documents. "
+                    "Please send the message as text, or a screenshot or document of it.")
+_META_MEDIA_HOSTS = (".fbsbx.com", ".facebook.com", ".fbcdn.net")
+
+
+def _graph_base() -> str:
+    return f"https://graph.facebook.com/{os.getenv('META_GRAPH_VERSION', '').strip() or 'v23.0'}"
+
+
+def _meta_headers() -> dict:
+    return {"Authorization": f"Bearer {os.getenv('META_ACCESS_TOKEN', '')}"}
+
+
+def send_meta(to: str, body: str) -> bool:
+    """Send one WhatsApp text through the Cloud API. Never raises."""
+    phone_id = os.getenv("META_PHONE_NUMBER_ID", "").strip()
+    if not (phone_id and os.getenv("META_ACCESS_TOKEN")):
+        logger.warning("WhatsApp reply not sent: Meta sender is not configured")
+        return False
+    try:
+        response = requests.post(
+            f"{_graph_base()}/{phone_id}/messages", headers=_meta_headers(), timeout=15,
+            json={"messaging_product": "whatsapp", "to": to, "type": "text",
+                  "text": {"body": body[:4000], "preview_url": False}})
+        if response.status_code >= 300:
+            logger.warning("WhatsApp reply refused (status %s)", response.status_code)
+            return False
+        return True
+    except Exception as exc:
+        logger.warning("WhatsApp reply failed (%s)", type(exc).__name__)
+        return False
+
+
+def _allowed_meta_host(url: str) -> bool:
+    parsed = urlparse(url)
+    host = (parsed.hostname or "").lower()
+    return parsed.scheme == "https" and any(host == s[1:] or host.endswith(s) for s in _META_MEDIA_HOSTS)
+
+
+def fetch_meta_media(media_id: str) -> Optional[bytes]:
+    """Two steps, as Meta requires: look the file up by id, then download it. None on any problem."""
+    if not re.fullmatch(r"\d{1,30}", str(media_id or "")):
+        return None
+    try:
+        lookup = requests.get(f"{_graph_base()}/{media_id}", headers=_meta_headers(), timeout=15)
+        if lookup.status_code >= 300:
+            return None
+        url = (lookup.json() or {}).get("url", "")
+        if not _allowed_meta_host(url):
+            return None
+        response = requests.get(url, headers=_meta_headers(), timeout=20, stream=True)
+        if response.status_code >= 300:
+            return None
+        data = bytearray()
+        for chunk in response.iter_content(64 * 1024):
+            data.extend(chunk)
+            if len(data) > MAX_FILE_BYTES:
+                return None
+        return bytes(data) or None
+    except Exception as exc:
+        logger.warning("Media download failed (%s)", type(exc).__name__)
+        return None
+
+
+def _process_meta(sender: str, text: str, items: list, message_id: str) -> None:
+    """Meta has no TwiML, so the acknowledgement is an ordinary message sent first."""
+    send_meta(sender, ACK_TEXT)
+    _check_and_reply(text, items, fetch_meta_media, lambda body: send_meta(sender, body), message_id)
+
+
+def _meta_messages(payload: dict):
+    """Every incoming message in a webhook payload (status updates and other events are skipped)."""
+    for entry in payload.get("entry") or []:
+        for change in entry.get("changes") or []:
+            if change.get("field") != "messages":
+                continue
+            for message in (change.get("value") or {}).get("messages") or []:
+                if isinstance(message, dict):
+                    yield message
+
+
+def _handle_meta_message(message: dict) -> None:
+    sender = str(message.get("from") or "")
+    message_id = str(message.get("id") or "")
+    if not sender or (message_id and not _first_time(message_id)):
+        return
+    kind = message.get("type")
+    text, items = "", []
+    if kind == "text":
+        text = str((message.get("text") or {}).get("body") or "")
+    elif kind in ("image", "document"):
+        part = message.get(kind) or {}
+        text = str(part.get("caption") or "")
+        media_id = str(part.get("id") or "")
+        if re.fullmatch(r"\d{1,30}", media_id):
+            items.append((media_id, str(part.get("mime_type") or ""), part.get("filename")))
+    else:
+        _submit(send_meta, sender, UNSUPPORTED_TEXT)
+        return
+    text = text.strip()
+    if not items and (not text or text.lower() in HELP_WORDS):
+        _submit(send_meta, sender, HELP_TEXT)
+        return
+    if not _within_limit(f"meta:{sender}"):
+        _submit(send_meta, sender, BUSY_TEXT)
+        return
+    _submit(_process_meta, sender, text, items, message_id)
+
+
+@router.get("/meta")
+async def meta_verify(request: Request) -> Response:
+    """Meta's one-time handshake when the webhook is saved: echo the challenge if the token matches."""
+    expected = os.getenv("META_VERIFY_TOKEN", "")
+    if not expected:
+        raise HTTPException(status_code=503, detail="The WhatsApp bot is not set up on this server.")
+    query = request.query_params
+    if query.get("hub.mode") == "subscribe" and hmac.compare_digest(query.get("hub.verify_token", ""), expected):
+        return Response(content=query.get("hub.challenge", ""), media_type="text/plain")
+    raise HTTPException(status_code=403, detail="Verification failed.")
+
+
+@router.post("/meta")
+async def meta_webhook(request: Request) -> dict:
+    secret = os.getenv("META_APP_SECRET", "")
+    if not secret:
+        raise HTTPException(status_code=503, detail="The WhatsApp bot is not set up on this server.")
+    raw = await request.body()
+    expected = "sha256=" + hmac.new(secret.encode(), raw, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, request.headers.get("x-hub-signature-256", "")):
+        raise HTTPException(status_code=403, detail="Invalid signature.")
+    try:
+        import json
+        payload = json.loads(raw)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid body.") from None
+    for message in _meta_messages(payload if isinstance(payload, dict) else {}):
+        _handle_meta_message(message)
+    return {"status": "ok"}
