@@ -93,8 +93,10 @@ def _run(job: dict, filename: str, raw_bytes: bytes, source: Optional[str], sand
         _set_stage(job, stage, state, detail)
 
     try:
-        report = analyze_email_upload(filename, raw_bytes, source, progress=progress, sandbox=sandbox)
-        report = finish_analysis(report)
+        from heavy_gate import heavy_analysis
+        with heavy_analysis(len(raw_bytes)):  # big messages take turns (small servers run out of memory)
+            report = analyze_email_upload(filename, raw_bytes, source, progress=progress, sandbox=sandbox)
+            report = finish_analysis(report)
         if owner:
             from login import tag_owner
             tag_owner(report.get("email_id"), owner)

@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>E-TAP Privacy Policy</title>
+  <meta name="description" content="How E-TAP handles the messages, files and WhatsApp messages you send it for checking." />
+  <style>
+    :root { --bg:#f8f6ef; --card:#ffffff; --ink:#1d2540; --ink2:#4a5270; --line:#e2dfd2; --accent:#d2342f; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg:#141a2e; --card:#1c2440; --ink:#eef0f8; --ink2:#b4bad2; --line:#2c3556; --accent:#ff6b66; }
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    main { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding: 28px 24px; }
+    h1 { font-size: 28px; margin: 0 0 4px; }
+    h2 { font-size: 19px; margin: 28px 0 6px; }
+    p, li { color: var(--ink2); }
+    li { margin: 4px 0; }
+    .meta { font-size: 14px; color: var(--ink2); margin-bottom: 18px; }
+    a { color: var(--accent); }
+    code { background: var(--bg); border:1px solid var(--line); border-radius:6px; padding:1px 6px; font-size: 14px; }
+    nav a { font-weight: 600; text-decoration: none; }
+  </style>
+</head>
+<body>
+<main>
+  <nav><a href="/">&larr; Back to E-TAP</a></nav>
+  <div class="card">
+    <h1>E-TAP Privacy Policy</h1>
+    <p class="meta">Last updated: 15 November 2026</p>
+
+    <p>E-TAP checks suspicious emails and messages and explains, in plain language, whether they look
+    dangerous. This page says what happens to the things you send us, on the website and through our
+    WhatsApp number. It is written to be read, not skimmed past.</p>
+
+    <h2>What we receive</h2>
+    <ul>
+      <li><strong>On the website:</strong> the email file (.eml or .msg), pasted message text or files you choose to upload.</li>
+      <li><strong>On WhatsApp:</strong> the text, links, images and documents you send or forward to the E-TAP WhatsApp number (up to 5 files, 25 MB each).</li>
+      <li><strong>Your WhatsApp number</strong>, which WhatsApp gives us with each message. We use it only to send you the answer and to limit how many messages one number can send per hour. It is kept in the server's memory for that purpose and is not saved in your report.</li>
+      <li><strong>If you sign in</strong> (optional, with an emailed code): your email address, and short-lived hashed sign-in codes and sessions. Signing in is never required to check a message.</li>
+    </ul>
+
+    <h2>What we do with it</h2>
+    <p>We run an automated check and send back a result. E-TAP looks at the sender details, links, attachments
+    (file type, hashes, macros, text inside images and QR codes), and asks an AI model to explain the evidence.
+    By default the check is <strong>static</strong>: files are inspected but <strong>never opened or run</strong>. We do not
+    use your messages for advertising, we do not sell them, and we do not build profiles of people.</p>
+
+    <h2>What is saved, and for how long</h2>
+    <ul>
+      <li>A <strong>report</strong>: the verdict and score, the evidence behind it, and the links, domains and file fingerprints found. Before message text is saved, we mask card numbers, phone numbers, Aadhaar, PAN and SSN numbers, and email addresses in the body.</li>
+      <li><strong>Images</strong> found in a message (screenshots, QR codes) may be stored with our image host so the report can show them. They have a random, unguessable address and stay blurred until clicked.</li>
+      <li>Reports are kept for <strong>30 days by default</strong>. You can choose 7 to 365 days under <em>Settings</em> on the website. After that they are deleted.</li>
+    </ul>
+
+    <h2>Who else processes it</h2>
+    <p>To do the check we use these services. Each receives only what its job needs:</p>
+    <ul>
+      <li><strong>VirusTotal</strong> (links and file fingerprints) and <strong>AbuseIPDB</strong>, <strong>WHOIS</strong> and <strong>ip-api</strong> (IP addresses and domains). Links that carry an email address, token or other secret are shortened to the plain address or not sent at all.</li>
+      <li><strong>Google Gemini</strong>, for the AI explanation of the (masked) message content.</li>
+      <li><strong>Cloudinary</strong>, to store images found in messages.</li>
+      <li><strong>MongoDB Atlas</strong> (database), <strong>Render</strong> (server) and <strong>Vercel</strong> (website).</li>
+      <li><strong>Meta / WhatsApp</strong>, which carries your WhatsApp messages. Its own privacy policy applies to your use of WhatsApp.</li>
+    </ul>
+    <p>These providers have their own terms, which apply to the data they handle.</p>
+
+    <h2 id="deletion">Deleting your data</h2>
+    <ul>
+      <li><strong>Delete a report:</strong> open the report link we sent you (or find it under <em>Reports</em>), open <em>Sharing, retention &amp; deletion</em> and choose <em>Delete investigation</em>. This deletes the report and its stored images. <em>Delete all investigations</em> removes everything saved.</li>
+      <li><strong>Ask us to delete it:</strong> open an issue at <a href="https://github.com/bhavitanand/E-TAP-clean/issues">github.com/bhavitanand/E-TAP-clean/issues</a> with the report link (do not post the message itself). Your WhatsApp number is not saved with the report, so the link is how we find it.</li>
+      <li><strong>Sign-in data:</strong> you can sign out at any time in <em>Settings</em>, and sessions expire after 30 days.</li>
+    </ul>
+
+    <h2>Security</h2>
+    <p>Traffic uses HTTPS. Requests from WhatsApp are verified with a secret signature before we act on them.
+    No automated system is perfectly secure, so please do not send us anything you are not comfortable having
+    analysed by the services above.</p>
+
+    <h2>Children</h2>
+    <p>E-TAP is not aimed at children under 13, and we do not knowingly collect their data.</p>
+
+    <h2>Changes and contact</h2>
+    <p>If this policy changes, the date at the top changes too. Questions or requests: open an issue at
+    <a href="https://github.com/bhavitanand/E-TAP-clean/issues">github.com/bhavitanand/E-TAP-clean/issues</a>.</p>
+  </div>
+</main>
+</body>
+</html>

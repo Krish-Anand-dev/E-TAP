@@ -41,10 +41,10 @@ import logging
 import mimetypes
 import os
 import re
+import secrets
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-from email.message import EmailMessage
 from typing import Optional
 from urllib.parse import urlparse
 
@@ -56,9 +56,9 @@ logger = logging.getLogger("E-TAP.whatsapp")
 
 router = APIRouter(prefix="/whatsapp", tags=["whatsapp"])
 
-MAX_FILES = 3
-MAX_FILE_BYTES = 10 * 1024 * 1024
-MAX_TOTAL_BYTES = 15 * 1024 * 1024
+MAX_FILES = 5                        # the website's pasted-message form also takes 5
+MAX_FILE_BYTES = 25 * 1024 * 1024    # same ceiling as an upload on the website
+MAX_TOTAL_BYTES = 25 * 1024 * 1024
 MAX_REPLY_CHARS = 1500  # WhatsApp via Twilio accepts 1600
 DEFAULT_FRONTEND = "https://e-tap-clean.vercel.app"
 HELP_WORDS = {"hi", "hello", "hey", "help", "start", "menu"}
@@ -166,21 +166,59 @@ def linkify(text: str) -> str:
     return f"<html><body><p>{out.replace(chr(10), '<br>' + chr(10))}</p></body></html>"
 
 
+_CRLF = b"\r\n"
+_B64_STEP = 57 * 1024  # a whole number of 76-character base64 lines (57 raw bytes each)
+_CONTENT_TYPE = re.compile(r"^[A-Za-z0-9][\w.+-]*/[A-Za-z0-9][\w.+-]*$")
+
+
+def _base64_lines(data) -> list[bytes]:
+    """base64 in 76-character lines, made in small pieces so a 25 MB file never costs several copies."""
+    view = memoryview(data)
+    parts = []
+    for start in range(0, len(view), _B64_STEP):
+        encoded = base64.b64encode(view[start:start + _B64_STEP])
+        parts.append(_CRLF.join(encoded[i:i + 76] for i in range(0, len(encoded), 76)) + _CRLF)
+    return parts
+
+
 def build_eml(text: str, files: list[tuple[str, str, bytes]], message_sid: str) -> bytes:
-    """text + [(filename, content_type, bytes)] -> an .eml with no From, To or Date lines."""
+    """text + [(filename, content_type, bytes)] -> an .eml with no From, To or Date lines.
+
+    Written by hand (like the website's pasted-message form) rather than with the email library,
+    which makes several full copies of every attachment and would exhaust a small server."""
     body = (text or "").replace("\r\n", "\n").strip()
     first_line = next((ln.strip() for ln in body.splitlines() if ln.strip()), "")
     first_line = re.sub(r"\s+", " ", re.sub(r"[^\x20-\x7e]+", " ", first_line)).strip()[:60]
-    msg = EmailMessage()
-    msg["Subject"] = f"WhatsApp message: {first_line}" if first_line else "WhatsApp message"
-    msg["Message-ID"] = f"<whatsapp-{re.sub(r'[^A-Za-z0-9]', '', message_sid) or int(time.time())}@etap.local>"
-    msg.set_content(body or "(no text, files only)")
-    msg.add_alternative(linkify(body), subtype="html")
+    subject = f"WhatsApp message: {first_line}" if first_line else "WhatsApp message"
+    token = secrets.token_hex(6)
+    outer, inner = f"----=_etap_mixed_{token}", f"----=_etap_alt_{token}"
+    message_id = re.sub(r"[^A-Za-z0-9]", "", message_sid) or str(int(time.time()))
+
+    head = "\r\n".join([
+        "MIME-Version: 1.0",
+        f"Subject: {subject}",
+        f"Message-ID: <whatsapp-{message_id}@etap.local>",
+        f'Content-Type: multipart/mixed; boundary="{outer}"',
+        "", f"--{outer}",
+        f'Content-Type: multipart/alternative; boundary="{inner}"',
+        "", f"--{inner}",
+        'Content-Type: text/plain; charset="utf-8"',
+        "Content-Transfer-Encoding: base64", "", ""]).encode("ascii")
+    plain = (body or "(no text, files only)").encode("utf-8")
+    middle = "\r\n".join([f"--{inner}", 'Content-Type: text/html; charset="utf-8"',
+                          "Content-Transfer-Encoding: base64", "", ""]).encode("ascii")
+    parts = [head, *_base64_lines(plain), middle, *_base64_lines(linkify(body).encode("utf-8")),
+             f"--{inner}--\r\n".encode("ascii")]
     for name, content_type, data in files:
-        maintype, _, subtype = (content_type or "application/octet-stream").partition("/")
-        msg.add_attachment(data, maintype=maintype or "application", subtype=subtype or "octet-stream",
-                           filename=name)
-    return bytes(msg)
+        kind = (content_type or "").split(";")[0].strip().lower()
+        kind = kind if _CONTENT_TYPE.match(kind) else "application/octet-stream"
+        safe = _safe_filename(name) or "attachment"
+        parts.append("\r\n".join([f"--{outer}", f'Content-Type: {kind}; name="{safe}"',
+                                  "Content-Transfer-Encoding: base64",
+                                  f'Content-Disposition: attachment; filename="{safe}"', "", ""]).encode("ascii"))
+        parts.extend(_base64_lines(data))
+    parts.append(f"--{outer}--\r\n".encode("ascii"))
+    return b"".join(parts)
 
 
 # --- the reply --------------------------------------------------------------
@@ -202,7 +240,7 @@ def reply_text(report: dict, skipped_files: int = 0) -> str:
     lines += [f"- {reason}" for reason in share_card.reasons_for(key, evidence.get("top_reasons"))]
     lines.append(f"What to do: {share_card.NEXT_STEP[key]}")
     if skipped_files:
-        lines.append(f"Note: {skipped_files} file(s) could not be checked (too large or unreachable).")
+        lines.append(f"Note: {skipped_files} file(s) could not be checked (over 25 MB, or could not be downloaded).")
     if report.get("email_id"):
         lines.append(f"Full report: {frontend_url()}/?dossier={report['email_id']}")
     return "\n".join(lines)[:MAX_REPLY_CHARS]
@@ -246,10 +284,14 @@ def _check_and_reply(text: str, items: list, fetch_one, send, message_sid: str) 
         if not text.strip() and not files:
             send(FAILED_TEXT)
             return
+        from heavy_gate import heavy_analysis
         eml = build_eml(text, files, message_sid)
-        report = analyze_email_upload("whatsapp-message.eml", eml, SOURCE_FORWARDED, None,
-                                      {"requested": False, "token": None})
-        report = finish_analysis(report)
+        files.clear()  # the raw files are inside the .eml now; free them before the heavy part
+        with heavy_analysis(len(eml)):  # big messages take turns, shared with the website
+            report = analyze_email_upload("whatsapp-message.eml", eml, SOURCE_FORWARDED, None,
+                                          {"requested": False, "token": None})
+            report = finish_analysis(report)
+        del eml
         send(reply_text(report, skipped))
     except Exception as exc:
         logger.warning("WhatsApp analysis failed (%s)", type(exc).__name__)
