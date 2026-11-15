@@ -19,6 +19,10 @@ Loaded automatically by Claude Code. Keep it short, current and true.
 - **Privacy page**: `frontend/public/privacy.html`, themed like the app; Meta needs this URL.
 - Keep-alive is UptimeRobot on `/health` (5 min); the GitHub workflow was removed.
 
+## Gemini and the offline fallback
+- On 2026-11-15 Google returned 503/504 on every model for one request, so a report fell back to `offline_fallback` (key was fine). Check Render logs for "Gemini model ... failed". Now: one retry on 503, dead model name removed, honest status text, offline rules catch fee-before-deadline scams. Re-analyse any `offline_fallback` report before showing it.
+- Future scope: two-way WhatsApp after Meta verification (`WHATSAPP_REPLIES=1`, system-user token).
+
 ## User preferences
 - Never commit or push unless asked in that turn. Never print `.env` contents or tokens.
 - Ask before anything that writes to the real MongoDB (live analyses save a report) or resets the VM.

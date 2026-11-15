@@ -589,9 +589,9 @@ def interpret_evidence(context: dict, content_classification: dict) -> dict:
 #
 # Verified live models: lite variants offer high daily quota and ultra-low latency,
 # with gemini-3.6-flash as a powerful fallback before offline heuristics.
+# ("gemini-flash-lite-latest" was removed on 2026-11-15: Google answered 404 NOT_FOUND for it.)
 FALLBACK_MODELS = [
     "gemini-3.5-flash-lite",
-    "gemini-flash-lite-latest",
     "gemini-3.1-flash-lite",
     "gemini-3.6-flash",
 ]
@@ -668,24 +668,33 @@ Complete evidence context (for final_assessment):
         if failures and time.monotonic() - started > budget_s:
             failures.append(f"{model}: skipped (time budget spent)")
             break
-        try:
-            response = client.models.generate_content(
-                model=model,
-                contents=contents,
-                config={
-                    "response_mime_type": "application/json",
-                    "response_schema": CombinedAssessment,
-                },
-            )
-            return CombinedAssessment.model_validate_json(response.text), model
-        except Exception as exc:
-            # Log type + HTTP status only: provider exception text can echo request details.
-            code = getattr(exc, "code", None) or getattr(exc, "status_code", None) or ""
-            status = getattr(exc, "status", None) or ""
-            tag = f"{type(exc).__name__} {code} {status}".strip()
-            failures.append(f"{model}: {tag}")
-            logger.warning("Gemini model '%s' failed (%s); trying next fallback", model, tag)
-            continue
+        # A 503 UNAVAILABLE means Google is briefly overloaded and answers at once, so one more
+        # try on the same model after a short pause is cheap. Timeouts and other errors go
+        # straight to the next model.
+        for attempt in (1, 2):
+            try:
+                response = client.models.generate_content(
+                    model=model,
+                    contents=contents,
+                    config={
+                        "response_mime_type": "application/json",
+                        "response_schema": CombinedAssessment,
+                    },
+                )
+                return CombinedAssessment.model_validate_json(response.text), model
+            except Exception as exc:
+                # Log type + HTTP status only: provider exception text can echo request details.
+                code = getattr(exc, "code", None) or getattr(exc, "status_code", None) or ""
+                status = getattr(exc, "status", None) or ""
+                tag = f"{type(exc).__name__} {code} {status}".strip()
+                if attempt == 1 and (str(code) == "503" or "UNAVAILABLE" in str(status)) \
+                        and time.monotonic() - started < budget_s:
+                    logger.warning("Gemini model '%s' busy (%s); retrying once", model, tag)
+                    time.sleep(1.5)
+                    continue
+                failures.append(f"{model}: {tag}")
+                logger.warning("Gemini model '%s' failed (%s); trying next fallback", model, tag)
+                break
 
     raise RuntimeError("All Gemini models failed -> " + "; ".join(failures))
 

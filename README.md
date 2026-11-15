@@ -312,6 +312,7 @@ Development notes and iterations/   Research, decisions and the history of how t
 
 - Dynamic analysis needs your own VirtualBox or VMware VM and the agent (VMware support is tested with a fake `vmrun`, not yet on a real VMware); nothing clicks inside documents yet, so Office files and click-triggered PDFs are often inconclusive, and the 63 behaviour rules are checked with synthetic events, not yet against a broad set of real samples.
 - The Gmail extension uses Gmail's web endpoints, not the official Gmail API.
+- **Future scope: a two-way WhatsApp bot.** Once Meta verifies the business, replies (verdict, reasons and report link) switch on with `WHATSAPP_REPLIES=1`; the code and tests for it already exist.
 - The WhatsApp bot cannot send replies until its Meta WhatsApp business account is verified (needs legal business documents) and has a payment method; inbound handling works. Big (25 MB) files are analysed one at a time on the free Render plan.
 
 ## License
