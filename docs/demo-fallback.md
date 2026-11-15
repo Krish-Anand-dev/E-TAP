@@ -8,6 +8,13 @@ verified business). Do not claim the replies work live. Say exactly what is true
 > analysis as the website, and replies with the verdict and a report link. Meta only lets a verified
 > business send replies, and we are a student team, so for the demo we show the same flow on the website."
 
+## One-way bot (best demo, needs a sign-in beforehand)
+
+Link your WhatsApp to your account (Settings > WhatsApp, see `docs/whatsapp-bot.md`), then forward a
+message or file to the bot from that phone and open **My reports** on the website: the full analysis
+is there. The bot sends nothing back; say so ("WhatsApp is the convenient way in, the report lives on
+the site"). Set `WHATSAPP_REPLIES=0` on Render first.
+
 ## What to show (about 3 minutes)
 
 1. **The website, paste mode (same pipeline as the bot).** Analyze page, "Or paste a message you were

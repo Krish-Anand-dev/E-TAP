@@ -448,3 +448,6 @@ app.include_router(login_router)
 
 from whatsapp import router as whatsapp_router
 app.include_router(whatsapp_router)
+
+from whatsapp_link import router as whatsapp_link_router
+app.include_router(whatsapp_link_router)

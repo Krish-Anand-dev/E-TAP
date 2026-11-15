@@ -489,6 +489,7 @@ All access goes through `db/repository.py`; every function takes `db` explicitly
 | `POST /sandbox/agent/register` (5/min), `GET /sandbox/agent/me`, `POST /sandbox/agent/pairing-code` | agent identity and pairing (agent routes use `Authorization: Bearer <agent token>`) |
 | `POST /sandbox/agent/jobs/next`, `GET …/jobs/{id}/samples/{n}`, `POST …/jobs/{id}/progress`, `POST …/jobs/{id}/result` | agent job loop |
 | `GET /auth/status`, `POST /auth/request-code`, `POST /auth/verify-code`, `GET /auth/me`, `POST /auth/logout` | optional email-code sign-in (`backend/login.py`): HMAC-hashed 6-digit codes (10 min, 5 attempts, 60 s cooldown, 5/h per email, 10/h per IP), opaque session tokens stored as SHA-256 (30 days), mail via Brevo or Resend HTTPS APIs (Render free blocks SMTP). `owner_email` is tagged on reports analysed while signed in; `GET /investigations?mine=true` filters to them (401 if not signed in) |
+| `GET /whatsapp/link`, `POST /whatsapp/link/code`, `DELETE /whatsapp/link` | link a WhatsApp number to the signed-in account (`backend/whatsapp_link.py`). The site issues `ETAP-123456` (15 min, one use, HMAC-hashed); the person sends it to the bot; the number is stored only as an HMAC hash and forwarded messages from it get `owner_email` (My reports). One number per account. Works one-way, so it needs no replies from Meta |
 | `GET/POST /whatsapp/meta`, `POST /whatsapp/twilio` | WhatsApp bot webhooks (`backend/whatsapp.py`, see below). Each is off until its secret is set |
 | `/docs` | Swagger UI |
 
@@ -660,6 +661,7 @@ Backend (`.env` at repo root locally; host settings in production — never in t
 | `META_PHONE_NUMBER_ID`, `META_ACCESS_TOKEN`, `META_APP_SECRET`, `META_VERIFY_TOKEN`, `META_GRAPH_VERSION` | — | Meta WhatsApp Cloud API route (use a system-user token; the temporary one expires in about a day) |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`, `PUBLIC_API_URL` | — | Twilio sandbox route (alternative; needs a paid account to set the incoming webhook) |
 | `PUBLIC_FRONTEND_URL`, `WHATSAPP_MAX_PER_HOUR` | —, `10` | report links in bot replies; per-number limit |
+| `WHATSAPP_REPLIES`, `WHATSAPP_BOT_NUMBER` | `1`, — | `0` = never try to send a reply (use while Meta blocks replies); the bot number shown in Settings when linking |
 | `CLOUDINARY_OCR`, `CLOUDINARY_MODERATION` | `0` | request the `adv_ocr` / `aws_rek` add-ons on upload; leave off unless installed in the Cloudinary console (an add-on error retries the upload without add-ons) |
 
 Frontend: `VITE_API_BASE_URL` (empty in dev to use the proxy; the Render URL on Vercel) and `VITE_TIMELINE_PACING` (`off` builds with the Fast animation and locks the Settings choice; otherwise each user picks Full or Fast in Settings, default Full).

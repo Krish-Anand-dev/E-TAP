@@ -260,11 +260,27 @@ def _safe_filename(name: Optional[str]) -> str:
     return re.sub(r"[^A-Za-z0-9._ -]", "_", str(name or "")).strip(" .")[:80]
 
 
-def _check_and_reply(text: str, items: list, fetch_one, send, message_sid: str) -> None:
-    """The provider-neutral worker: fetch files, analyse, answer. Never raises.
+LINKED_TEXT = "Done. This WhatsApp number is now linked to your E-TAP account. Your forwarded messages will appear under My reports."
+LINK_FAILED_TEXT = "That link code did not work or has expired. Get a new one in E-TAP under Settings."
+SAVED_TEXT = "Saved to your E-TAP account. Open My reports on the website to see the full analysis."
+
+
+def replies_enabled() -> bool:
+    """Set WHATSAPP_REPLIES=0 while Meta blocks replies (unverified business), so nothing is sent and logged as refused."""
+    return os.getenv("WHATSAPP_REPLIES", "1").strip().lower() not in ("0", "false", "off", "no")
+
+
+def _link_number(sender: str, code: str, send) -> None:
+    """A link code arrived: connect this number to the account that asked for it."""
+    from whatsapp_link import claim_code
+    send(LINKED_TEXT if claim_code(sender, code) else LINK_FAILED_TEXT)
+
+
+def _check_and_reply(text: str, items: list, fetch_one, send, message_sid: str, sender: str = "") -> None:
+    """The provider-neutral worker: fetch files, analyse, save under the sender's account, answer. Never raises.
 
     items: [(reference, content_type, filename_hint)]; fetch_one(reference) -> bytes or None;
-    send(body) delivers one reply to the person who wrote."""
+    send(body) delivers one reply to the person who wrote; sender is only used to find a linked account."""
     try:
         from pipeline import SOURCE_FORWARDED, analyze_email_upload
         from workflow_c import finish_analysis
@@ -292,6 +308,10 @@ def _check_and_reply(text: str, items: list, fetch_one, send, message_sid: str) 
                                           {"requested": False, "token": None})
             report = finish_analysis(report)
         del eml
+        if sender:
+            from login import tag_owner
+            from whatsapp_link import owner_for
+            tag_owner(report.get("email_id"), owner_for(sender))  # linked number: it shows under My reports
         send(reply_text(report, skipped))
     except Exception as exc:
         logger.warning("WhatsApp analysis failed (%s)", type(exc).__name__)
@@ -301,7 +321,7 @@ def _check_and_reply(text: str, items: list, fetch_one, send, message_sid: str) 
 def _process(sender: str, text: str, media: list[tuple[str, str]], message_sid: str) -> None:
     """Twilio: files arrive as URLs, and the instant acknowledgement was already sent as TwiML."""
     _check_and_reply(text, [(url, ctype, None) for url, ctype in media], fetch_media,
-                     lambda body: send_whatsapp(sender, body), message_sid)
+                     lambda body: send_whatsapp(sender, body), message_sid, sender)
 
 
 def _first_time(message_sid: str) -> bool:
@@ -362,6 +382,12 @@ async def twilio_webhook(request: Request) -> Response:
     if not _within_limit(sender):
         return _twiml(BUSY_TEXT)
 
+    from whatsapp_link import extract_code
+    code = None if media else extract_code(text)
+    if code:
+        _submit(_link_number, sender, code, lambda body: send_whatsapp(sender, body))
+        return _twiml()
+
     _submit(_process, sender, text, media, message_sid)
     return _twiml(ACK_TEXT)
 
@@ -383,6 +409,8 @@ def _meta_headers() -> dict:
 
 def send_meta(to: str, body: str) -> bool:
     """Send one WhatsApp text through the Cloud API. Never raises."""
+    if not replies_enabled():
+        return False
     phone_id = os.getenv("META_PHONE_NUMBER_ID", "").strip()
     if not (phone_id and os.getenv("META_ACCESS_TOKEN")):
         logger.warning("WhatsApp reply not sent: Meta sender is not configured")
@@ -435,7 +463,7 @@ def fetch_meta_media(media_id: str) -> Optional[bytes]:
 def _process_meta(sender: str, text: str, items: list, message_id: str) -> None:
     """Meta has no TwiML, so the acknowledgement is an ordinary message sent first."""
     send_meta(sender, ACK_TEXT)
-    _check_and_reply(text, items, fetch_meta_media, lambda body: send_meta(sender, body), message_id)
+    _check_and_reply(text, items, fetch_meta_media, lambda body: send_meta(sender, body), message_id, sender)
 
 
 def _meta_messages(payload: dict):
@@ -473,6 +501,11 @@ def _handle_meta_message(message: dict) -> None:
         return
     if not _within_limit(f"meta:{sender}"):
         _submit(send_meta, sender, BUSY_TEXT)
+        return
+    from whatsapp_link import extract_code
+    code = None if items else extract_code(text)
+    if code:
+        _submit(_link_number, sender, code, lambda body: send_meta(sender, body))
         return
     _submit(_process_meta, sender, text, items, message_id)
 

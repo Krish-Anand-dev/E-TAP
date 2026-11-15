@@ -77,6 +77,10 @@ def _set_path(doc: dict, path: str, value: Any) -> None:
 
 def _matches(doc: dict, filt: dict) -> bool:
     for key, condition in (filt or {}).items():
+        if key == "$or":
+            if not any(_matches(doc, branch) for branch in condition):
+                return False
+            continue
         value = _get_path(doc, key)
 
         if isinstance(condition, dict) and any(
@@ -86,6 +90,12 @@ def _matches(doc: dict, filt: dict) -> bool:
                 if op == "$in":
                     candidates = value if isinstance(value, list) else [value]
                     if not any(v in operand for v in candidates):
+                        return False
+                elif op == "$gt":
+                    if value is None or value <= operand:
+                        return False
+                elif op == "$lt":
+                    if value is None or value >= operand:
                         return False
                 elif op == "$gte":
                     if value is None or value < operand:

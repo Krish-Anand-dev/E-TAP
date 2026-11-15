@@ -14,6 +14,23 @@ Code: `backend/whatsapp.py`. Tests: `backend/tests/test_whatsapp.py` (Twilio) an
 
 Each route is off until its secret is set, so having both in the code is harmless.
 
+## One-way mode: link your number to your account
+
+Meta only lets a verified business send replies, so until verification the bot works one way: it
+receives what you forward and runs the full analysis, and you read the result on the website.
+
+1. On the website sign in (Settings > Your account), then open Settings > WhatsApp and press
+   **Link my WhatsApp**. It shows a one-time code like `ETAP-123456` (valid 15 minutes).
+2. From the phone you want to link, send exactly that code to the bot's WhatsApp number.
+3. Back on the site press **Check now**. From then on, anything that number forwards (text, links,
+   images, documents) is analysed and saved under **My reports** for your account.
+
+Numbers that are not linked are still analysed (the report is saved without an owner). A linked
+number is stored only as a keyed hash. One number per account; linking a number to a second account
+moves it. Set `WHATSAPP_REPLIES=0` on Render so the bot never tries to reply (Meta would refuse with
+131031), and `WHATSAPP_BOT_NUMBER` to the number shown in the instructions. Code: `backend/whatsapp_link.py`,
+tests: `backend/tests/test_whatsapp_link.py`.
+
 ## Meta Cloud API setup (about 20 minutes)
 
 Menu names change now and then, so follow the idea if a label differs slightly.
