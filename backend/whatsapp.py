@@ -442,17 +442,22 @@ def fetch_meta_media(media_id: str) -> Optional[bytes]:
     try:
         lookup = requests.get(f"{_graph_base()}/{media_id}", headers=_meta_headers(), timeout=15)
         if lookup.status_code >= 300:
+            # 400/401 here almost always means META_ACCESS_TOKEN expired or was rotated.
+            logger.warning("WhatsApp media lookup refused (status %s); check META_ACCESS_TOKEN", lookup.status_code)
             return None
         url = (lookup.json() or {}).get("url", "")
         if not _allowed_meta_host(url):
+            logger.warning("WhatsApp media skipped: download host is not a Meta host")
             return None
         response = requests.get(url, headers=_meta_headers(), timeout=20, stream=True)
         if response.status_code >= 300:
+            logger.warning("WhatsApp media download refused (status %s)", response.status_code)
             return None
         data = bytearray()
         for chunk in response.iter_content(64 * 1024):
             data.extend(chunk)
             if len(data) > MAX_FILE_BYTES:
+                logger.warning("WhatsApp media skipped: larger than %s MB", MAX_FILE_BYTES // (1024 * 1024))
                 return None
         return bytes(data) or None
     except Exception as exc:
