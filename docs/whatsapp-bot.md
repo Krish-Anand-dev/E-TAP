@@ -88,8 +88,13 @@ settings page that trial accounts cannot open.
 
 ## Limits and behaviour
 
-- Up to 3 files per message, 10 MB each, 15 MB total. Larger files, or files not hosted by the
-  provider, are skipped and the reply says so.
+- Up to 5 files per message and 25 MB in total, the same ceiling as an upload on the website. A file
+  over the limit, or one that cannot be downloaded, is skipped and the reply says so; the rest of the
+  message is still checked.
+- Big files are heavy: a 25 MB attachment needs roughly 325 MB of memory while it is parsed (measured),
+  and a free Render service has 512 MB. Big analyses (over 8 MB) therefore take turns, shared with the
+  website, so two cannot overlap. A big file takes a few seconds longer, and a second big message waits
+  for the first. If you expect many large files, a Render plan with 2 GB removes the limit.
 - One number can send 10 messages an hour (`WHATSAPP_MAX_PER_HOUR`).
 - Text, links, images and documents are checked. Audio, video and stickers get a short reply saying
   what the bot can check.

@@ -129,6 +129,13 @@ def ready() -> Any:
         )
 
 
+def _guarded_analyze(filename: str, raw: bytes, source, sandbox: dict) -> dict:
+    """Run the pipeline; messages over a few MB take turns so a small server is not out of memory."""
+    from heavy_gate import heavy_analysis
+    with heavy_analysis(len(raw)):
+        return analyze_email_upload(filename, raw, source, None, sandbox)
+
+
 @app.post("/analyze", response_model=None)
 @limiter.limit("10/minute")
 async def analyze(
@@ -171,8 +178,8 @@ async def analyze(
 
         # Run heavy synchronous pipeline (WHOIS, VirusTotal, Gemini, DB) in worker thread
         # to ensure the main asyncio event loop never freezes during /health checks
-        report = await asyncio.to_thread(analyze_email_upload, filename, bytes(raw_bytes), source,
-                                         None, _sandbox_request(request, deep_analysis))
+        report = await asyncio.to_thread(_guarded_analyze, filename, bytes(raw_bytes), source,
+                                         _sandbox_request(request, deep_analysis))
         from workflow_c import finish_analysis
         from login import current_user, tag_owner
         owner = current_user(request)
