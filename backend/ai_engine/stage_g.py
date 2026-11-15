@@ -139,10 +139,25 @@ def _offline_content_classification(email: dict) -> dict:
         "account suspended", "account will be suspended", "act now",
         "expires today", "limited time", "locked immediately",
     ])
+    # "Pay a small fee before a deadline or lose the parcel/account/refund" scams (delivery,
+    # customs, toll, fine, refund). Needs a link, a payment demand and a deadline together,
+    # so an ordinary invoice or receipt does not trip it.
+    has_deadline = has_urgency or bool(re.search(
+        r"within\s+(the\s+next\s+)?\d+\s*(hours?|hrs?|minutes?|mins?|days?)\b|"
+        r"(returned|sent back)\s+to\s+(the\s+)?sender|will\s+be\s+(blocked|cancelled|canceled|disconnected|returned)",
+        lowered))
+    has_payment_demand = _has_any(lowered, [
+        "unpaid", "pay the fee", "pay a fee", "redelivery fee", "customs fee", "delivery fee",
+        "clearance fee", "pay now", "pay within", "outstanding amount", "fee of rs", "fee of $", "fee of ₹",
+        "settle the amount", "pending fee", "penalty",
+    ])
+    fee_scam = has_url and has_payment_demand and has_deadline
+    if fee_scam:
+        has_urgency = True
     has_sensitive_context = _has_any(lowered, [
         "verify", "login", "password", "account", "payment", "invoice",
         "credentials", "mfa", "one-time code", "bank details",
-    ])
+    ]) or fee_scam
     credential_topic = _has_any(lowered, ["password", "login", "credential", "sign in", "account access", "mfa", "verification code"])
     credential_action = _has_any(lowered, [
         "verify your account", "confirm your account", "reset your password",
@@ -151,7 +166,7 @@ def _offline_content_classification(email: dict) -> dict:
         "account is locked", "account has been suspended", "sign in to",
         "log in to", "re-enter your credentials", "verify your identity",
     ])
-    strong_link_lure = has_url and has_link_lure and has_sensitive_context and (has_urgency or credential_action)
+    strong_link_lure = (has_url and has_link_lure and has_sensitive_context and (has_urgency or credential_action)) or fee_scam
 
     # A passing mention of a password or URL is common in benign mail. Require
     # an action/pressure context before assigning the credential-phishing class.
@@ -167,6 +182,11 @@ def _offline_content_classification(email: dict) -> dict:
     if _has_any(lowered, ["invoice", "payment", "wire transfer", "bank account", "remittance"]):
         categories.append(_category("Payment / Invoice Fraud"))
         indicators.append("payment or invoice language")
+    if fee_scam:
+        categories.append(_category("Payment / Invoice Fraud"))
+        indicators.append("a fee demanded through a link before a deadline")
+        categories.append(_category("Malicious Link / URL"))
+        indicators.append("link call-to-action combined with a payment demand")
     if _has_any(lowered, ["ceo", "chief executive", "gift card", "payroll", "hr department"]):
         categories.append(_category("Business Email Compromise (BEC)"))
         indicators.append("business impersonation language")
@@ -705,6 +725,10 @@ def analyze_with_stage_g(context: dict) -> dict:
         content["fallback_reason"] = str(exc)
         final = _offline_final_assessment(context, content)
         final["fallback_reason"] = str(exc)
+        if os.getenv("GEMINI_API_KEY"):
+            # The key is set, so say what really happened (Gemini down, slow or over quota).
+            for part in (content, final):
+                part["status"] = "Gemini was unavailable; used the deterministic offline fallback"
         return {
             "content_classification": content,
             "final_assessment": final,
