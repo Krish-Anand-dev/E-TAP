@@ -12,8 +12,8 @@ Loaded automatically by Claude Code. Keep it short, current and true.
 ## Added in November 2026
 - **Optional email-code sign-in**: `backend/login.py`, `frontend/src/api/auth.js`, `components/settings/AccountSignIn.jsx`. Never required to analyse; only tags `owner_email` and enables the "My reports" filter.
 - **WhatsApp bot (static analysis only)**: `backend/whatsapp.py` (Meta Cloud API route plus a Twilio route), `heavy_gate.py` (one big analysis at a time), report link `?dossier=<email_id>`.
-  - **Replies are blocked by Meta, not by our code** (2026-11-15): error 131031 "Business Account locked", because the WhatsApp business account is unverified (no legal business, no payment method). Publishing or unpublishing the app does not help. Do not claim the bot replies live; use `docs/demo-fallback.md`.
-  - **One-way mode**: `backend/whatsapp_link.py` links a phone number (HMAC hash only) to an account by the person sending a one-time `ETAP-123456` code to the bot; forwarded messages from a linked number get `owner_email` and show under My reports. UI: Settings > WhatsApp (`components/settings/WhatsAppLink.jsx`). Set `WHATSAPP_REPLIES=0` on Render while Meta blocks replies. `FakeDatabase` gained `$gt`, `$lt` and top-level `$or` for it.
+  - **Replies (updated 2026-11-22, PR #1 by Yashmit Kamal)**: on 2026-11-15 Meta blocked replies on the original account (error 131031 "Business Account locked"). A live greeting reply was later verified on a replacement test number with a temporary token. Production is not re-confirmed: check `WHATSAPP_REPLIES` and the token on Render, send `hi` and see the reply arrive before claiming it works. Failed sends and failed delivery webhooks are logged by numeric code only. Runbook: `docs/whatsapp-bot.md`; fallback: `docs/demo-fallback.md`.
+  - **One-way mode**: `backend/whatsapp_link.py` links a phone number (HMAC hash only) to an account by the person sending a one-time `ETAP-123456` code to the bot; forwarded messages from a linked number get `owner_email` and show under My reports. UI: Settings > WhatsApp (`components/settings/WhatsAppLink.jsx`). Set `WHATSAPP_REPLIES=0` for receive-only mode. `FakeDatabase` gained `$gt`, `$lt` and top-level `$or` for it.
   - The Meta app must be subscribed to the WABA (`POST /{WABA}/subscribed_apps`), otherwise no real messages arrive.
   - `META_ACCESS_TOKEN` on Render is now a **non-expiring system-user token** (Meta Business Settings, system user `etap-whatsapp-bot`, Admin, with the E-TAP app and the test WhatsApp account assigned; permissions `whatsapp_business_messaging` and `whatsapp_business_management`; set 2026-11-15). A rotated or expired token makes file and image downloads fail (text still works); the log line is "WhatsApp media lookup refused (status ...)". Verified live 2026-11-15: PDF, 9.5 MB PDF and a JPEG screenshot (OCR read the text, HIGH-RISK) all produce reports. Send images as photos: WhatsApp Web sends a bare PNG as a sticker, which the bot ignores by design.
 - **Privacy page**: `frontend/public/privacy.html`, themed like the app; Meta needs this URL.
@@ -21,10 +21,10 @@ Loaded automatically by Claude Code. Keep it short, current and true.
 
 ## Gemini and the offline fallback
 - On 2026-11-15 Google returned 503/504 on every model for one request, so a report fell back to `offline_fallback` (key was fine). Check Render logs for "Gemini model ... failed". Now: one retry on 503, dead model name removed, honest status text, offline rules catch fee-before-deadline scams. Re-analyse any `offline_fallback` report before showing it.
-- Future scope: two-way WhatsApp after Meta verification (`WHATSAPP_REPLIES=1`, system-user token).
+- Two-way WhatsApp: confirm on the production sender, then `WHATSAPP_REPLIES=1` with a system-user token. A public bot needs a verified WhatsApp Business number.
 
 ## User preferences
-- Never commit or push unless asked in that turn. Never print `.env` contents or tokens.
+- Never commit or push unless asked in that turn. Never add Claude as a co-author or add Claude attribution lines to commits or PRs. Never print `.env` contents or tokens.
 - Ask before anything that writes to the real MongoDB (live analyses save a report) or resets the VM.
 - Nothing may hinder a normal user: Standard analysis is the default and never waits on the sandbox.
 - Non-technical users first, plain words, no emojis in the UI.

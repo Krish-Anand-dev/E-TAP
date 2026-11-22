@@ -1,7 +1,7 @@
 """Link a WhatsApp number to a signed-in E-TAP account, without ever messaging the number.
 
-The bot cannot send replies until Meta verifies the business, so the link is proven in the one
-direction that works: the signed-in person asks the website for a short code, then sends that code
+Replies can be blocked by Meta (account locks, expired tokens), so the link does not rely on them and
+is proven in the direction that always works: the signed-in person asks the website for a short code, then sends that code
 to the bot from their WhatsApp. When the bot receives it, the number belongs to that account, and
 anything the number forwards afterwards is saved as that account's report ("My reports").
 

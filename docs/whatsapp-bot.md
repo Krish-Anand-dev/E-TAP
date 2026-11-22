@@ -4,6 +4,8 @@ Forward a suspicious message, link, image or document to the bot. It replies at 
 runs the normal static analysis, then sends the verdict, the main reasons, what to do next and a
 link to the full report on the website. No sandbox, and files are never opened.
 
+**Two modes.** Two-way (`WHATSAPP_REPLIES=1`, the default): the bot replies on WhatsApp. Receive-only (`WHATSAPP_REPLIES=0`): it still analyses everything and saves it, and a linked number reads the result under **My reports** on the website (see "One-way mode" below). Whether replies are delivered depends on the Meta account, so test with the steps in "Restore outgoing Meta replies".
+
 Code: `backend/whatsapp.py`. Tests: `backend/tests/test_whatsapp.py` (Twilio) and
 `backend/tests/test_whatsapp_meta.py` (Meta). Both providers use the same analysis and wording.
 

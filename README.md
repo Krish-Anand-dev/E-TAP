@@ -26,7 +26,8 @@ For the deep technical reference (every module, library, environment variable, d
 ```text
  .eml / .msg upload  ─┐
  Gmail extension     ─┼─►  A  Parse & normalise (MIME, headers, attachments, PII masking)
- CLI (run_pipeline)  ─┘         │
+ CLI (run_pipeline)  ─┤         │
+ WhatsApp bot        ─┘         │   (forwarded text, links, images, files: static analysis only)
                                 ├─► B   Header forensics: SPF / DKIM / DMARC, Received chain,
                                 │        true-origin resolution, lookalike & homograph domains
                                 ├─► B2  Attachment forensics: SHA-256, magic bytes, macros (oletools),
@@ -322,4 +323,4 @@ E-TAP is open source under the [MIT License](LICENSE). The libraries it uses kee
 
 - Bhavit Anand
 - Krish Anand
-- Yashmit Kamal
+- Yashmit Kamal (WhatsApp reply diagnostics and error-code logging, PR #1)
