@@ -1,13 +1,12 @@
 # Demo plan: the one-way WhatsApp bot
 
-Status (2026-11-15): the WhatsApp bot is live in **one-way** mode. It receives what you forward (text,
-links, photos, PDFs and other files up to 25 MB), runs the same analysis as the website, and saves the
-report under your account. It cannot send replies, because Meta only lets a **verified business** send
-messages and we are a student team: the account is locked for replies (error 131031 "Business Account
-locked"). Do not claim the bot replies. Say what is true:
+Use this fallback if the configured sender cannot reply or the demo needs to run without WhatsApp
+replies. With replies disabled, the bot can still receive forwarded messages and save reports for
+linked accounts. On 2026-11-22, a live greeting reply was verified on the replacement Meta test
+number using a temporary token. See [the setup guide](whatsapp-bot.md) for two-way testing.
 
 > "WhatsApp is the convenient way in: forward anything suspicious to our bot and the full report
-> appears in your account on the website. Replies on WhatsApp come after Meta verifies our business."
+> appears in your account on the website."
 
 ## Before the demo (10 minutes)
 
@@ -15,7 +14,7 @@ locked"). Do not claim the bot replies. Say what is true:
 - Sign in on the site (Settings, Your account, emailed code) and link your number (Settings, WhatsApp,
   send the `ETAP-xxxxxx` code to the bot). Only numbers added in Meta (API Setup, the "To" list) can
   message the test number, and only the linked number's forwards land in **My reports**.
-- Set `WHATSAPP_REPLIES=0` on Render (it is set). Keep WhatsApp Web open on the bot chat.
+- For a receive-only demo, set `WHATSAPP_REPLIES=0` on Render. Keep WhatsApp Web open on the bot chat.
 - Pre-run the sample message on the website so a finished report is ready if anything is slow.
 - Send images as **photos**. WhatsApp Web sends a bare PNG as a sticker, which the bot ignores.
 
@@ -27,8 +26,7 @@ locked"). Do not claim the bot replies. Say what is true:
    For a screenshot, show the text read off the image (OCR). For a harmless message, show it is not flagged.
 3. **Same pipeline in the browser.** Analyze page, "Or paste a message you were sent", Standard analysis,
    to show the live timeline.
-4. **Be upfront about the limit.** The bot is one-way until Meta verification clears (needs legal business
-   documents and a payment method; nothing in our code changes).
+4. **Show where the result appears.** In this mode, the result is under **My reports**.
 5. **Privacy page and sign-in.** `https://e-tap-clean.vercel.app/privacy.html`; the phone number is
    stored only as a keyed hash.
 
@@ -46,7 +44,7 @@ locked"). Do not claim the bot replies. Say what is true:
 ## If someone asks
 
 - Why not Twilio? Its trial cannot set the incoming webhook; it needs a paid upgrade.
-- What makes replies possible? Meta business verification and a payment method; then set
-  `WHATSAPP_REPLIES=1`. The reply code and tests already exist.
+- What makes replies possible? Configure the sender, account subscription and access token, then set
+  `WHATSAPP_REPLIES=1`. If Meta reports an account lock, check Business Support Home.
 - Can anyone use it? The Meta test number only talks to the numbers added as recipients (up to 5).
   A public bot needs a verified WhatsApp Business number.

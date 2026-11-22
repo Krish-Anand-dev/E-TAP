@@ -3,9 +3,7 @@ import Icon from '../common/Icon';
 import { getWhatsAppLink, newWhatsAppLinkCode, unlinkWhatsApp } from '../../api/whatsappLink';
 import { loginEmail } from '../../api/session';
 
-// Optional: connect your WhatsApp number to your account. The bot cannot message you back yet,
-// so the link is proven the other way round: you send the one-time code to the bot, and from then
-// on anything you forward appears under My reports. Shown only while signed in.
+// Send a one-time code to link your number to the account. Future reports appear under My reports.
 export default function WhatsAppLink() {
   const [signedIn, setSignedIn] = useState(Boolean(loginEmail()));
   const [state, setState] = useState(null);
@@ -51,7 +49,7 @@ export default function WhatsAppLink() {
       <div className="v2-card-head">
         <div>
           <h3>WhatsApp</h3>
-          <p>Optional. Link your WhatsApp number, then forward a suspicious message or file to the E-TAP bot. The full analysis appears under <b>My reports</b> on this website; the bot does not reply on WhatsApp.</p>
+          <p>Optional. Link your WhatsApp number, then forward a suspicious message or file to the E-TAP bot. The full analysis appears under <b>My reports</b>.</p>
         </div>
       </div>
       {state?.linked ? (

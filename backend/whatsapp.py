@@ -266,7 +266,7 @@ SAVED_TEXT = "Saved to your E-TAP account. Open My reports on the website to see
 
 
 def replies_enabled() -> bool:
-    """Set WHATSAPP_REPLIES=0 while Meta blocks replies (unverified business), so nothing is sent and logged as refused."""
+    """Set WHATSAPP_REPLIES=0 for receive-only mode while resolving provider restrictions."""
     return os.getenv("WHATSAPP_REPLIES", "1").strip().lower() not in ("0", "false", "off", "no")
 
 
@@ -407,9 +407,38 @@ def _meta_headers() -> dict:
     return {"Authorization": f"Bearer {os.getenv('META_ACCESS_TOKEN', '')}"}
 
 
+def _log_meta_error(error: dict, stage: str) -> None:
+    """Log provider codes, never raw payloads, tokens, phone numbers or message content."""
+    def numeric_code(value):
+        return str(value) if re.fullmatch(r"\d{1,10}", str(value)) else "unknown"
+
+    code = numeric_code(error.get("code"))
+    subcode = numeric_code(error.get("error_subcode"))
+    action = ("Check the WhatsApp account restriction in Meta Business Support Home; "
+              "131031 alone does not establish that business verification is required."
+              if code == "131031" else
+              "Check Meta WhatsApp Manager and the Cloud API error-code documentation.")
+    logger.warning("WhatsApp Meta %s failed (code %s, subcode %s). %s", stage, code, subcode, action)
+
+
+def _log_meta_delivery_failures(payload: dict) -> None:
+    """An accepted API request can still fail later; Meta reports that via a signed webhook."""
+    for entry in payload.get("entry") or []:
+        for change in entry.get("changes") or []:
+            if change.get("field") != "messages":
+                continue
+            for status in (change.get("value") or {}).get("statuses") or []:
+                if not isinstance(status, dict) or status.get("status") != "failed":
+                    continue
+                errors = status.get("errors") or [{}]
+                for error in errors:
+                    _log_meta_error(error if isinstance(error, dict) else {}, "delivery")
+
+
 def send_meta(to: str, body: str) -> bool:
-    """Send one WhatsApp text through the Cloud API. Never raises."""
+    """Submit a WhatsApp text. True means accepted by Meta, not confirmed delivered. Never raises."""
     if not replies_enabled():
+        logger.info("WhatsApp replies are disabled by WHATSAPP_REPLIES; receive-only mode is active")
         return False
     phone_id = os.getenv("META_PHONE_NUMBER_ID", "").strip()
     if not (phone_id and os.getenv("META_ACCESS_TOKEN")):
@@ -422,6 +451,11 @@ def send_meta(to: str, body: str) -> bool:
                   "text": {"body": body[:4000], "preview_url": False}})
         if response.status_code >= 300:
             logger.warning("WhatsApp reply refused (status %s)", response.status_code)
+            try:
+                error = response.json().get("error", {})
+                _log_meta_error(error if isinstance(error, dict) else {}, "request")
+            except (ValueError, AttributeError, TypeError):
+                pass
             return False
         return True
     except Exception as exc:
@@ -541,6 +575,8 @@ async def meta_webhook(request: Request) -> dict:
         payload = json.loads(raw)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid body.") from None
-    for message in _meta_messages(payload if isinstance(payload, dict) else {}):
+    payload = payload if isinstance(payload, dict) else {}
+    _log_meta_delivery_failures(payload)
+    for message in _meta_messages(payload):
         _handle_meta_message(message)
     return {"status": "ok"}
