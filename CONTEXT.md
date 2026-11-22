@@ -49,7 +49,7 @@ E-TAP (Email-TAP, "Email Threat Analysis Platform") is a defensive email-forensi
 4. *Privacy by default.* Secret-bearing URLs are trimmed or withheld from VirusTotal; Gemini gets a sanitized copy; PII is masked at parse time; logs never contain message content.
 5. *One source of truth for the verdict* (`backend/verdicts.py`), mirrored in the frontend and checked by a test.
 
-Team: Bhavit Anand, Krish Anand, Yashmit Kamal. Built as a hackathon/academic project; comments in the code refer to stage owners (Stage A/B by Krish, B2 by "the team").
+Team: Bhavit Anand, Krish Anand, Yashmit Kamal (Yashmit: WhatsApp reply diagnostics, PR #1). Built as a hackathon/academic project; comments in the code refer to stage owners (Stage A/B by Krish, B2 by "the team").
 
 ---
 
@@ -121,6 +121,10 @@ E-TAP/
 │   ├── cloudinary_store.py   optional Cloudinary image evidence store: upload, blurred previews, optional OCR/moderation add-ons, delete
 │   ├── share_card.py         optional shareable result card: a Cloudinary text-overlay URL on a plain base image (verdict, score, fixed reasons, date; no message content)
 │   ├── provider_status.py    per-provider coverage object
+│   ├── login.py              optional email-code sign-in (codes, sessions, "My reports" owner tag)
+│   ├── whatsapp.py           WhatsApp bot: Meta Cloud API + Twilio routes, replies, delivery-failure logging
+│   ├── whatsapp_link.py      link a WhatsApp number to an account with a one-time ETAP-123456 code (HMAC hash only)
+│   ├── heavy_gate.py         one big analysis at a time (shared by the website and the bot)
 │   ├── workflow_c.py         APIRouter: review, retention, share, analytics, baselines…
 │   ├── sandbox_api.py        APIRouter: per-email sandbox status, pairing, agent job endpoints
 │   ├── sandbox/              Stage S on the server: selection, archives, rules, scoring, providers

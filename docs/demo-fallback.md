@@ -1,4 +1,4 @@
-# Demo plan: the one-way WhatsApp bot
+# Demo plan: WhatsApp bot (receive-only fallback)
 
 Use this fallback if the configured sender cannot reply or the demo needs to run without WhatsApp
 replies. With replies disabled, the bot can still receive forwarded messages and save reports for
