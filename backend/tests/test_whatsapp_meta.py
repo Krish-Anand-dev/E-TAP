@@ -71,6 +71,7 @@ def bot(monkeypatch):
     monkeypatch.setenv('META_VERIFY_TOKEN', VERIFY)
     monkeypatch.setenv('META_ACCESS_TOKEN', 'tok-secret')
     monkeypatch.setenv('META_PHONE_NUMBER_ID', PHONE_ID)
+    monkeypatch.setenv('WHATSAPP_REPLIES', '1')
     monkeypatch.setenv('PUBLIC_FRONTEND_URL', 'https://site.example.test')
     monkeypatch.delenv('WHATSAPP_MAX_PER_HOUR', raising=False)
     monkeypatch.delenv('META_GRAPH_VERSION', raising=False)
@@ -295,3 +296,40 @@ def test_graph_version_can_be_overridden(bot, monkeypatch):
     monkeypatch.setenv('META_GRAPH_VERSION', 'v99.0')
     whatsapp.send_meta(USER, 'x')
     assert bot.fake.sent[-1]['url'] == f'https://graph.facebook.com/v99.0/{PHONE_ID}/messages'
+
+
+def test_delivery_lock_is_logged_without_disclosing_payload(bot, caplog):
+    reply = deliver(bot, payload(statuses=[{
+        'id': 'private-message-id', 'recipient_id': USER, 'status': 'failed',
+        'errors': [{'code': 131031, 'title': 'private-provider-text',
+                    'error_data': {'details': 'tok-secret'}}],
+    }]))
+    assert reply.status_code == 200 and bot.fake.sent == [] and stored() == 0
+    assert 'delivery failed (code 131031' in caplog.text
+    assert 'Meta Business Support Home' in caplog.text
+    for private in (USER, 'private-message-id', 'private-provider-text', 'tok-secret'):
+        assert private not in caplog.text
+
+
+def test_rejected_api_request_logs_provider_code(bot, monkeypatch, caplog):
+    def refuse(*args, **kwargs):
+        return type('R', (), {'status_code': 400, 'json': staticmethod(lambda: {
+            'error': {'code': 131031, 'error_subcode': 7, 'message': 'tok-secret'}
+        })})()
+    monkeypatch.setattr(whatsapp.requests, 'post', refuse)
+    assert whatsapp.send_meta(USER, 'private message') is False
+    assert 'request failed (code 131031, subcode 7)' in caplog.text
+    assert 'tok-secret' not in caplog.text and 'private message' not in caplog.text
+
+
+def test_failed_delivery_without_error_details_still_acknowledged(bot, caplog):
+    assert deliver(bot, payload(statuses=[{'status': 'failed'}])).status_code == 200
+    assert 'delivery failed (code unknown' in caplog.text
+
+
+def test_nonnumeric_error_codes_are_not_logged(bot, caplog):
+    deliver(bot, payload(statuses=[{'status': 'failed', 'errors': [{
+        'code': 'private-code', 'error_subcode': 'private-subcode',
+    }]}]))
+    assert 'code unknown, subcode unknown' in caplog.text
+    assert 'private-code' not in caplog.text and 'private-subcode' not in caplog.text

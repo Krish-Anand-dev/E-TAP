@@ -16,8 +16,9 @@ Each route is off until its secret is set, so having both in the code is harmles
 
 ## One-way mode: link your number to your account
 
-Meta only lets a verified business send replies, so until verification the bot works one way: it
-receives what you forward and runs the full analysis, and you read the result on the website.
+While the configured Meta account is restricted, the bot can work one way: it receives what you
+forward and runs the full analysis, and you read the result on the website. Error 131031 means
+"Business Account locked"; it does not establish that business verification is the cause.
 
 1. On the website sign in (Settings > Your account), then open Settings > WhatsApp and press
    **Link my WhatsApp**. It shows a one-time code like `ETAP-123456` (valid 15 minutes).
@@ -30,6 +31,27 @@ number is stored only as a keyed hash. One number per account; linking a number 
 moves it. Set `WHATSAPP_REPLIES=0` on Render so the bot never tries to reply (Meta would refuse with
 131031), and `WHATSAPP_BOT_NUMBER` to the number shown in the instructions. Code: `backend/whatsapp_link.py`,
 tests: `backend/tests/test_whatsapp_link.py`.
+
+## Restore outgoing Meta replies
+
+1. Open [Meta Business Support Home](https://business.facebook.com/business-support-home/) and
+   select the WhatsApp account used by E-TAP. Inspect the restriction and complete the specific
+   remediation or review Meta offers. A code change cannot override an account lock. Do not assume
+   that buying a plan, adding a card or business verification alone will resolve it.
+2. In the app's **WhatsApp > API Setup**, confirm that `META_PHONE_NUMBER_ID` and
+   `META_ACCESS_TOKEN` refer to the same sending number and account. Refresh an expired token.
+   For a test number, add and verify the intended recipient in the **To** list.
+3. Send the dashboard's test template to that recipient. Confirm it arrives on their phone,
+   then have them reply; this opens the 24-hour customer-service window for ordinary text replies.
+4. On the deployed backend, set `WHATSAPP_REPLIES=1` and redeploy. Keep the existing webhook
+   subscribed to `messages` at `/whatsapp/meta` and its signature secret configured.
+5. From that phone, send `hi`, then a suspicious message. Confirm the instructions, acknowledgement,
+   verdict and report link actually arrive. API acceptance alone is not proof of delivery.
+   The backend now logs both immediate API errors and failed delivery status webhooks with numeric
+   provider codes, without logging phone numbers, message contents or access tokens.
+
+References: [Meta setup and test-message flow](https://developers.facebook.com/documentation/business-messaging/whatsapp/get-started),
+[Meta account error reference](https://developers.facebook.com/docs/graph-api/reference/whats-app-business-account/).
 
 ## Meta Cloud API setup (about 20 minutes)
 
@@ -54,6 +76,8 @@ Menu names change now and then, so follow the idea if a label differs slightly.
    | `META_APP_SECRET` | the App secret from step 3 |
    | `META_VERIFY_TOKEN` | any secret string you make up, e.g. a long random phrase |
    | `PUBLIC_FRONTEND_URL` | `https://e-tap-clean.vercel.app` (used in report links) |
+   | `WHATSAPP_BOT_NUMBER` | the bot's sending number, as shown to users in Settings |
+   | `WHATSAPP_REPLIES` | `1` to enable replies, or `0` for receive-only mode |
 
 5. Back in the dashboard open **WhatsApp > Configuration**. Under **Webhook**, click **Edit** and enter:
    - **Callback URL:** `https://etap-clean-backend.onrender.com/whatsapp/meta`
@@ -62,13 +86,21 @@ Menu names change now and then, so follow the idea if a label differs slightly.
    Click **Verify and save**. Meta calls the URL once to check it; this only works after Render has
    redeployed with the variables from step 4 and the service is awake.
 6. Still under Configuration, **Webhook fields**: click **Manage** and **subscribe to `messages`**.
-7. From a phone you added in step 2, send "hi" to the test number. You should get the intro text.
+7. Check the account-level subscription separately. In Meta Graph API Explorer, select your E-TAP
+   app and use a token with WhatsApp Business Management access to the test account. Run
+   `GET /<WHATSAPP_BUSINESS_ACCOUNT_ID>/subscribed_apps`. If your app is missing, use
+   `POST /<WHATSAPP_BUSINESS_ACCOUNT_ID>/subscribed_apps`, then repeat the GET to verify it.
+   Use the business account ID here, which is different from the sending phone number ID.
+   [Meta subscription API](https://www.postman.com/meta/whatsapp-business-platform/request/26gui66/subscribe-to-a-waba).
+8. Publish the app after meeting Meta's requirements, including its privacy policy URL, so real
+   messages can reach the callback. From a phone you added in step 2, send "hi" to the test number.
+   Confirm the intro text arrives on your phone.
    Then forward a text message, a link, a screenshot and a PDF.
 
 ### Token that does not expire
 
-The temporary token from API Setup expires after about 24 hours and stops working the moment you press
-**Generate new token** again. Use a system-user token instead (this is what the live deployment uses):
+The temporary token from API Setup expires. For a deployment that needs to keep replying after the
+test, configure a system-user token:
 
 1. Open **business.facebook.com > Settings > Users > System users** (business portfolio settings).
    The first time, Meta asks you to accept its advertising non-discrimination policy.
@@ -90,9 +122,11 @@ because the bot only reads what Meta posts to the webhook; downloading a file do
 
 - **Saving the webhook fails:** the verify token does not match Render, Render has not redeployed, or
   the service was asleep. Open `https://etap-clean-backend.onrender.com/health` and try again.
-- **403 in the Render logs on every message:** `META_APP_SECRET` is wrong.
-- **You get no reply and nothing in the logs:** you did not subscribe to `messages` (step 6), or your
-  phone is not in the **To** list.
+- **Incoming POST returns 403:** verify that `META_APP_SECRET` is from the app that sent the webhook.
+- **Incoming POST returns 200, but the outbound call is refused:** check the Graph error code,
+  token expiry and permissions, and whether the token and sender ID belong to the same app setup.
+- **Meta sees the message, but Render has no POST:** check the callback URL, the `messages` field,
+  the account-level app subscription, the app's published status, and the verified recipient list.
 - **Replies stopped the next day:** the temporary token expired; use a system-user token.
 
 ## Twilio sandbox (alternative)

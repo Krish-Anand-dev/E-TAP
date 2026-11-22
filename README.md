@@ -142,7 +142,7 @@ One function reconciles the label and the 0–100 score (the more severe wins) i
 ## Optional sign-in and the WhatsApp bot
 
 - **Sign-in (optional, free).** Settings → Account: enter your email, then the 6-digit code we send. Signed-in users get a **My reports** filter; nobody has to sign in to check a message. Details in [CONTEXT.md](CONTEXT.md).
-- **WhatsApp bot (static analysis only).** Forward a message, link, image or document (up to 5 files, 25 MB) to the bot; it runs the same pipeline as the website and replies with the verdict, the main reasons and a link to the full report. Code and tests are done (`backend/whatsapp.py`, setup in [docs/whatsapp-bot.md](docs/whatsapp-bot.md)). **Status: waiting for Meta business verification.** The bot receives messages, but Meta locks replies (error 131031) for an unverified business, so it is not live yet. Until then it works **one way**: link your number in Settings → WhatsApp (send the one-time code to the bot), then everything you forward is analysed and appears under **My reports** on the website. The website's **Paste a message** mode shows the same flow; see [docs/demo-fallback.md](docs/demo-fallback.md).
+- **WhatsApp bot (static analysis only).** Forward a message, link, image or document (up to 5 files, 25 MB) to the bot. It runs the same analysis as the website and can reply with the verdict, reasons and report link. Two-way messaging was verified with a live greeting on the Meta test number for a verified recipient. Link your number in Settings → WhatsApp to see the full results under **My reports**. See the [setup guide](docs/whatsapp-bot.md) and [receive-only fallback](docs/demo-fallback.md).
 - [Privacy policy](frontend/public/privacy.html), served at `/privacy.html`.
 
 ## Gmail extension
@@ -312,8 +312,7 @@ Development notes and iterations/   Research, decisions and the history of how t
 
 - Dynamic analysis needs your own VirtualBox or VMware VM and the agent (VMware support is tested with a fake `vmrun`, not yet on a real VMware); nothing clicks inside documents yet, so Office files and click-triggered PDFs are often inconclusive, and the 63 behaviour rules are checked with synthetic events, not yet against a broad set of real samples.
 - The Gmail extension uses Gmail's web endpoints, not the official Gmail API.
-- **Future scope: a two-way WhatsApp bot.** Once Meta verifies the business, replies (verdict, reasons and report link) switch on with `WHATSAPP_REPLIES=1`; the code and tests for it already exist.
-- The WhatsApp bot cannot send replies until its Meta WhatsApp business account is verified (needs legal business documents) and has a payment method; inbound handling works. Big (25 MB) files are analysed one at a time on the free Render plan.
+- The Meta test number is limited to verified test recipients. Reply delivery depends on the sender's Meta account status and a valid access token. Big (25 MB) files are analysed one at a time on the free Render plan.
 
 ## License
 
