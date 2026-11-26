@@ -41,7 +41,8 @@ function AppContent() {
       } catch (err) {
         console.error('Deep link fetch failed:', err);
         setStatus('error');
-        setError('Failed to fetch investigation report.');
+        setError('This report could not be opened. It may have expired or been deleted, or the service may still be waking up.');
+        setCurrentView('upload'); // the page that shows the message
       }
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

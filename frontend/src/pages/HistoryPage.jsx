@@ -81,8 +81,11 @@ export function HistoryPage({ onOpenReport, navigate }) {
   const visible = rows.filter((r) => (filter === 'all' || r.band === filter)
     && (!query || `${r.subject} ${r.from}`.toLowerCase().includes(query.toLowerCase())));
 
+  // Keep the selection inside the list being shown (it changes with "My reports").
   useEffect(() => {
-    if (!selectedId && rows.length) setSelectedId(rows[0].id);
+    if (rows.some((r) => r.id === selectedId)) return;
+    setSelectedId(rows[0]?.id ?? null);
+    if (!rows.length) setSelected(null);
   }, [rows, selectedId]);
 
   useEffect(() => {

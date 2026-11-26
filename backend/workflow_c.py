@@ -1,5 +1,6 @@
 """Trust and response features (review workflow, retention, sharing). No dynamic attachment execution."""
 from datetime import datetime, timedelta, timezone
+import os
 import re
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -18,12 +19,22 @@ def owned(email_id):
         raise HTTPException(404, 'Investigation not found')
     return doc
 
+def _indicators(doc):
+    return {v for values in (doc.get('ioc_analysis') or {}).values() if isinstance(values, list) for v in values if isinstance(v, str)}
+
+def drop_sandbox_jobs(db, query):
+    """Cancel queued or running sandbox work and delete the attachment copies it holds."""
+    for job in list(db['sandbox_jobs'].find(query)):
+        db['sandbox_job_files'].delete_many({'job_id': job['job_id']})
+        db['sandbox_jobs'].delete_many({'job_id': job['job_id']})
+
 def delete_record(db, doc):
     """Embedded RAG vectors are removed with their analysis. Rebuild campaign references."""
     eid = str(doc['_id'])
     cloudinary_store.delete_assets(cloudinary_store.public_ids_of(doc))
     db['analyzed_emails'].delete_many({'_id': doc['_id']})
     db['emails'].delete_many({'email_id': eid})
+    drop_sandbox_jobs(db, {'email_id': eid})
     for campaign in db['campaigns'].find({}):
         remaining = [d for d in db['analyzed_emails'].find({'campaign_id': campaign['campaign_id']})]
         if not remaining:
@@ -31,8 +42,13 @@ def delete_record(db, doc):
         else:
             indicators = sorted({v for d in remaining for values in (d.get('ioc_analysis') or {}).values() if isinstance(values, list) for v in values if isinstance(v, str)})
             db['campaigns'].update_one({'_id': campaign['_id']}, {'$set': {'members': [str(d['_id']) for d in remaining], 'shared_infrastructure': indicators}})
-    # Stored graph/correlation snapshots can contain the deleted ID/indicators.
+    # Stored graph/correlation snapshots of linked reports can contain the deleted
+    # ID/indicators. Linked means the same campaign or a shared indicator; unrelated
+    # reports are left as they are.
+    campaign_id, indicators = doc.get('campaign_id'), _indicators(doc)
     for remaining in db['analyzed_emails'].find({}):
+        if not ((campaign_id and remaining.get('campaign_id') == campaign_id) or indicators & _indicators(remaining)):
+            continue
         db['analyzed_emails'].update_one({'_id': remaining['_id']}, {'$set': {'graph_diffusion': {}, 'correlation': {}, 'historical_correlation': {}, 'evidence_report': None, 'rag_summary': None, 'rag_embedding': None}})
     from ai_engine.graph_diffusion import invalidate_graph_cache
     invalidate_graph_cache()
@@ -74,6 +90,8 @@ def trusted_sender_check(report, declared):
         blockers.append('the sender identity shows spoofing signs')
     if any(a.get('suspicious') for a in report.get('attachments') or []):
         blockers.append('an attachment was flagged')
+    if any(i.get('matches') for i in (report.get('sandbox') or {}).get('items') or []):
+        blockers.append('the sandbox saw an attachment behave maliciously')
     ti = report.get('threat_intel') or {}
     if any(isinstance(i, dict) and i.get('malicious') is True
            for sec in ('ip_reputation', 'domain_info', 'url_reputation', 'hash_reputation')
@@ -144,9 +162,14 @@ def delete_investigation(email_id: str):
 
 @router.delete('/investigations')
 def delete_all():
+    # The API has no accounts to say who may wipe everyone's reports, so this stays
+    # off unless the person running the server switches it on.
+    if os.getenv('ALLOW_DELETE_ALL') != '1':
+        raise HTTPException(403, 'Deleting every report is switched off on this server.')
     db = get_db()
     cloudinary_store.delete_assets([i for d in db['analyzed_emails'].find({}) for i in cloudinary_store.public_ids_of(d)])
     count = db['analyzed_emails'].delete_many({}).deleted_count
+    drop_sandbox_jobs(db, {})
     db['emails'].delete_many({})
     db['campaigns'].delete_many({})
     from ai_engine.graph_diffusion import invalidate_graph_cache

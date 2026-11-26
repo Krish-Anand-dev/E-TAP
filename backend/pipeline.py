@@ -7,6 +7,7 @@ the HTTP API. It keeps one canonical A -> B/B2 -> D -> E -> F -> G flow.
 
 from __future__ import annotations
 
+import copy
 import logging
 import os
 import re
@@ -16,6 +17,7 @@ from typing import Any
 
 from email_parser import parse_email, parse_email_from_upload
 from forensics.header_forensics import analyze_headers
+import cloudinary_store
 from cloudinary_store import upload_attachment_images
 from share_card import for_report as share_card_for_report
 from forensics.attachment_forensics import analyze_attachments
@@ -194,6 +196,21 @@ def _submit_to_sandbox(email_id: str, raw_attachments: list, attachment_analysis
         return {**status, "status": "error", "message": "Deeper attachment analysis could not be queued."}, "error"
 
 
+def _carried_sandbox(previous: dict | None, attachments: list) -> dict | None:
+    """The earlier sandbox record of this same email, when it still describes these files.
+
+    Re-analyzing updates the stored record in place. A sandbox result belongs to the
+    attachments that were opened, so it is kept only if they are the same files.
+    """
+    stored = (previous or {}).get("sandbox_analysis")
+    if not stored:
+        return None
+    earlier = ((previous.get("attachment_analysis") or {}).get("attachments")) or []
+    if sorted(str(a.get("sha256")) for a in earlier) != sorted(str(a.get("sha256")) for a in attachments):
+        return None
+    return stored
+
+
 def _run_parsed_pipeline(parsed_email, source: str | None = None, progress=None,
                          sandbox: dict | None = None) -> dict:
     # `progress(stage, state, detail)` reports live stage changes to a caller
@@ -267,6 +284,11 @@ def _run_parsed_pipeline(parsed_email, source: str | None = None, progress=None,
         progress("reputation", "skipped", "Live reputation lookups are turned off")
 
     progress("history", "running")
+
+    # Read before Stage F overwrites it: re-analyzing a message reuses its record.
+    previous = None
+    if data.get("message_id"):
+        previous = copy.deepcopy(repository.find_analysis_by_message_id(db, data.get("message_id")))
 
     correlation_result = correlate_and_store(
         ioc_analysis,
@@ -461,6 +483,19 @@ def _run_parsed_pipeline(parsed_email, source: str | None = None, progress=None,
 
     progress("verdict", "running")
     decision = finalize_verdict(final_assessment.get("verdict"), final_assessment.get("risk_score"))
+    # The sandbox may only raise a score, so what it already saw these files do
+    # still counts when the same email is analyzed again.
+    carried_sandbox = _carried_sandbox(previous, _atts)
+    if carried_sandbox:
+        from sandbox.scoring import apply_sandbox
+        raised = apply_sandbox({
+            "risk_score": decision["risk_score"], "verdict": decision["verdict"],
+            "final_assessment": final_assessment, "mitre_attack": ai_analysis.get("mitre_attack") or [],
+        }, carried_sandbox)
+        if "risk_score" in raised:
+            final_assessment = ai_analysis["final_assessment"] = raised["final_assessment"]
+            ai_analysis["mitre_attack"] = raised["mitre_attack"]
+            decision = finalize_verdict(raised["verdict"], raised["risk_score"])
     final_assessment["verdict"] = decision["verdict"]
     final_assessment["risk_score"] = decision["risk_score"]
     final_assessment["verdict_band"] = decision["verdict_band"]
@@ -582,8 +617,14 @@ def _run_parsed_pipeline(parsed_email, source: str | None = None, progress=None,
                 "available": triage_result.get("available", False),
             },
             "graph_diffusion": graph_diffusion_result,
+            # Kept so a reopened report still shows its links to earlier emails.
+            "correlation": _json_safe({k: v for k, v in correlation_result.items() if k != "historical_stats"}),
+            "historical_correlation": _json_safe(correlation_result.get("historical_stats") or {}),
         },
     )
+    # Images uploaded by an earlier run of this record are no longer referenced.
+    if previous:
+        cloudinary_store.delete_assets(cloudinary_store.public_ids_of(previous))
 
     result = {
         "email_id": correlation_result["email_id"],
@@ -622,8 +663,15 @@ def _run_parsed_pipeline(parsed_email, source: str | None = None, progress=None,
     sandbox_status, stage_status["S"] = _submit_to_sandbox(
         correlation_result["email_id"], data.get("attachments") or [], attachment_analysis,
         _sb_backend, _sb_candidates, _sb_agent)
+    stored_fields = {"stage_status": stage_status}
+    if previous and not _sb_candidates:
+        # No new run was queued: show the earlier result for the same files, or
+        # drop it when it described different ones.
+        stored_fields["sandbox_analysis"] = carried_sandbox
+        if carried_sandbox:
+            sandbox_status = carried_sandbox
     result["sandbox"] = sandbox_status
-    repository.update_analysis_fields(db, correlation_result["email_id"], {"stage_status": stage_status})
+    repository.update_analysis_fields(db, correlation_result["email_id"], stored_fields)
 
     # Fire-and-forget background persistence of RAG summary and vector embedding
     def _bg_persist_rag(email_id: str, doc_snapshot: dict):

@@ -30,6 +30,6 @@ def test_share_has_no_sensitive_text():
 def test_delete_export_and_preferences(client):
     assert client.delete('/investigations/missing').status_code == 404
     assert client.get('/investigations/missing/share').status_code == 404
-    assert client.delete('/investigations').json()['deleted'] == 0
+    assert client.delete('/investigations').status_code == 403  # off by default
     assert client.put('/preferences', json={'retention_days':0}).status_code == 422
     assert client.put('/preferences', json={'retention_days':7}).status_code == 200

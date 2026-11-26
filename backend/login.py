@@ -261,11 +261,14 @@ def verify_code(body: CodeVerify) -> dict:
     if not entry or _aware(entry["expires_at"]) <= _now():
         db[CODES].delete_many({"email": email})
         raise HTTPException(status_code=400, detail="That code has expired. Ask for a new one.")
-    if entry["attempts"] >= MAX_ATTEMPTS:
+    # Count the try in the same step that allows it, so guesses sent at the same
+    # moment cannot all slip in under the limit.
+    allowed = db[CODES].find_one_and_update(
+        {"email": email, "attempts": {"$lt": MAX_ATTEMPTS}}, {"$inc": {"attempts": 1}})
+    if not allowed:
         db[CODES].delete_many({"email": email})
         raise HTTPException(status_code=429, detail="Too many wrong tries. Ask for a new code.")
     if not hmac.compare_digest(entry["code_hash"], _code_hash(email, body.code.strip())):
-        db[CODES].update_one({"email": email}, {"$inc": {"attempts": 1}})
         raise HTTPException(status_code=400, detail="That code is not right.")
 
     db[CODES].delete_many({"email": email})

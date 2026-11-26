@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { checkBackendHealth, fetchInvestigation, startAnalysisJob, getAnalysisJob } from '../api/analyze';
+import { saveHistory } from '../utils/sessionHistory';
 
 const InvestigationContext = createContext(null);
 
@@ -257,7 +258,7 @@ export function InvestigationProvider({ children }) {
 
       setHistory((prev) => {
         const updated = [record, ...prev.filter((item) => item.id !== record.id)].slice(0, 50);
-        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+        saveHistory(STORAGE_KEY, updated);
         return updated;
       });
     } catch (err) {

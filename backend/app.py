@@ -394,10 +394,14 @@ async def get_investigation(request: Request, email_id: str) -> dict:
             "attachments": (doc.get("attachment_analysis") or {}).get("attachments", []),
             "iocs": doc.get("ioc_analysis") or {},
             "threat_intel": doc.get("threat_intel_analysis") or {},
+            # Older records kept only the campaign id.
             "correlation": {
+                **(doc.get("correlation") or {}),
                 "email_id": str(doc["_id"]),
                 "campaign_id": doc.get("campaign_id", ""),
             },
+            "historical_correlation": doc.get("historical_correlation") or {},
+            "category_status": (doc.get("correlation") or {}).get("category_status"),
             "graph_diffusion": doc.get("graph_diffusion") or {},
             "ai_analysis": {
                 "content_classification": doc.get("content_analysis") or {},

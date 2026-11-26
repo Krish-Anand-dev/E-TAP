@@ -411,6 +411,12 @@ Off unless Cloudinary is configured, and never raises. One plain 1200×630 base 
 
 ---
 
+### Re-analyzing the same message
+
+A repeated `message_id` updates the stored record. If the attachments are the same files, an earlier sandbox result is kept and its score floor still applies; if they differ, it is dropped. Cloudinary images from the earlier run are deleted. `correlation` and `historical_correlation` are stored, so a reopened report shows the same links to earlier emails.
+
+---
+
 ## 5. Verdicts, scoring and the evidence report
 
 **`backend/verdicts.py`** (mirrored by `frontend/src/utils/verdict.js`; `tests/test_verdicts.py` fails if they drift):
@@ -492,7 +498,7 @@ All access goes through `db/repository.py`; every function takes `db` explicitly
 | `POST /chat` (30/min) | `{question, email_id?}`; client `email_context` is rejected (400) |
 | `GET /investigations?offset&limit` | listing (limit 1–100): id, subject, sender, canonical verdict, score, band, date, campaign, attack type, review state |
 | `GET /investigations/{id}` (60/min) | stored report in the same shape as `/analyze` |
-| `DELETE /investigations/{id}`, `DELETE /investigations` | delete one / all (also campaigns refs, RAG vectors, graph cache) |
+| `DELETE /investigations/{id}`, `DELETE /investigations` | delete one / all (also campaigns refs, RAG vectors, graph cache). Delete-all answers 403 unless `ALLOW_DELETE_ALL=1` |
 | `GET /investigations/{id}/share` | redacted share pack |
 | `GET/PATCH /investigations/{id}/workflow` | review state with optimistic concurrency (`expected_state`, 409 on conflict) |
 | `GET /investigations/{id}/related` | Campaign Lens: subject-token Jaccard ≥ 0.8 or shared IOCs among 200 recent |
@@ -539,10 +545,10 @@ Static analysis only, never the sandbox. A forwarded text, link, image or docume
 Implemented in `backend/workflow_c.py`, `recovery.py`, `integrations.py`.
 
 - **Retention:** `finish_analysis` sets `expires_at = now + retention_days` (default 30) and purges expired records on every analysis; `purge_retention.py` is the cron version.
-- **Deletion:** `delete_record` removes the analysis, legacy RAG entries, rebuilds campaign membership, clears stored graph/correlation/RAG snapshots on remaining records and invalidates the graph cache. Not a transaction; cannot recall provider copies.
+- **Deletion:** `delete_record` removes the analysis, legacy RAG entries and any sandbox jobs and sample copies, rebuilds campaign membership, clears stored graph/correlation/history/evidence/RAG snapshots on **linked** records only (same campaign or a shared indicator) and invalidates the graph cache. Not a transaction; cannot recall provider copies.
 - **Review workflow:** states `submitted → analyzed → needs_review | confirmed_malicious | benign_or_spam | unresolved`; history ≤ 200, notes ≤ 2 000 chars; never changes the verdict.
 - **Recovery checklists:** opened email, clicked link/QR, downloaded file, opened attachment, entered password, approved MFA, sent money — deterministic, versioned (`2026-10-18.1`), no device-compromise inference.
-- **Trusted domains (verified trust):** `trusted_sender_check` (in `finish_analysis`) lowers the risk score by 25 only when the sender domain, or a parent of it, is on the list **and** SPF, DKIM and DMARC all pass **and** there are no spoofing (lookalike/homograph/display-name/Reply-To), suspicious-attachment or malicious-reputation findings. If the domain is listed but a check fails, nothing changes and the report warns of a possible impersonation. The outcome is stored in `baseline_context.trusted_sender` and shown in the verdict hero; the evidence-report conclusion is updated when the score changes.
+- **Trusted domains (verified trust):** `trusted_sender_check` (in `finish_analysis`) lowers the risk score by 25 only when the sender domain, or a parent of it, is on the list **and** SPF, DKIM and DMARC all pass **and** there are no spoofing (lookalike/homograph/display-name/Reply-To), suspicious-attachment or malicious-reputation findings (including anything the sandbox matched). If the domain is listed but a check fails, nothing changes and the report warns of a possible impersonation. The outcome is stored in `baseline_context.trusted_sender` and shown in the verdict hero; the evidence-report conclusion is updated when the score changes.
 - **Case marking, feedback, analytics, Campaign Lens:** see §8.
 - **Scaffolds (not live):** `integrations.OriginalMessageProvider` (future OAuth original-message retrieval, mock only) and webhook contracts (`analysis.completed`, `review.changed`; HMAC-SHA256 over `timestamp.body`, 5-minute window, replay set, HTTPS-443 public-IP target validation, bounded retry delays) — nothing is ever sent.
 
@@ -670,6 +676,7 @@ Backend (`.env` at repo root locally; host settings in production — never in t
 | `USE_FALLBACK_EMBEDDINGS`, `RENDER` | — | force hash embeddings |
 | `USE_ATLAS_VECTOR_SEARCH`, `ATLAS_VECTOR_INDEX` | `0`, `vector_index` | Atlas vector search |
 | `ALLOWED_ORIGINS` | `http://127.0.0.1:5173,http://localhost:5173` | CORS |
+| `ALLOW_DELETE_ALL` | unset | `1` lets `DELETE /investigations` wipe every report; leave unset on a public server |
 | `PORT` | `5000` | server port (Render injects it) |
 | `KMP_DUPLICATE_LIB_OK` | set to `TRUE` by `app.py` | avoids an OpenMP clash with torch |
 | `SANDBOX_BACKEND` | `agent` | `agent` (paired user VMs), `virtualbox` (VM on this machine), `replay`, `none` (off) |
@@ -735,7 +742,7 @@ Test suites cover: parsing (`test_parse_any`, `test_single_email`), headers/orig
 
 ## 17. Known gaps, quirks and future work
 
-- **Open API.** No authentication or multi-tenancy; anyone with the URL can analyse, read, share and delete (including `DELETE /investigations`). Per-IP limits see Render's proxy unless forwarded-for handling is added. The earlier bearer-key/role/owner-scoping implementation (`security.py`, `provision_key.py`, `db/scoped.py`, `migrate_workflow_c.py` and their tests) was deleted on 2026-10-24; the extension's API-key options page and the `/me` dev-proxy entry were removed with it. Only the `owner_id` index names remain. The original design is in git history (earlier notes cite a tag `pre-auth-removal`, which is not present in this clone). Future direction: OAuth/OIDC, `owner_id` scoping in one place, Atlas vector filter on `owner_id`, shared quota store.
+- **Open API.** No authentication or multi-tenancy; anyone with the URL can analyse, read, share and delete reports one at a time (delete-all is off unless `ALLOW_DELETE_ALL=1`). Per-IP limits see Render's proxy unless forwarded-for handling is added. The earlier bearer-key/role/owner-scoping implementation (`security.py`, `provision_key.py`, `db/scoped.py`, `migrate_workflow_c.py` and their tests) was deleted on 2026-10-24; the extension's API-key options page and the `/me` dev-proxy entry were removed with it. Only the `owner_id` index names remain. The original design is in git history (earlier notes cite a tag `pre-auth-removal`, which is not present in this clone). Future direction: OAuth/OIDC, `owner_id` scoping in one place, Atlas vector filter on `owner_id`, shared quota store.
 - **Gemini outages fall back to offline rules (seen 2026-11-15).** Google answered 503 UNAVAILABLE and 504 DEADLINE_EXCEEDED on every model in the chain for one request, and the report showed provider `offline_fallback`. The key was fine. Mitigations: a 503 is retried once on the same model (`stage_g._gemini_combined_analysis`), the dead model name `gemini-flash-lite-latest` (404) was removed, the fallback `status` now says "Gemini was unavailable" when a key is set, and the offline rules catch pay-a-fee-before-a-deadline scams (`has_payment_demand` + link + deadline). The offline classifier is still much weaker than Gemini; a report with `provider: offline_fallback` should be re-analysed.
 - **Two-way WhatsApp: verified on a test number only.** Replies were seen working on a replacement Meta test number on 2026-11-22 with a temporary token. For the deployment, set a system-user `META_ACCESS_TOKEN`, confirm the sender id and token belong together, then `WHATSAPP_REPLIES=1`. A public bot still needs a verified WhatsApp Business number. Possible additions: reply only to linked numbers, a "link" button in replies, a verified display name.
 - **WhatsApp reply delivery depends on the Meta account.** On 2026-11-15 the original account was locked (131031). The test number can message at most 5 added recipients, a temporary token expires in about a day, and big files are serialised on the free Render plan. API acceptance of a send is not proof of delivery; watch for failed delivery webhooks in the logs.

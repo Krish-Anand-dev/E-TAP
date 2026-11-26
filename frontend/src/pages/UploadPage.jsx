@@ -219,7 +219,7 @@ function AgentHelp({ onPairAgain }) {
 }
 
 export function UploadPage({ onOpenReport, onOpenSettings }) {
-  const { status, error, data, startAnalysis, loadDemoSample, backendOnline, jobStages, rerunRequest, consumeRerunRequest } = useInvestigation();
+  const { status, error, data, startAnalysis, loadDemoSample, backendOnline, jobStages, rerunRequest, consumeRerunRequest, setStatus, setError } = useInvestigation();
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [runFinished, setRunFinished] = useState(false);
@@ -260,6 +260,11 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
   const showTimeline = isWorking || runFinished || (status === 'error' && jobStages.length > 0);
   const showError = Boolean(error) && !isBusy && (!jobStages.length || paced.stopped || !pacingOn);
 
+  // Choosing something new puts an earlier failure message away.
+  const clearEarlierError = () => {
+    if (status === 'error' && !jobStages.length) { setError(null); setStatus('idle'); }
+  };
+
   const stage = (file) => {
     if (!file) return;
     const name = file.name.toLowerCase();
@@ -267,6 +272,7 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
       setFileError('Please choose an email file (.eml or .msg).');
       return;
     }
+    clearEarlierError();
     setFileError(null);
     setRunFinished(false);
     setSelectedFile(file);
@@ -277,6 +283,7 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
 
   // A message the user pasted, packaged as an .eml with no headers (see utils/composeMessage.js).
   const stageMessage = (file) => {
+    clearEarlierError();
     setFileError(null);
     setRunFinished(false);
     setSelectedFile(file);
@@ -376,7 +383,7 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
           role="button" tabIndex={0}
           onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && fileInputRef.current?.click()}
         >
-          <input ref={fileInputRef} id="email-file-input" type="file" accept=".eml,.msg" style={{ display: 'none' }} onChange={(e) => stage(e.target.files?.[0])} />
+          <input ref={fileInputRef} id="email-file-input" type="file" accept=".eml,.msg" style={{ display: 'none' }} onChange={(e) => { stage(e.target.files?.[0]); e.target.value = ''; }} />
           <div className="dropzone-icon-box"><Icon name="file" size={24} /></div>
           <div className="dropzone-title">{selectedFile ? selectedFile.name : 'Drop an email file here or click to browse'}</div>
           <div className="dropzone-subtitle">Accepts <strong>.eml</strong> and Outlook <strong>.msg</strong> files up to 25 MB</div>
