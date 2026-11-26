@@ -2,7 +2,7 @@
 
 **One tap from a suspicious email to an evidence-backed verdict.**
 
-E-TAP takes a raw email (`.eml` / `.msg`, or a message opened in Gmail through the browser extension) and runs it through a multi-stage forensic pipeline: header and authentication forensics, sender-origin tracing with IP geolocation, static attachment forensics (file signatures, macros, QR codes, OCR), IOC extraction, live threat-intelligence lookups, historical campaign correlation, graph-based risk propagation, an XGBoost pre-filter and a Gemini-backed final assessment with MITRE ATT&CK mapping. For people who own a VirtualBox VM there is an optional **deeper attachment analysis** that opens the attachments in that VM and adds what they actually did to the report.
+E-TAP takes a raw email (`.eml` / `.msg`, or a message opened in Gmail through the browser extension), a message you paste in, or something you forward to its WhatsApp bot, and runs it through a multi-stage forensic pipeline: header and authentication forensics, sender-origin tracing with IP geolocation, static attachment forensics (file signatures, macros, QR codes, OCR), IOC extraction, live threat-intelligence lookups, historical campaign correlation, graph-based risk propagation, an XGBoost pre-filter and a Gemini-backed final assessment with MITRE ATT&CK mapping. For people who own a VirtualBox or VMware VM there is an optional **deeper attachment analysis** that opens the attachments in that VM and adds what they actually did to the report.
 
 The result is one report that says **how risky the email is, why, and what to do**, written so a non-expert can act on it, with the full technical detail kept for security analysts.
 
@@ -15,7 +15,18 @@ The result is one report that says **how risky the email is, why, and what to do
 
 Most people who receive a phishing email cannot judge it for themselves: families, small businesses, first-time email users. E-TAP is built for them first. The report says in plain words how risky an email is, why, and what to do next, and keeps the forensic detail for analysts. It is free, open source (MIT), and standard analysis needs nothing to be installed.
 
-**Cloudinary** is part of the analysis, not decoration. Phishing often hides in an image: a QR code that leads to a fake login page, or a screenshot of an "invoice". When Cloudinary is configured, E-TAP saves each image attachment to Cloudinary (images only, at most 3 per email, under a random name), shows a **blurred preview** that is revealed only when the reader clicks it, and can have Cloudinary read the text in the image a second time. The image is deleted when the report is deleted or expires, and the privacy record (in the exported PDF and the API) lists it as a data flow. With no Cloudinary settings the step is simply off.
+**Cloudinary** is part of the product, not decoration: it handles image evidence and draws the share card. Phishing often hides in an image: a QR code that leads to a fake login page, or a screenshot of an "invoice". When Cloudinary is configured, E-TAP saves each image attachment to Cloudinary (images only, at most 3 per email, under a random name), shows a **blurred preview** that is revealed only when the reader clicks it, and can have Cloudinary read the text in the image a second time. The image is deleted when the report is deleted or expires, and the privacy record (in the exported PDF and the API) lists it as a data flow. With no Cloudinary settings the step is simply off.
+
+It also draws the **share card**: a picture of the verdict to send to whoever asked "is this real?". The card is a Cloudinary text-overlay link on a plain coloured base image and carries only the verdict, the score, up to three fixed reasons, the next step and the date, never anything from the message. A good result reads *No problems found* (never *safe*) and turns into a grey *Limited check* card when a check could not run.
+
+## Ways to check something
+
+| Way in | What you give it | What is checked |
+|---|---|---|
+| **Upload** | an `.eml` or `.msg` file | everything |
+| **Gmail extension** | one click on an opened email | everything when Gmail provides the original, otherwise a labelled visible-text check |
+| **Paste a message** | the text of an SMS or chat message, plus up to 5 files (15 MB in total) | links, QR codes, text in images, attachments, reputation and AI. Sender checks do not apply and add nothing to the score |
+| **WhatsApp bot** | a forwarded message, link, image or document (up to 5 files, 25 MB) | the same checks as a pasted message, static analysis only |
 
 For the deep technical reference (every module, library, environment variable, data shape and design decision), read **[CONTEXT.md](CONTEXT.md)**.
 
@@ -25,9 +36,10 @@ For the deep technical reference (every module, library, environment variable, d
 
 ```text
  .eml / .msg upload  ─┐
- Gmail extension     ─┼─►  A  Parse & normalise (MIME, headers, attachments, PII masking)
- CLI (run_pipeline)  ─┤         │
- WhatsApp bot        ─┘         │   (forwarded text, links, images, files: static analysis only)
+ Gmail extension     ─┤
+ Pasted message  *   ─┼─►  A  Parse & normalise (MIME, headers, attachments, PII masking)
+ WhatsApp bot    *   ─┤         │
+ CLI (run_pipeline)  ─┘         │   * no email headers: sender checks are skipped
                                 ├─► B   Header forensics: SPF / DKIM / DMARC, Received chain,
                                 │        true-origin resolution, lookalike & homograph domains
                                 ├─► B2  Attachment forensics: SHA-256, magic bytes, macros (oletools),
@@ -51,12 +63,12 @@ For the deep technical reference (every module, library, environment variable, d
                               fallback if Gemini is unavailable)           │
                                 ▼                                          │
                            H  Verdict reconciliation, evidence report, ◄───┘
-                              privacy report, provider status, persistence
+                              share card, privacy report, provider status, persistence
                                 ▼
                            S  Hand the chosen attachments to your sandbox (runs in the
                               background, see below); the report is already usable
                                 ▼
-                      React dashboard · PDF export · SOC Assistant (RAG chat)
+                      React dashboard · WhatsApp reply · PDF export · SOC Assistant (RAG chat)
 ```
 
 ### The optional deeper analysis (stage S) in one picture
@@ -77,7 +89,7 @@ For the deep technical reference (every module, library, environment variable, d
 ```
 
 ### Stage A — Parsing and normalisation
-Every input becomes the same `ParsedEmail` object. The file type is decided from **magic bytes, not the extension**: executables, ZIPs, PDFs and archives renamed to `.eml` are rejected, `.msg` must carry the Outlook OLE signature. `.eml` is parsed with Python's `email` package (robust against bogus charsets), `.msg` with `extract-msg`, and bulk `.csv` datasets are converted row by row into RFC 822 messages and fed through the same parser. Before anything is stored, SSNs, card numbers, Indian/US phone numbers, Aadhaar, PAN and body email addresses are masked.
+Every input becomes the same `ParsedEmail` object. A pasted or forwarded message is first packaged as an `.eml` with no From, To, Date or Received lines and analysed as `forwarded_message`. The file type is decided from **magic bytes, not the extension**: executables, ZIPs, PDFs and archives renamed to `.eml` are rejected, `.msg` must carry the Outlook OLE signature. `.eml` is parsed with Python's `email` package (robust against bogus charsets), `.msg` with `extract-msg`, and bulk `.csv` datasets are converted row by row into RFC 822 messages and fed through the same parser. Before anything is stored, SSNs, card numbers, Indian/US phone numbers, Aadhaar, PAN and body email addresses are masked.
 
 ### Stage B — Header forensics
 - **SPF / DKIM / DMARC** in two tiers: first the verdict the receiving mail server stamped in `Authentication-Results` / `Received-SPF`; if absent, a live DNS check (SPF record evaluation against the connecting IP with `ip4/ip6/a/include/all`, DKIM public-key presence and alignment, DMARC policy fetch). DKIM signatures are never claimed as cryptographically verified.
@@ -123,7 +135,7 @@ The email's IOCs are matched against every stored analysis (exact for IPs/URLs/h
 Six metadata features (attachment present, URL count, sender-domain age, SPF pass, subject length, urgency keywords) go into a bundled XGBoost model. If it is ≥ 90% confident the email is benign, Gemini is skipped to save latency and quota. Safety guards force the full AI review whenever URLs, risky keywords, suspicious attachments or a visible-text-only (quick check) input are present.
 
 ### Stage G — Gemini assessment and MITRE ATT&CK
-A **privacy-reduced copy** of all evidence (URLs redacted, PII masked) goes to Gemini in a single structured-JSON call that returns both a content-only classification against a fixed 30-category threat taxonomy and a full-evidence final verdict with MITRE ATT&CK techniques and recommended actions. The model is told that email content is untrusted data, and every AI finding must cite evidence IDs from the deterministic evidence ledger; uncited claims are kept but marked *ungrounded*. A chain of fallback Gemini models is tried within a time budget; if all fail, a deterministic offline scorer produces the result and the report says so.
+A **privacy-reduced copy** of all evidence (URLs redacted, PII masked) goes to Gemini in a single structured-JSON call that returns both a content-only classification against a fixed 30-category threat taxonomy and a full-evidence final verdict with MITRE ATT&CK techniques and recommended actions. The model is told that email content is untrusted data, and every AI finding must cite evidence IDs from the deterministic evidence ledger; uncited claims are kept but marked *ungrounded*. A chain of fallback Gemini models is tried within a time budget (a busy model gets one quick retry); if all fail, a deterministic offline scorer produces the result and the report says so.
 
 ### Stage H — Verdict, evidence report and persistence
 One function reconciles the label and the 0–100 score (the more severe wins) into five canonical verdicts — `LIKELY LEGITIMATE` (0–19), `LOW RISK` (20–39), `SUSPICIOUS` (40–64), `LIKELY PHISHING` (65–84), `HIGH-RISK PHISHING` (85–100) — and three UI bands (safe / caution / danger). The evidence report separates **observed** facts, **reputation** results and **AI-inferred** statements, lists what could not be checked, and produces a headline plus concrete remediation steps. A privacy record of what left the server and a per-provider coverage status are stored with each report for analysts and the API. Everything is saved to MongoDB, and a summary + 384-dim embedding is indexed in the background for the SOC Assistant.
@@ -133,28 +145,40 @@ One function reconciles the label and the 0–100 score (the more severe wins) i
 ## What you get in the dashboard
 
 - **Dashboard** — emails analysed, high risk / suspicious / low risk counts, average risk, risk-over-time chart, verdict breakdown, top threat types and recent investigations, from everything stored
-- **Analyze email** — a live timeline that lights up each stage as it runs (reading the email, sender & headers, static attachments, dynamic attachments, links & indicators, reputation, past emails, AI assessment, verdict), then the score, the verdict and **Re-analyze**. It shows two cards before anything runs: **Standard analysis** (selected by default, nothing to set up) and **Deeper attachment analysis** (says on the card that it needs a VirtualBox VM, and pairs your sandbox right there the first time). The timeline plays in full by default; **Settings → Analysis animation → Fast** removes the added delay so the report opens as soon as the analysis finishes
-- **Investigation report** — a big score ring and verdict, "why it was risky" tags (Header issues, Attachment issues, Suspicious links, Bad reputation, Seen before, Suspicious wording), category cards with the serious findings first, **Remediation**, **Image evidence** (blurred Cloudinary previews of image attachments, revealed on click), the sender-route map, multi-vector analysis and MITRE ATT&CK, collapsible technical details, past emails and the threat graph, and analyst tools (review, case, sharing, retention) at the end
-- **Reports** — every analysed email broken down stage by stage, searchable and filterable by risk
-- **Sandbox behaviour** — for deeper analyses, what each attachment did in your VM (rules matched, Defender blocks, processes), updating live while it runs
+- **Analyze email** — a live timeline that lights up each stage as it runs (reading the email, sender & headers, static attachments, dynamic attachments, links & indicators, reputation, past emails, AI assessment, verdict), then the score, the verdict and **Re-analyze**. It shows two cards before anything runs: **Standard analysis** (selected by default, nothing to set up) and **Deeper attachment analysis** (says on the card that it needs a VirtualBox or VMware VM, and pairs your sandbox right there the first time). Below them, **Or paste a message you were sent** takes text and files that were never an email. The timeline plays in full by default; **Settings → Analysis animation → Fast** removes the added delay so the report opens as soon as the analysis finishes
+- **Investigation report** — a big score ring and verdict, "why it was risky" tags (Header issues, Attachment issues, Suspicious links, Bad reputation, Seen before, Suspicious wording), category cards with the serious findings first, **Remediation**, the **Share card** (download it or copy its link; needs Cloudinary), **Image evidence** (blurred Cloudinary previews of image attachments, revealed on click), the sender-route map, multi-vector analysis and MITRE ATT&CK, collapsible technical details, past emails and the threat graph, and analyst tools (review, case, sharing, retention) at the end
+- **Reports** — every analysed email broken down stage by stage, searchable and filterable by risk, with a **My reports** filter when you are signed in
+- **Sandbox behaviour** — for deeper analyses, a large *Waiting* / *Running* box that names the current step, then what each attachment did in your VM (rules matched, Defender blocks, processes)
 - **Trusted domains** — senders you trust lower the risk only when SPF, DKIM and DMARC prove the email is genuine; the same page holds the analysis-animation setting and pairs your sandbox
 - **Ask E-TAP** — the SOC Assistant for the open report or all past investigations, plus **PDF/JSON export**
 
-## Optional sign-in and the WhatsApp bot
+## WhatsApp bot
 
-- **Sign-in (optional, free).** Settings → Account: enter your email, then the 6-digit code we send. Signed-in users get a **My reports** filter; nobody has to sign in to check a message. Details in [CONTEXT.md](CONTEXT.md).
-- **WhatsApp bot (static analysis only).** Forward a message, link, image or document (up to 5 files, 25 MB) to the bot. It runs the same analysis as the website and can reply with the verdict, reasons and report link. Two-way messaging was verified with a live greeting on the Meta test number for a verified recipient. Link your number in Settings → WhatsApp to see the full results under **My reports**. See the [setup guide](docs/whatsapp-bot.md) and [receive-only fallback](docs/demo-fallback.md).
-- [Privacy policy](frontend/public/privacy.html), served at `/privacy.html`.
+Forward a suspicious message, link, image or document to the bot. It acknowledges it, runs the same pipeline as a pasted message, and replies with the verdict, the risk score, up to three reasons, what to do next and a link to the full report. The reply is **text**, worded the same way as the share card; the bot does not send the card picture.
+
+- **Static analysis only.** The sandbox is never requested and files are never opened.
+- **Limits:** up to 5 files and 25 MB per message, 10 messages an hour per number. Audio, video and stickers are not checked.
+- **Two providers:** Meta's WhatsApp Cloud API (recommended, free test number) or the Twilio sandbox. Each stays off until its secret is set, and every webhook call must carry a valid signature.
+- **Two modes:** two-way replies (`WHATSAPP_REPLIES=1`) or receive-only (`0`), where results appear under **My reports** for a linked number.
+- **Status:** a live greeting reply was verified on 2026-11-22 on a Meta test number for a verified recipient, after the original account had been locked by Meta (error 131031). Replies on the production sender still need re-confirming.
+
+See the [setup guide](docs/whatsapp-bot.md) and the [receive-only fallback](docs/demo-fallback.md).
+
+## Optional sign-in
+
+Settings → **Your account**: enter your email, then the 6-digit code we send. Signed-in users get a **My reports** filter and can link a WhatsApp number (Settings → **WhatsApp**, send the one-time `ETAP-123456` code to the bot; the number is stored only as a keyed hash). Nobody has to sign in to check a message, and signing in is not access control: reports are still open to anyone who can reach the API.
+
+The [privacy policy](frontend/public/privacy.html) is served at `/privacy.html`.
 
 ## Gmail extension
 
-A Manifest V3 extension adds **Analyze in E-TAP** above an opened Gmail message. The banner shows two cards from the start: **Standard analysis** (nothing to set up) and **Deeper attachment analysis**, with what it needs written on the card (a Windows VM in VirtualBox and the free agent; Windows Sandbox on Windows Pro is planned). One click on a card starts that analysis. Choosing Deeper walks you through downloading the agent and entering its pairing code the first time, and only once the original email, with its attachments, has been retrieved. Nothing is sent, and no sandbox status is requested, until you click a card. The extension downloads the original RFC 822 message through the signed-in Gmail session (full headers and attachments) and submits it as `full_message`. If Gmail does not provide the original, it submits the visible sender/subject/body as a clearly labelled `quick_content_check`, where header checks are reported as unavailable. The report then opens in the web dashboard.
+A Manifest V3 extension adds **Analyze in E-TAP** above an opened Gmail message. The banner shows two cards from the start: **Standard analysis** (nothing to set up) and **Deeper attachment analysis**, with what it needs written on the card (a Windows VM in VirtualBox or VMware Workstation and the free agent; Windows Sandbox on Windows Pro is planned). One click on a card starts that analysis. Choosing Deeper walks you through downloading the agent and entering its pairing code the first time, and only once the original email, with its attachments, has been retrieved. Nothing is sent, and no sandbox status is requested, until you click a card. The extension downloads the original RFC 822 message through the signed-in Gmail session (full headers and attachments) and submits it as `full_message`. If Gmail does not provide the original, it submits the visible sender/subject/body as a clearly labelled `quick_content_check`, where header checks are reported as unavailable. The report then opens in the web dashboard.
 
 ---
 
 ## Using deeper attachment analysis, step by step
 
-Standard analysis never opens an attachment, and it is all most people need. **Deeper attachment analysis** is optional and opens attachments inside a virtual machine **you own**, watches what it does and adds that to the report. If you have no VM, skip this whole section: nothing else in E-TAP depends on it. This is the whole journey for someone using the hosted E-TAP with a Windows VM in VirtualBox.
+Standard analysis never opens an attachment, and it is all most people need. **Deeper attachment analysis** is optional and opens attachments inside a virtual machine **you own**, watches what it does and adds that to the report. If you have no VM, skip this whole section: nothing else in E-TAP depends on it. This is the whole journey for someone using the hosted E-TAP with a Windows VM in VirtualBox or VMware Workstation.
 
 ### What runs where
 | On your PC | On the E-TAP server |
@@ -209,7 +233,7 @@ Type the code into the box on the website (or the extension's tab) and click **P
 ### 4. Run it
 1. As soon as you choose Deeper, E-TAP lists the email's attachments and which of them the sandbox would open (scripts, programs, shortcuts, documents, PDFs, web pages and ZIPs are opened; data files such as JSON, text and images are not). Click **Run deeper analysis**: it first checks your sandbox right then and, if it is offline or cannot use its VM, or the email has nothing the sandbox opens, tells you before anything starts and offers **Run standard analysis** or **Run deeper anyway**. In Gmail it continues by itself after pairing.
 2. The standard checks finish in seconds. The timeline's *Dynamic attachment analysis* step says the attachments were sent to your sandbox.
-3. The report opens with a **Sandbox behaviour** section showing *Waiting*, then *Running*. A *Sandbox running* pill sits in the top bar.
+3. The report opens with a **Sandbox behaviour** section showing a large *Waiting*, then *Running* box with the steps below. A *Sandbox running* pill sits in the top bar.
 4. The agent window shows each step while the VM runs in the background for about a minute:
    1. restoring the clean snapshot and starting the VM;
    2. opening the attachments;
@@ -234,7 +258,7 @@ Double-click `start-agent.cmd`; it goes straight to *Your sandbox: online*. Then
 ### Good to know
 - **Limits:** up to 3 attachments per email, 10 MB each. Scripts and programs are opened first. ZIP files are unpacked and their files opened one by one.
 - **Documents:** nothing clicks inside documents yet, so Office files and PDFs that wait for a click usually come back inconclusive.
-- **Rule coverage:** 36 of the 164 bundled behaviour rules can be evaluated today.
+- **Rule coverage:** all 63 bundled behaviour rules can be evaluated. Rules that need image-load, remote-thread, process-access, named-pipe or process-tampering events only fire if the VM's Sysmon configuration logs them. See the [rule catalogue](backend/sandbox/rules/README.md).
 - **Agent window:** the agent runs only while its window is open. There is no background service or Windows auto-start yet.
 - **Problems:**
   - Run `start-agent.cmd check` to see whether the VM is isolated and set up, and what to fix.
@@ -253,6 +277,8 @@ Double-click `start-agent.cmd`; it goes straight to *Your sandbox: online*. Then
 | Parsing / forensics | `email` stdlib, extract-msg, dnspython (optional, for live SPF/DKIM/DMARC DNS checks), oletools, python-magic (optional), OpenCV, pyzbar, Pillow, pytesseract |
 | Threat intel | VirusTotal v3, AbuseIPDB v2, python-whois, ip-api.com |
 | ML / AI | XGBoost, scikit-learn, NumPy, SciPy, Google Gemini (`google-genai`), sentence-transformers (optional) |
+| Messaging and sign-in | Meta WhatsApp Cloud API or Twilio; emailed one-time codes through Brevo or Resend |
+| Images | Cloudinary (optional: image evidence and the share card) |
 | Database | MongoDB / MongoDB Atlas (pymongo), in-memory fake DB for tests |
 | Frontend | React 18, Vite, axios, Leaflet / react-leaflet, react-force-graph-2d, Recharts, jsPDF |
 | Extension | Chrome Manifest V3, IndexedDB handoff store |
@@ -289,7 +315,8 @@ Run the tests:
 ```bash
 pip install -r backend/requirements-dev.txt
 cd backend && python -m pytest tests -q --ignore=tests/test_threat_intel_live.py
-cd ../frontend && npm test
+cd ../frontend && npm test && npx vite build
+cd .. && node --test --test-isolation=none extension/tests/*.test.mjs
 ```
 
 Optional, to try deeper analysis against your local backend: start `python -m sandbox_agent start --server http://127.0.0.1:5000` from `backend/` (see the step-by-step section above). `SANDBOX_BACKEND` defaults to `agent`; use `none` to switch the feature off, or `virtualbox` when the VM is on the same computer as the server.
@@ -304,7 +331,10 @@ backend/sandbox/         Deeper analysis on the server: attachment selection, be
 backend/sandbox_agent/   The E-TAP Sandbox Agent that runs on the user's PC next to their VM
 frontend/                React/Vite dashboard
 extension/               Gmail browser extension (Manifest V3)
-docs/                    Workflow diagram, parser fixtures, small evaluation corpus
+mcp_server/              Lets an AI agent use E-TAP as a tool (Model Context Protocol)
+deploy/                  Optional, unused Google Cloud Run files
+render.yaml              Render blueprint for the backend
+docs/                    WhatsApp setup, demo fallback, runbook, Render notes, diagram, fixtures
 samples/                 Dataset manifests (raw emails are not committed)
 Development notes and iterations/   Research, decisions and the history of how the project evolved
 ```
@@ -313,7 +343,14 @@ Development notes and iterations/   Research, decisions and the history of how t
 
 - Dynamic analysis needs your own VirtualBox or VMware VM and the agent (VMware support is tested with a fake `vmrun`, not yet on a real VMware); nothing clicks inside documents yet, so Office files and click-triggered PDFs are often inconclusive, and the 63 behaviour rules are checked with synthetic events, not yet against a broad set of real samples.
 - The Gmail extension uses Gmail's web endpoints, not the official Gmail API.
-- The Meta test number is limited to verified test recipients. Reply delivery depends on the sender's Meta account status and a valid access token. Big (25 MB) files are analysed one at a time on the free Render plan.
+- A pasted or forwarded message has no email headers, so the sender cannot be checked and the score can be lower than the same content would get as an email.
+- The Meta test number is limited to verified test recipients. Reply delivery depends on the sender's Meta account status and a valid access token. Analyses over 8 MB take turns on the free Render plan.
+- The API is open: sign-in only labels your own reports.
+- Do not read the verdict as a measured detection rate: there is no meaningful accuracy benchmark yet.
+
+## More documents
+
+[CONTEXT.md](CONTEXT.md) (technical reference) · [WhatsApp bot](docs/whatsapp-bot.md) · [Sandbox agent](backend/sandbox_agent/README.md) · [Sandbox internals](backend/sandbox/README.md) · [MCP server](mcp_server/README.md) · [Incident runbook](docs/incident-runbook.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
 
 ## License
 

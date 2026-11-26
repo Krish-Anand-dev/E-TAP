@@ -2,12 +2,12 @@
 
 Forward a suspicious message, link, image or document to the bot. It replies at once ("checking"),
 runs the normal static analysis, then sends the verdict, the main reasons, what to do next and a
-link to the full report on the website. No sandbox, and files are never opened.
+link to the full report on the website. The reply is text, worded like the website's share card; the card picture itself is not sent. No sandbox, and files are never opened.
 
 **Two modes.** Two-way (`WHATSAPP_REPLIES=1`, the default): the bot replies on WhatsApp. Receive-only (`WHATSAPP_REPLIES=0`): it still analyses everything and saves it, and a linked number reads the result under **My reports** on the website (see "One-way mode" below). Whether replies are delivered depends on the Meta account, so test with the steps in "Restore outgoing Meta replies".
 
-Code: `backend/whatsapp.py`. Tests: `backend/tests/test_whatsapp.py` (Twilio) and
-`backend/tests/test_whatsapp_meta.py` (Meta). Both providers use the same analysis and wording.
+Code: `backend/whatsapp.py`. Tests: `backend/tests/test_whatsapp.py` (Twilio),
+`test_whatsapp_meta.py` (Meta) and `test_whatsapp_large_files.py`. Both providers use the same analysis and wording.
 
 | Provider | Route | Free? | Notes |
 |---|---|---|---|
@@ -147,7 +147,7 @@ settings page that trial accounts cannot open.
 
 - Confirm the backend answers instantly at `https://etap-clean-backend.onrender.com/health`. Meta and
   Twilio both give up on a webhook after a few seconds, and a sleeping free Render service can take
-  longer to wake. An UptimeRobot monitor (5-minute interval) on that URL keeps it awake.
+  longer to wake. An UptimeRobot monitor (5-minute interval) on the service root keeps it awake (see below).
 - Make sure everyone who will message the bot is on the allowed list (Meta: the **To** list;
   Twilio: has sent the join code, which expires after a few days).
 - Try a text, a link and a file once from the demo phone.
@@ -173,6 +173,7 @@ settings page that trial accounts cannot open.
 ## Keeping Render awake
 
 An UptimeRobot monitor (free, 5-minute interval) pings
-`https://etap-clean-backend.onrender.com/health`, which keeps the free Render service from sleeping.
+`https://etap-clean-backend.onrender.com/`, which keeps the free Render service from sleeping. Use the
+root address: the free monitor sends `HEAD`, which `/health` rejects with 405.
 There is no GitHub workflow for this: GitHub delays or skips scheduled runs. If the backend URL ever
 changes, update the monitor.

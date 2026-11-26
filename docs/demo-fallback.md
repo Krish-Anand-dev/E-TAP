@@ -10,7 +10,7 @@ number using a temporary token. See [the setup guide](whatsapp-bot.md) for two-w
 
 ## Before the demo (10 minutes)
 
-- Open `https://etap-clean-backend.onrender.com/health` so Render is awake (UptimeRobot keeps it so).
+- Open `https://etap-clean-backend.onrender.com/health` to check Render is awake (an UptimeRobot monitor on the service root keeps it so).
 - Sign in on the site (Settings, Your account, emailed code) and link your number (Settings, WhatsApp,
   send the `ETAP-xxxxxx` code to the bot). Only numbers added in Meta (API Setup, the "To" list) can
   message the test number, and only the linked number's forwards land in **My reports**.

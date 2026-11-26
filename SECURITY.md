@@ -2,10 +2,11 @@
 
 ## Reporting a vulnerability
 
-Please report vulnerabilities privately. Do not open a public issue or merge request.
+Please report vulnerabilities privately. Do not put the details in a public issue or pull request.
 
-Go to the Issues page of this project and select "New issue". Tick "Keep this issue
-confidential" (shown as "This issue is confidential" in some versions) before you submit it.
+On GitHub, open this project's **Security** tab and choose **Report a vulnerability**. If that button
+is not there, open an issue that only asks the maintainers for a private way to reach them, with no
+details of the problem.
 
 ## What to include
 

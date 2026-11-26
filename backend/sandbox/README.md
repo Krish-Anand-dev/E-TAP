@@ -14,7 +14,7 @@ It copies the attachment into a disposable VirtualBox Windows 11 VM, opens it wi
 
 ---
 
-## Current Status (as of 2026-10-18)
+## Status of the local VirtualBox worker (first verified 2026-10-18, table updated 2026-11-26)
 
 ### ✅ Working
 
@@ -53,7 +53,7 @@ It copies the attachment into a disposable VirtualBox Windows 11 VM, opens it wi
 | **No browser-level observation** | Sysmon can't capture JavaScript execution, page navigations, or form submissions. No headless browser instrumentation. | HTML/SVG attacks invisible |
 | **No network simulation** | Profile D (simulated network) is not implemented. VM has no network adapter. DNS/network rules fire on attempted connections but they all fail. | Can't observe C2 communication |
 | **Worker error handling** | If the VM fails to restore or the sample crashes, the worker catches the exception but the error message may not be clear in the UI. | User sees "error" without details |
-| **No replay traces** | The `replays/` directory is empty. No recorded Sysmon traces for demo mode. | `SANDBOX_BACKEND=replay` returns "unavailable" |
+| **No replay traces** | No recorded Sysmon traces ship with the project (there is no `replays/` folder). | `SANDBOX_BACKEND=replay` returns "unavailable" |
 
 ### ❌ Not Implemented
 
@@ -70,7 +70,6 @@ It copies the attachment into a disposable VirtualBox Windows 11 VM, opens it wi
 | **ICS/VCF parsing** | Calendar and contact file analysis |
 | **Encrypted documents** | ZIP encryption is detected; Office/document encryption handling is not implemented |
 | **Image OCR in sandbox** | Running OCR on screenshots taken during detonation |
-| **Detection rule tests** | Positive/negative test cases for each rule |
 | **Coverage reporting** | Detailed breakdown of which telemetry sources were available |
 | **Evidence file storage** | Storing screenshots, raw telemetry, and process trees on host disk |
 | **Async banner in extension** | Gmail extension polling for sandbox results |
@@ -124,13 +123,9 @@ From the repository root (offline regressions do not touch VirtualBox):
 .\.venv\Scripts\python.exe -m unittest discover -s backend/tests -p test_sandbox.py -v
 ```
 
-Opt-in live test with an isolated in-memory database and offline AI/intelligence. This resets the configured VM before and after execution:
+The rules and the VMware provider have their own tests: `test_sandbox_rules.py`, `test_sandbox_rules_everyday.py`, `test_sandbox_vmware.py` and `test_sandbox_agent*.py`.
 
-```powershell
-.\.venv\Scripts\python.exe backend/tests/run_sandbox_smoke.py --email "C:\path\T3_zip_invoice_js.eml" --allow-vm-reset --expect-blocked-target certutil.exe
-```
-
-For a sample expected to spawn a process without being blocked, use `--expect-process <name.exe>`. The smoke report is saved to `.local/sandbox-smoke.json`; raw Sysmon XML stays in the job work directory and host sample files are removed.
+To try a real VM end to end, use the agent's `test` command (see [`../sandbox_agent/README.md`](../sandbox_agent/README.md)); it restores the VM to its snapshot before and after.
 
 ---
 
@@ -189,10 +184,10 @@ The two directory settings are optional. Defaults are absolute paths derived fro
 
 | Mode | Behavior |
 |------|----------|
-| `agent` | The user's own VM through the paired E-TAP Sandbox Agent (`../sandbox_agent/`); jobs queue in MongoDB (`agent_queue.py`) |
+| `agent` (default) | The user's own VM through the paired E-TAP Sandbox Agent (`../sandbox_agent/`); jobs queue in MongoDB (`agent_queue.py`) |
 | `virtualbox` | Live detonation in a VM on the server's own machine (`worker.py`) |
 | `replay` | Evaluates recorded Sysmon XML traces from `replays/` |
-| `none` | Sandbox unavailable (default) |
+| `none` | Sandbox switched off |
 
 ---
 
@@ -247,6 +242,8 @@ The two directory settings are optional. Defaults are absolute paths derived fro
 | `GET /sandbox/{email_id}` | GET | Current sandbox status and results. |
 | `GET /investigations/{email_id}` | GET | Full investigation including `sandbox` field. |
 
+Pairing and the agent's job routes are listed in [CONTEXT.md](../../CONTEXT.md), section 8.
+
 ---
 
 ## Directory Structure
@@ -254,18 +251,22 @@ The two directory settings are optional. Defaults are absolute paths derived fro
 ```
 backend/sandbox/
 ├── __init__.py          Entry point: get_backend(), submit()
-├── vbox.py              VBoxManage wrapper
-├── worker.py            Job queue + lifecycle
+├── config.py            Settings for the local worker
+├── agent_queue.py       Pairing and the job queue for paired agents
+├── analysis.py          Rule evaluation, item verdicts, stored result
+├── archives.py          Bounded ZIP unpacking
+├── worker.py            In-process queue for a VM on this machine
 ├── policy.py            Detonation policy + launcher mapping
 ├── rule_engine.py       EQL rule parser/evaluator
 ├── ecs_convert.py       Sysmon XML → ECS events + tree filter
 ├── scoring.py           Risk scoring (never lowers)
-├── replay.py            Recorded-trace fallback
+├── replay.py            Recorded-trace mode
 ├── README.md            This file
 ├── rules/               63 original detection rules (.toml, each with tests) + README catalogue
-├── replays/             Recorded Sysmon traces (empty)
-└── work/                Temp job files (git-ignored)
+└── work/                Temp job files (created when needed, git-ignored)
 ```
+
+The VM run itself (`runner.py`, `vbox.py`, `vmware.py`) is in `../sandbox_agent/`.
 
 ---
 

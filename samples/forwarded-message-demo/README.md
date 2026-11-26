@@ -1,6 +1,6 @@
 # Paste-a-message demo
 
-A suspicious text plus a harmless attachment that triggers one of the sandbox's seven E-TAP rules.
+A suspicious text plus a harmless attachment that triggers one of the sandbox's behaviour rules (63 in all). The same text can be sent to the WhatsApp bot, which runs the standard analysis only.
 
 1. Open **Analyze email**, find the box **Or paste a message you were sent**.
 2. Paste the whole of `suspicious-message.txt`.

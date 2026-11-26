@@ -7,7 +7,7 @@ Loaded automatically by Claude Code. Keep it short, current and true.
 
 ## This repo
 - `github.com/bhavitanand/E-TAP-clean` (main). Backend on Render (`etap-clean-backend.onrender.com`, auto-deploys on push), frontend on Vercel (`e-tap-clean.vercel.app`), database on Atlas.
-- Run tests from `backend/`: `python -m pytest tests -q --ignore=tests/test_threat_intel_live.py` (about 406 pass); frontend: `cd frontend && npm test && npx vite build`.
+- Run tests from `backend/`: `python -m pytest tests -q --ignore=tests/test_threat_intel_live.py` (441 pass on 2026-11-26); frontend: `cd frontend && npm test && npx vite build`.
 
 ## Added in November 2026
 - **Optional email-code sign-in**: `backend/login.py`, `frontend/src/api/auth.js`, `components/settings/AccountSignIn.jsx`. Never required to analyse; only tags `owner_email` and enables the "My reports" filter.
@@ -17,7 +17,8 @@ Loaded automatically by Claude Code. Keep it short, current and true.
   - The Meta app must be subscribed to the WABA (`POST /{WABA}/subscribed_apps`), otherwise no real messages arrive.
   - `META_ACCESS_TOKEN` on Render is now a **non-expiring system-user token** (Meta Business Settings, system user `etap-whatsapp-bot`, Admin, with the E-TAP app and the test WhatsApp account assigned; permissions `whatsapp_business_messaging` and `whatsapp_business_management`; set 2026-11-15). A rotated or expired token makes file and image downloads fail (text still works); the log line is "WhatsApp media lookup refused (status ...)". Verified live 2026-11-15: PDF, 9.5 MB PDF and a JPEG screenshot (OCR read the text, HIGH-RISK) all produce reports. Send images as photos: WhatsApp Web sends a bare PNG as a sticker, which the bot ignores by design.
 - **Privacy page**: `frontend/public/privacy.html`, themed like the app; Meta needs this URL.
-- Keep-alive is UptimeRobot on `/health` (5 min); the GitHub workflow was removed.
+- Keep-alive is UptimeRobot on the root `/` (5 min; it sends HEAD, which `/health` rejects); the GitHub workflow was removed.
+- The bot replies in text only. Sending the share card picture to WhatsApp is not built.
 
 ## Gemini and the offline fallback
 - On 2026-11-15 Google returned 503/504 on every model for one request, so a report fell back to `offline_fallback` (key was fine). Check Render logs for "Gemini model ... failed". Now: one retry on 503, dead model name removed, honest status text, offline rules catch fee-before-deadline scams. Re-analyse any `offline_fallback` report before showing it.

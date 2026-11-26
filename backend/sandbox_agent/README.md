@@ -28,7 +28,7 @@ The agent only makes outbound HTTPS requests to the E-TAP server. Nothing connec
    python -m sandbox_agent
    ```
 2. The agent checks the computer for VirtualBox or VMware Workstation and your VMs. It asks before each step, then asks which VM, snapshot and guest login to use, starts the VM once to confirm Windows accepts the login (a wrong password is refused and asked again, up to three tries), and shows a read-only checklist of the VM's isolation settings with a fix for anything that is not right (warnings never stop setup; run `check` to see it again). The password is stored protected by Windows for your user only.
-3. It shows a pairing code such as `K7QM-4XPN`. In the Gmail extension choose **Deeper attachment analysis → Pair your sandbox** and enter the code. You can also enter it on the dashboard's **Settings** page. The extension then shows **Your sandbox: online**.
+3. It shows a pairing code such as `K7QM-4XPN`. In the Gmail extension choose **Deeper attachment analysis → Pair your sandbox** and enter the code. You can also enter it on the website, either on **Analyze email** after choosing Deeper or on the **Settings** page. The extension then shows **Your sandbox: online**.
 4. Leave the agent window open. While it runs it re-checks every 20 seconds that VirtualBox or VMware, the VM, the clean snapshot and the login are still fine and reports that, so the dashboard shows *online*, *needs attention* (with the reason) or *offline* truthfully. When you ask for a deeper analysis, it collects the job, runs it and uploads the result, and the report updates by itself.
 
 Pairing happens once. Next time, `start-agent.cmd` goes straight to waiting for jobs.
@@ -50,6 +50,7 @@ Options:
 - `--server URL` points the agent at another E-TAP server, for example `http://127.0.0.1:5000` for a local backend.
 - `--from-env PATH` reads the VM settings from an existing E-TAP `.env` file.
 - `--once` exits after one job.
+- `--yes` answers yes to every question; `--verbose` prints more detail.
 
 Settings are saved in `%APPDATA%\E-TAP Sandbox Agent\config.json`.
 

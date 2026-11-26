@@ -76,7 +76,7 @@ is lost; only the backend's address changes.
 | Render env `ALLOWED_ORIGINS` | unchanged (the frontend address does not move) |
 | Vercel `VITE_API_BASE_URL` | the new backend URL (no trailing slash), then **Redeploy** |
 | Meta, WhatsApp, Configuration, Webhook | Callback URL `https://<new-name>.onrender.com/whatsapp/meta`, same verify token, **Verify and save** |
-| UptimeRobot | edit the monitor to the new `/health` URL (and delete the old service's monitor) |
+| UptimeRobot | edit the monitor to the new service root `/` (and delete the old service's monitor) |
 | Repo defaults | `extension/config.js`, `extension/manifest.json`, `backend/sandbox_agent/config.py`, `backend/sandbox_agent/start-agent.cmd`, `render.yaml`, docs: replace `etap-clean-backend.onrender.com` |
 | Gmail extension / sandbox agent | reload the unpacked extension; re-download the agent zip (it carries the server address) |
 
@@ -97,7 +97,7 @@ keep working (`AUTH_SECRET` must stay the same or sign-in codes and sessions bec
    value, or use "Add from .env"). They are: `MONGODB_URI`, `MONGO_DB_NAME`, `GEMINI_API_KEY`,
    `GEMINI_MODEL`, `VIRUSTOTAL_API_KEY`, `ABUSEIPDB_API_KEY`, `THREAT_INTEL_LIVE`, `ALLOWED_ORIGINS`,
    `PUBLIC_API_URL`, `PUBLIC_FRONTEND_URL`, `CLOUDINARY_*`, `AUTH_SECRET`, `BREVO_API_KEY`,
-   `LOGIN_FROM_EMAIL`, `LOGIN_FROM_NAME`, `META_PHONE_NUMBER_ID`, `META_ACCESS_TOKEN`, `META_APP_SECRET`,
+   `RESEND_API_KEY` (if used instead of Brevo), `LOGIN_FROM_EMAIL`, `LOGIN_FROM_NAME`, `META_PHONE_NUMBER_ID`, `META_ACCESS_TOKEN`, `META_APP_SECRET`,
    `META_VERIFY_TOKEN`, `WHATSAPP_REPLIES`, `WHATSAPP_BOT_NUMBER`. Set `PUBLIC_API_URL` to the new address.
 5. **Check it:** open `https://<new-name>.onrender.com/health` (200) and `/auth/status` (`enabled: true`).
 6. **Cut over, in this order:** Vercel `VITE_API_BASE_URL` and redeploy; Meta webhook callback and

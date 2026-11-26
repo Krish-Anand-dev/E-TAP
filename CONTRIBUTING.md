@@ -17,6 +17,8 @@ Run these before you open a pull request.
     npm test
     npx vite build
 
+If you change a user-facing feature, update `README.md` and `CONTEXT.md` in the same pull request.
+
 **Extension** (Node 24), from the repository root:
 
     node --test --test-isolation=none extension/tests/*.test.mjs

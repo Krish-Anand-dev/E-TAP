@@ -9,9 +9,14 @@ How E-TAP got to where it is: the main iterations, the research behind the bigge
 | 2026-10-23 | [Hosted dynamic attachment analysis](2026-10-23%20Hosted%20dynamic%20attachment%20analysis/report.md) (with [research notes](2026-10-23%20Hosted%20dynamic%20attachment%20analysis/research%20notes/)) | Research |
 | 2026-10-24 | [Sandbox agent direction](2026-10-24%20Sandbox%20agent%20direction.md) | Decision |
 | 2026-10-25 | [Standard analysis first](2026-10-25%20Standard%20analysis%20first.md) | Decision and implementation |
+| 2026-10-25 | [Original detection rules](2026-10-25%20Original%20detection%20rules.md) (done in the GitLab hackathon copy) | Decision and implementation |
+| 2026-10-25 | [VMware Workstation support](2026-10-25%20VMware%20Workstation%20support.md) (done in the GitLab hackathon copy) | Implementation |
+| 2026-10-25 | [Hackathon agent concept](2026-10-25%20Hackathon%20agent%20concept.md) (its GitLab files are not in this repository) | Concept |
 | 2026-10-25 | [Getting the sandbox working: the iterations](2026-10-25%20Getting%20the%20sandbox%20working.md) | Implementation log |
 | 2026-10-25 | [Hacktober HackDays: Cloudinary image evidence and our own deployment](2026-10-25%20Hacktober%20HackDays%20Cloudinary%20and%20deployment.md) | Decision and implementation |
 | 2026-10-31 | [63 original detection rules and VMware in the agent](2026-10-31%20Fifty%20detection%20rules%20and%20VMware.md) | Implementation |
+| 2026-11-15 to 22 | [Sign-in and the WhatsApp bot](2026-11-22%20Sign-in%20and%20the%20WhatsApp%20bot.md) | Implementation |
+| October | [Notion journey (Hacktober HackDays)](Notion%20journey%20%28Hacktober%20HackDays%29.md) | Snapshot |
 
 ## Project timeline
 
@@ -68,3 +73,6 @@ The project moved to the team's own repo and hosting (Atlas, Render, Vercel), ev
 
 ### 14. 63 original detection rules and VMware (2026-10-31)
 The first folder we looked in held neither extra rules nor VMware code, so both were written fresh; the right folder, a sibling copy with 53 tested MIT rules, an extended engine and a VMware provider, was then compared and adopted, with ten rules of ours added. The third-party Elastic rules were removed (licence, and 127 of 157 never ran), a rule that had never loaded (etap-002) is fixed, and the agent can drive VMware Workstation as well as VirtualBox. Details: [2026-10-31 63 detection rules and VMware](2026-10-31%20Fifty%20detection%20rules%20and%20VMware.md).
+
+### 15. Sign-in and the WhatsApp bot (November 2026)
+Optional email-code sign-in with **My reports**, then a WhatsApp bot (Twilio first, then Meta's Cloud API) that runs the pasted-message analysis on whatever is forwarded to it. Meta locked the original account's replies, so a receive-only mode with one-way number linking was added; a two-way greeting was later verified on a replacement test number, with failure logging from PR #1. Details: [the entry](2026-11-22%20Sign-in%20and%20the%20WhatsApp%20bot.md).

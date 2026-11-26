@@ -1,5 +1,9 @@
 # E-TAP: the build journey
 
+> **A snapshot from Hacktober HackDays (October 2026), kept as history.** Its links point to the
+> hackathon deployment and its numbers describe that build. For the project as it is now, read
+> [`../README.md`](../README.md) and [`../CONTEXT.md`](../CONTEXT.md).
+
 **One tap from a suspicious email to an evidence-backed verdict.** E-TAP reads a suspicious email the way a security analyst would, opens its attachments in a safe virtual machine when you ask it to, and then explains the result in plain words to someone who is not an analyst.
 
 Hacktober HackDays 2026 · Tech for Social Good · Open source (MIT) · Built with Cloudinary
