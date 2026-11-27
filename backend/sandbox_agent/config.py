@@ -15,7 +15,7 @@ from pathlib import Path
 
 from .protect import seal, unseal
 
-FALLBACK_SERVER = "https://etap-clean-backend.onrender.com"
+FALLBACK_SERVER = "https://etap-v8-backend.onrender.com"
 
 
 def bundled_server() -> str:

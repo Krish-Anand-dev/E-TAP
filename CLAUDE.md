@@ -6,10 +6,11 @@ Loaded automatically by Claude Code. Keep it short, current and true.
 - `README.md` (overview), `CONTEXT.md` (full technical reference), `docs/whatsapp-bot.md`, `docs/demo-fallback.md`.
 
 ## This repo
-- `github.com/bhavitanand/E-TAP-clean` (main). Backend on Render (`etap-clean-backend.onrender.com`, auto-deploys on push), frontend on Vercel (`e-tap-clean.vercel.app`), database on Atlas.
-- Run tests from `backend/`: `python -m pytest tests -q --ignore=tests/test_threat_intel_live.py` (441 pass on 2026-11-26); frontend: `cd frontend && npm test && npx vite build`.
+- `github.com/Krish-Anand-dev/E-TAP` (main). Backend on Render (`etap-v8-backend.onrender.com`, auto-deploys on push), frontend on Vercel (`e-tap-azure.vercel.app`), database on Atlas.
+- Run tests from `backend/`: `python -m pytest tests -q --ignore=tests/test_threat_intel_live.py` (451 pass on 2026-11-28); frontend: `cd frontend && npm test && npx vite build`.
 
 ## Added in November 2026
+The WhatsApp notes below describe the original team's Meta account; this deployment's bot is not set up yet (2026-11-28).
 - **Optional email-code sign-in**: `backend/login.py`, `frontend/src/api/auth.js`, `components/settings/AccountSignIn.jsx`. Never required to analyse; only tags `owner_email` and enables the "My reports" filter.
 - **WhatsApp bot (static analysis only)**: `backend/whatsapp.py` (Meta Cloud API route plus a Twilio route), `heavy_gate.py` (one big analysis at a time), report link `?dossier=<email_id>`.
   - **Replies (updated 2026-11-22, PR #1 by Yashmit Kamal)**: on 2026-11-15 Meta blocked replies on the original account (error 131031 "Business Account locked"). A live greeting reply was later verified on a replacement test number with a temporary token. Production is not re-confirmed: check `WHATSAPP_REPLIES` and the token on Render, send `hi` and see the reply arrive before claiming it works. Failed sends and failed delivery webhooks are logged by numeric code only. Runbook: `docs/whatsapp-bot.md`; fallback: `docs/demo-fallback.md`.

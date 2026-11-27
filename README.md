@@ -8,8 +8,8 @@ The result is one report that says **how risky the email is, why, and what to do
 
 > E-TAP is a triage assistant, not an oracle. A missing or failed check is always reported as *unknown*, never as *safe*.
 
-- **Live demo (frontend):** <https://e-tap-clean.vercel.app/>
-- **Backend API:** <https://etap-clean-backend.onrender.com> · [health](https://etap-clean-backend.onrender.com/health) · [docs](https://etap-clean-backend.onrender.com/docs)
+- **Live demo (frontend):** <https://e-tap-azure.vercel.app/>
+- **Backend API:** <https://etap-v8-backend.onrender.com> · [health](https://etap-v8-backend.onrender.com/health) · [docs](https://etap-v8-backend.onrender.com/docs)
 
 ## Built for Hacktober HackDays: tech for social good
 
@@ -160,7 +160,7 @@ Forward a suspicious message, link, image or document to the bot. It acknowledge
 - **Limits:** up to 5 files and 25 MB per message, 10 messages an hour per number. Audio, video and stickers are not checked.
 - **Two providers:** Meta's WhatsApp Cloud API (recommended, free test number) or the Twilio sandbox. Each stays off until its secret is set, and every webhook call must carry a valid signature.
 - **Two modes:** two-way replies (`WHATSAPP_REPLIES=1`) or receive-only (`0`), where results appear under **My reports** for a linked number.
-- **Status:** a live greeting reply was verified on 2026-11-22 on a Meta test number for a verified recipient, after the original account had been locked by Meta (error 131031). Replies on the production sender still need re-confirming.
+- **Status:** on the original team's deployment, a live greeting reply was verified on 2026-11-22 on a Meta test number for a verified recipient, after the original account had been locked by Meta (error 131031). Replies on the production sender still need re-confirming.
 
 See the [setup guide](docs/whatsapp-bot.md) and the [receive-only fallback](docs/demo-fallback.md).
 

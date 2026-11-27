@@ -77,12 +77,12 @@ Menu names change now and then, so follow the idea if a label differs slightly.
    | `META_ACCESS_TOKEN` | the access token (see "Token that does not expire" below) |
    | `META_APP_SECRET` | the App secret from step 3 |
    | `META_VERIFY_TOKEN` | any secret string you make up, e.g. a long random phrase |
-   | `PUBLIC_FRONTEND_URL` | `https://e-tap-clean.vercel.app` (used in report links) |
+   | `PUBLIC_FRONTEND_URL` | `https://e-tap-azure.vercel.app` (used in report links) |
    | `WHATSAPP_BOT_NUMBER` | the bot's sending number, as shown to users in Settings |
    | `WHATSAPP_REPLIES` | `1` to enable replies, or `0` for receive-only mode |
 
 5. Back in the dashboard open **WhatsApp > Configuration**. Under **Webhook**, click **Edit** and enter:
-   - **Callback URL:** `https://etap-clean-backend.onrender.com/whatsapp/meta`
+   - **Callback URL:** `https://etap-v8-backend.onrender.com/whatsapp/meta`
    - **Verify token:** exactly the `META_VERIFY_TOKEN` you set on Render.
 
    Click **Verify and save**. Meta calls the URL once to check it; this only works after Render has
@@ -123,7 +123,7 @@ because the bot only reads what Meta posts to the webhook; downloading a file do
 ### If something fails
 
 - **Saving the webhook fails:** the verify token does not match Render, Render has not redeployed, or
-  the service was asleep. Open `https://etap-clean-backend.onrender.com/health` and try again.
+  the service was asleep. Open `https://etap-v8-backend.onrender.com/health` and try again.
 - **Incoming POST returns 403:** verify that `META_APP_SECRET` is from the app that sent the webhook.
 - **Incoming POST returns 200, but the outbound call is refused:** check the Graph error code,
   token expiry and permissions, and whether the token and sender ID belong to the same app setup.
@@ -139,13 +139,13 @@ settings page that trial accounts cannot open.
 1. Join the sandbox from your phone with the number and `join ...` code Twilio shows you.
 2. On Render set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM` (`whatsapp:` plus
    **the number your own sandbox page shows**; it differs between accounts), `PUBLIC_API_URL`
-   (`https://etap-clean-backend.onrender.com`) and `PUBLIC_FRONTEND_URL`.
+   (`https://etap-v8-backend.onrender.com`) and `PUBLIC_FRONTEND_URL`.
 3. In Twilio's sandbox settings set **When a message comes in** to
-   `https://etap-clean-backend.onrender.com/whatsapp/twilio`, method POST.
+   `https://etap-v8-backend.onrender.com/whatsapp/twilio`, method POST.
 
 ## Before a demo
 
-- Confirm the backend answers instantly at `https://etap-clean-backend.onrender.com/health`. Meta and
+- Confirm the backend answers instantly at `https://etap-v8-backend.onrender.com/health`. Meta and
   Twilio both give up on a webhook after a few seconds, and a sleeping free Render service can take
   longer to wake. An UptimeRobot monitor (5-minute interval) on the service root keeps it awake (see below).
 - Make sure everyone who will message the bot is on the allowed list (Meta: the **To** list;
@@ -173,7 +173,7 @@ settings page that trial accounts cannot open.
 ## Keeping Render awake
 
 An UptimeRobot monitor (free, 5-minute interval) pings
-`https://etap-clean-backend.onrender.com/`, which keeps the free Render service from sleeping. Use the
+`https://etap-v8-backend.onrender.com/`, which keeps the free Render service from sleeping. Use the
 root address: the free monitor sends `HEAD`, which `/health` rejects with 405.
 There is no GitHub workflow for this: GitHub delays or skips scheduled runs. If the backend URL ever
 changes, update the monitor.

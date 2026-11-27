@@ -32,7 +32,7 @@ if not defined PYCMD (
 
 rem The E-TAP server this agent talks to. A different saved server is replaced (and the old
 rem pairing dropped; the VM settings are kept). Add --server URL after the command to override.
-set "ETAP_SERVER=https://etap-clean-backend.onrender.com"
+set "ETAP_SERVER=https://etap-v8-backend.onrender.com"
 
 %PYCMD% -m sandbox_agent --server %ETAP_SERVER% %*
 pause

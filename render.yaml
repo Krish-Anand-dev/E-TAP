@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: etap-clean-backend
+    name: etap-v8-backend
     runtime: docker
     rootDir: backend
     dockerfilePath: ./Dockerfile
@@ -14,7 +14,7 @@ services:
       - key: MONGODB_URI
         sync: false
       - key: MONGO_DB_NAME
-        value: etap_clean
+        value: etap_v8
       - key: GEMINI_API_KEY
         sync: false
       - key: VIRUSTOTAL_API_KEY
@@ -28,4 +28,4 @@ services:
       - key: ALLOWED_ORIGINS
         sync: false
       - key: PUBLIC_API_URL
-        value: https://etap-clean-backend.onrender.com
+        value: https://etap-v8-backend.onrender.com

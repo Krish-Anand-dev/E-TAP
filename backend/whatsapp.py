@@ -60,7 +60,7 @@ MAX_FILES = 5                        # the website's pasted-message form also ta
 MAX_FILE_BYTES = 25 * 1024 * 1024    # same ceiling as an upload on the website
 MAX_TOTAL_BYTES = 25 * 1024 * 1024
 MAX_REPLY_CHARS = 1500  # WhatsApp via Twilio accepts 1600
-DEFAULT_FRONTEND = "https://e-tap-clean.vercel.app"
+DEFAULT_FRONTEND = "https://e-tap-azure.vercel.app"
 HELP_WORDS = {"hi", "hello", "hey", "help", "start", "menu"}
 _URL_PATTERN = re.compile(r"\bhttps?://[^\s<>\"')]+|\bwww\.[^\s<>\"')]+", re.IGNORECASE)
 

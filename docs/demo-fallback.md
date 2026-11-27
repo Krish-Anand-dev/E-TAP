@@ -10,7 +10,7 @@ number using a temporary token. See [the setup guide](whatsapp-bot.md) for two-w
 
 ## Before the demo (10 minutes)
 
-- Open `https://etap-clean-backend.onrender.com/health` to check Render is awake (an UptimeRobot monitor on the service root keeps it so).
+- Open `https://etap-v8-backend.onrender.com/health` to check Render is awake (an UptimeRobot monitor on the service root keeps it so).
 - Sign in on the site (Settings, Your account, emailed code) and link your number (Settings, WhatsApp,
   send the `ETAP-xxxxxx` code to the bot). Only numbers added in Meta (API Setup, the "To" list) can
   message the test number, and only the linked number's forwards land in **My reports**.
@@ -27,7 +27,7 @@ number using a temporary token. See [the setup guide](whatsapp-bot.md) for two-w
 3. **Same pipeline in the browser.** Analyze page, "Or paste a message you were sent", Standard analysis,
    to show the live timeline.
 4. **Show where the result appears.** In this mode, the result is under **My reports**.
-5. **Privacy page and sign-in.** `https://e-tap-clean.vercel.app/privacy.html`; the phone number is
+5. **Privacy page and sign-in.** `https://e-tap-azure.vercel.app/privacy.html`; the phone number is
    stored only as a keyed hash.
 
 ## If something goes wrong

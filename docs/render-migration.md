@@ -1,5 +1,8 @@
 # Render accounts: one always-on free service each
 
+> **History from the original team's deployment.** The accounts and addresses below are not this repository's.
+> The current backend is `https://etap-v8-backend.onrender.com`.
+
 **Decision (2026-11-15):** E-TAP stays on the main Render account (`bhavitanand.007`), the only service
 there. RCPT is deployed on the `bhavitanand.dev` account and the capstone on `anand.007bhavit`, each with
 its own UptimeRobot ping, so all three stay awake. Nothing has to move for E-TAP. The rest of this page is
