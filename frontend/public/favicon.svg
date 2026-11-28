@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- The E-TAP cat: cats catch phish. Same colours as the mascot on the Analyze timeline. -->
+  <g stroke="#101731" stroke-width="3" stroke-linejoin="round">
+    <path d="M7 31 9 5l19 14z" fill="#f2a65a"/>
+    <path d="M57 31 55 5 36 19z" fill="#f2a65a"/>
+    <ellipse cx="32" cy="37" rx="28" ry="24" fill="#f2a65a"/>
+  </g>
+  <path d="M12 21 13 12l8 6zM52 21 51 12l-8 6z" fill="#f7a8b8"/>
+  <path d="M25 15.5 26.5 22M32 14.5V22M39 15.5 37.5 22" stroke="#d9813a" stroke-width="3" stroke-linecap="round"/>
+  <ellipse cx="32" cy="47" rx="15" ry="10" fill="#fde9cf"/>
+  <ellipse cx="21" cy="35" rx="5" ry="6.5" fill="#101731"/>
+  <ellipse cx="43" cy="35" rx="5" ry="6.5" fill="#101731"/>
+  <circle cx="23" cy="32.5" r="2" fill="#fff"/>
+  <circle cx="45" cy="32.5" r="2" fill="#fff"/>
+  <circle cx="12.5" cy="44" r="3.5" fill="#f7a8b8"/>
+  <circle cx="51.500" cy="44" r="3.5" fill="#f7a8b8"/>
+  <path d="M28.500 42.500h7L32 46.500z" fill="#e0607a" stroke="#101731" stroke-width="1.500" stroke-linejoin="round"/>
+  <path d="M32 47.500q-3.500 6-8 1.500M32 47.500q3.500 6 8 1.500" fill="none" stroke="#101731" stroke-width="2.200" stroke-linecap="round"/>
+</svg>
