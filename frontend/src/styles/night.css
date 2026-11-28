@@ -58,6 +58,20 @@
 :root[data-theme="dark"] .welcome-card-action input { background: #0e1d30; border-color: #31506d; color: #e8f2f9; }
 :root[data-theme="dark"] .fishing-lines path { stroke: #cfe0f0; }
 :root[data-theme="dark"] .welcome-skip { border-color: #9fc3e0; background: #ffffff14; color: #e8f2f9; }
+/* the WhatsApp bubble and the menu at night */
+:root[data-theme="dark"] .wa-bubble { background: #005c4b; color: #e9edef; }
+:root[data-theme="dark"] .wa-bubble::before { border-top-color: #005c4b; }
+:root[data-theme="dark"] .wa-bubble strong { color: #7ff0c9; }
+:root[data-theme="dark"] .wa-time, :root[data-theme="dark"] .wa-close { color: #b3d4cb; }
+:root[data-theme="dark"] .wa-time svg { color: #6ec8f5; }
+:root[data-theme="dark"] .wa-connect { background: #d9fdd3; color: #073b2e; }
+:root[data-theme="dark"] .welcome-card-icon.is-whatsapp { background: transparent; color: #52cc99; }
+@media (min-width: 761px) {
+  :root[data-theme="dark"] .app-sidebar { background: linear-gradient(to top right, #15405a, #0c1a2c); box-shadow: 12px 0 34px #00000059; }
+  :root[data-theme="dark"] .app-sidebar.is-collapsed { background: transparent; box-shadow: none; }
+}
+:root[data-theme="dark"] .side-docs { background: #2a6f97; }
+
 .welcome .welcome-theme { position: absolute; right: 18px; top: 16px; z-index: 6; }
 
 /* count bubbles sit on the brighter verdict colours, so their numbers are dark at night */

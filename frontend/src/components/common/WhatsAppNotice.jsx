@@ -1,13 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import Icon from './Icon';
+import WhatsAppLogo from './WhatsAppLogo';
 import { getWhatsAppLink } from '../../api/whatsappLink';
 import { loginEmail } from '../../api/session';
 import { dismissWhatsAppNotice, scrollWhenReady, shouldShowWhatsAppNotice } from '../../utils/welcome';
 
-/** On the dashboard: offer to link WhatsApp. Never shown once a number is linked. */
+/**
+ * On the dashboard, drawn like a WhatsApp message: offer to link WhatsApp. Shown to
+ * visitors who are not signed in and to accounts without a number; never once linked.
+ */
 export default function WhatsAppNotice({ navigate }) {
   const [email, setEmail] = useState(loginEmail());
   const [show, setShow] = useState(false);
+  const [time] = useState(() => new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }));
 
   useEffect(() => {
     const sync = () => setEmail(loginEmail());
@@ -17,8 +22,11 @@ export default function WhatsAppNotice({ navigate }) {
 
   useEffect(() => {
     let active = true;
+    if (!email) {
+      setShow(shouldShowWhatsAppNotice({ email }));
+      return undefined;
+    }
     setShow(false);
-    if (!email) return undefined;
     getWhatsAppLink()
       .then((link) => { if (active) setShow(shouldShowWhatsAppNotice({ email, link })); })
       .catch(() => { /* unknown is not "not linked": say nothing */ });
@@ -26,15 +34,22 @@ export default function WhatsAppNotice({ navigate }) {
   }, [email]);
 
   if (!show) return null;
-  const connect = () => { navigate('settings'); scrollWhenReady('whatsapp-link'); };
+  // Linking belongs to an account, so a visitor is taken to sign-in first.
+  const connect = () => { navigate('settings'); scrollWhenReady(email ? 'whatsapp-link' : 'account'); };
   const close = () => { dismissWhatsAppNotice(email); setShow(false); };
 
   return (
-    <div className="whatsapp-notice" role="status">
-      <Icon name="message" size={18} />
-      <span>You can also check messages through WhatsApp.</span>
-      <button type="button" className="notice-connect" onClick={connect}>Connect</button>
-      <button type="button" className="icon-button" onClick={close} aria-label="Close this notice"><Icon name="x" size={15} /></button>
-    </div>
+    <aside className="wa-notice" aria-label="Check messages through WhatsApp">
+      <span className="wa-avatar"><WhatsAppLogo size={40} /></span>
+      <div className="wa-bubble">
+        <button type="button" className="wa-close" onClick={close} aria-label="Close this notice"><Icon name="x" size={14} /></button>
+        <strong>E-TAP on WhatsApp</strong>
+        <p>Got something suspicious? You can also check messages through WhatsApp.</p>
+        <button type="button" className="wa-connect" onClick={connect}>{email ? 'Connect WhatsApp' : 'Sign in to connect'}</button>
+        <span className="wa-time">{time}
+          <svg viewBox="0 0 18 11" width="17" height="11" aria-hidden="true"><path d="M1 6l3.2 3.2L11 2M7.4 8.4l.8.8L15.5 2" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </span>
+      </div>
+    </aside>
   );
 }

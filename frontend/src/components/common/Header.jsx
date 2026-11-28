@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useInvestigation } from '../../context/InvestigationContext';
 import Icon from './Icon';
 import ThemeToggle from './ThemeToggle';
+import { DOCS_URL } from '../../config/links';
 import { loginEmail } from '../../api/session';
 import { scrollWhenReady } from '../../utils/welcome';
 import { ACTIVE_SANDBOX_STATUSES } from '../../utils/sandbox';
@@ -10,14 +11,19 @@ const TITLES = { overview: 'Dashboard', upload: 'Analyze email', dashboard: 'Inv
 
 export function Header({ currentView, setCurrentView }) {
   const { data, status, backendOnline, lastHealthCheck, resetInvestigation, history } = useInvestigation();
-  const [collapsed, setCollapsed] = useState(false);
+  // A slim strip that slides open while the pointer or the keyboard is in it.
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const collapsed = !(hovered || focused);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [signedIn, setSignedIn] = useState(Boolean(loginEmail()));
+  const [email, setEmail] = useState(loginEmail());
   useEffect(() => {
-    const sync = () => setSignedIn(Boolean(loginEmail()));
+    const sync = () => setEmail(loginEmail());
     window.addEventListener('etap-login-change', sync);
     return () => window.removeEventListener('etap-login-change', sync);
   }, []);
+  const signedIn = Boolean(email);
+  const userName = signedIn ? email.split('@')[0] : '';
   const busy = status === 'uploading' || status === 'analyzing';
   const sandboxRunning = ACTIVE_SANDBOX_STATUSES.has(data?.sandbox?.status);
 
@@ -42,11 +48,16 @@ export function Header({ currentView, setCurrentView }) {
   );
 
   return <>
-    <aside className={`app-sidebar ${collapsed ? 'is-collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
+    <aside className={`app-sidebar ${collapsed ? 'is-collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}
+      onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+      onFocus={(event) => { if (event.target.matches(':focus-visible')) setFocused(true); }}
+      onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false); }}>
       <div className="sidebar-brand">
         <img className="brand-mark" src="/favicon.svg" alt="" width="40" height="40" />
-        <span className="sidebar-wordmark">E-TAP<span>EMAIL THREAT ANALYSIS</span></span>
-        <button className="icon-button collapse-toggle" title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => setCollapsed(!collapsed)}><Icon name="menu" size={17} /></button>
+        <span className="sidebar-wordmark" title={email || undefined}>
+          <b>{userName || 'E-TAP'}</b>
+          <span>{signedIn ? 'E-TAP' : 'EMAIL THREAT ANALYSIS'}</span>
+        </span>
       </div>
       <nav aria-label="Main navigation">
         <p className="nav-group-label">WORKSPACE</p>
@@ -62,9 +73,13 @@ export function Header({ currentView, setCurrentView }) {
           <span>{signedIn ? 'Your account' : 'Sign in'}</span>
         </button>
       </nav>
+      <a className="side-docs" href={DOCS_URL} target="_blank" rel="noopener noreferrer" title="Documentation">
+        <Icon name="file" size={18} />
+        <span>Documentation</span>
+      </a>
     </aside>
     {mobileOpen && <button className="sidebar-backdrop" aria-label="Close navigation" onClick={() => setMobileOpen(false)} />}
-    <header className={`workspace-topbar ${collapsed ? 'sidebar-small' : ''}`}>
+    <header className="workspace-topbar">
       <div className="breadcrumb">
         <button className="icon-button mobile-menu" aria-label="Open navigation" onClick={() => setMobileOpen(!mobileOpen)}><Icon name="menu" /></button>
         <Icon name="dashboard" size={17} /><span className="breadcrumb-root">E-TAP</span><span className="breadcrumb-chevron">/</span><strong>{TITLES[currentView]}</strong>

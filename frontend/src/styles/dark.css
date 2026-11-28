@@ -629,9 +629,16 @@
 :root[data-theme="dark"] .welcome-skip { border: 1px solid #30485c; background: #1225351f; color: #fffef7; }
 :root[data-theme="dark"] .welcome-skip:hover { background: #1225353d; }
 :root[data-theme="dark"] .fishing-lines path { fill: none; stroke: #daeaf4; }
-:root[data-theme="dark"] .whatsapp-notice { background: var(--safe-bg); border: 1px solid #33634e; color: #7fcaa6; }
-:root[data-theme="dark"] .whatsapp-notice .notice-connect { border: 0; background: #126647; color: #fff; }
-:root[data-theme="dark"] .whatsapp-notice .icon-button { color: #7fcaa6; }
+:root[data-theme="dark"] .welcome-card-icon.is-whatsapp { background: transparent; color: #7fcaa6; }
+:root[data-theme="dark"] .wa-avatar { color: #7fcaa6; }
+:root[data-theme="dark"] .wa-bubble { background: #1a3615; color: #d9e9f3; box-shadow: 0 1px 2px #0208104a; }
+:root[data-theme="dark"] .wa-bubble::before { border-top: 11px solid #386531; border-left: 9px solid transparent; }
+:root[data-theme="dark"] .wa-bubble strong { color: #79cbad; }
+:root[data-theme="dark"] .wa-connect { border: 0; background: #0a6b52; color: #fff; }
+:root[data-theme="dark"] .wa-time { color: #9eadb7; }
+:root[data-theme="dark"] .wa-time svg { color: #5dc1ff; }
+:root[data-theme="dark"] .wa-close { border: 0; background: transparent; color: #9eadb7; }
+:root[data-theme="dark"] .wa-close:hover { background: #0000000f; }
 /* from sea.css */
 :root[data-theme="dark"] body { background: linear-gradient(to top right, #203444 0%, #192d3e 32%, #142838 62%, #112535 100%) fixed #142838; }
 :root[data-theme="dark"] .app-shell { background: transparent; }
@@ -641,5 +648,11 @@
 }
 :root[data-theme="dark"] .workspace-topbar { background: #132737d9; border-bottom-color: #30485c; }
 :root[data-theme="dark"] .brand-mark { background: transparent; }
+@media (min-width: 761px) {
+:root[data-theme="dark"] .app-sidebar { background: linear-gradient(to top right, #203444, #142838); box-shadow: 12px 0 34px #02081041; }
+:root[data-theme="dark"] .app-sidebar.is-collapsed { background: transparent; box-shadow: none; }
+}
+:root[data-theme="dark"] .side-docs { background: #0f5f87; color: #fff; }
+:root[data-theme="dark"] .side-docs:hover { background: #2a6f97; }
 :root[data-theme="dark"] .report-tabs { background: #142838f5; }
 :root[data-theme="dark"] .dropzone-panel { background-color: #132636; }

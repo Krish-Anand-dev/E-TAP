@@ -1,5 +1,5 @@
 /** When to show the welcome page and the WhatsApp notice. Browser storage may be blocked; nothing here throws. */
-const dismissKey = (email) => `etap.whatsappNotice.dismissed:${email}`;
+const dismissKey = (email) => `etap.whatsappNotice.dismissed:${email || 'visitor'}`;
 
 const read = (storage, key) => {
   try { return storage.getItem(key); } catch { return null; }
@@ -14,9 +14,10 @@ const browserStorage = () => {
 /** On every visit; a direct link to a report goes straight to the report. */
 export const shouldShowWelcome = (search = '') => !new URLSearchParams(search).has('dossier');
 
-/** Only for someone signed in whose account has no WhatsApp number, until they close it. */
+/** For visitors, and for accounts known to have no WhatsApp number, until they close it. */
 export function shouldShowWhatsAppNotice({ email, link, storage = browserStorage() }) {
-  return Boolean(email) && link?.linked === false && read(storage, dismissKey(email)) !== '1';
+  if (read(storage, dismissKey(email)) === '1') return false;
+  return email ? link?.linked === false : true;
 }
 export const dismissWhatsAppNotice = (email, storage = browserStorage()) => write(storage, dismissKey(email));
 

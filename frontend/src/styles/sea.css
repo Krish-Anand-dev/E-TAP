@@ -15,6 +15,19 @@ body { background: linear-gradient(to top right, #c5e1f2 0%, #deeef8 32%, #f3f9f
 /* The logo is the same cat as the browser tab: no circle behind it, never squashed. */
 .brand-mark { flex: none; width: 40px; height: 40px; background: transparent; border-radius: 0; }
 
+/* The menu stays a slim strip and slides over the page when hovered, so nothing jumps. */
+@media (min-width: 761px) {
+  .app-shell, .app-shell:has(.app-sidebar.is-collapsed), .app-shell:has(.app-sidebar) { --sidebar-width: 76px; }
+  .app-sidebar { width: 232px; overflow: hidden; transition: width .22s ease, box-shadow .22s ease; background: linear-gradient(to top right, #c5e1f2, #f3f9fd); box-shadow: 12px 0 34px #0b2a4224; }
+  .app-sidebar.is-collapsed { width: 76px; background: transparent; box-shadow: none; }
+}
+.sidebar-wordmark { min-width: 0; }
+.sidebar-wordmark > b { display: block; overflow: hidden; text-overflow: ellipsis; }
+.side-docs { display: flex; align-items: center; justify-content: center; gap: 10px; flex: none; margin: auto 0 18px; min-height: 44px; border-radius: 10px; background: #0f5f87; color: #fff; font-size: 12px; font-weight: 600; text-decoration: none; white-space: nowrap; }
+.side-docs:hover { background: #0b4d6e; }
+.app-sidebar.is-collapsed .side-docs > span { display: none; }
+@media (max-width: 760px) { .app-sidebar.is-collapsed .side-docs > span { display: inline; } }
+
 /* Report section tabs and the drop area sit on the gradient too. */
 .report-tabs { background: #f1f8fdf5; padding-inline: 10px; border-radius: 0 0 14px 14px; }
 .dropzone-panel { background-color: #f8fcff; }

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Icon from '../components/common/Icon';
+import WhatsAppLogo from '../components/common/WhatsAppLogo';
 import WelcomeScene from '../components/welcome/WelcomeScene';
 import { loginAvailable, requestLoginCode, verifyLoginCode } from '../api/auth';
 import { loginEmail } from '../api/session';
@@ -85,7 +86,7 @@ function WhatsAppCard({ signedIn, onConnect }) {
 
   return (
     <section className="welcome-card" aria-label="Connect WhatsApp">
-      <span className="welcome-card-icon"><Icon name="message" size={22} /></span>
+      <span className="welcome-card-icon is-whatsapp"><WhatsAppLogo size={44} /></span>
       <h2>Connect WhatsApp</h2>
       <p>Forward a suspicious message and read its report on this site.</p>
       <p className="welcome-tip"><Icon name="alert" size={14} />Approved test numbers only for now. No replies in the chat yet.</p>

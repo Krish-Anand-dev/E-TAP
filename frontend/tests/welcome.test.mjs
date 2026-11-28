@@ -41,10 +41,12 @@ test('the welcome page shows on every visit, except a direct link to a report', 
   assert.equal(shouldShowWelcome('?dossier=abc'), false);
 });
 
-test('the WhatsApp notice shows only to a signed-in account without a number, until closed', () => {
+test('the WhatsApp notice shows to visitors and unlinked accounts, until closed', () => {
   const storage = memory();
   const email = 'a@b.test';
-  assert.equal(shouldShowWhatsAppNotice({ email: null, link: { linked: false }, storage }), false);
+  assert.equal(shouldShowWhatsAppNotice({ email: null, storage }), true);
+  dismissWhatsAppNotice(null, storage);
+  assert.equal(shouldShowWhatsAppNotice({ email: null, storage }), false);
   assert.equal(shouldShowWhatsAppNotice({ email, link: { linked: true }, storage }), false);
   assert.equal(shouldShowWhatsAppNotice({ email, link: undefined, storage }), false);
   assert.equal(shouldShowWhatsAppNotice({ email, link: { linked: false }, storage }), true);

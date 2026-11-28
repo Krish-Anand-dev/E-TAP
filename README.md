@@ -1,296 +1,47 @@
-# E-TAP — Email Threat Analysis Platform
+# E-TAP: Email Threat Analysis Platform
 
-**One tap from a suspicious email to an evidence-backed verdict.**
+**Is that message safe?** E-TAP checks a suspicious email or message the way a security analyst would, then says in plain words how risky it is, why, and what to do next.
 
-E-TAP takes a raw email (`.eml` / `.msg`, or a message opened in Gmail through the browser extension), a message you paste in, or something you forward to its WhatsApp bot, and runs it through a multi-stage forensic pipeline: header and authentication forensics, sender-origin tracing with IP geolocation, static attachment forensics (file signatures, macros, QR codes, OCR), IOC extraction, live threat-intelligence lookups, historical campaign correlation, graph-based risk propagation, an XGBoost pre-filter and a Gemini-backed final assessment with MITRE ATT&CK mapping. For people who own a VirtualBox or VMware VM there is an optional **deeper attachment analysis** that opens the attachments in that VM and adds what they actually did to the report.
+[![Read the documentation](https://img.shields.io/badge/Read_the-Documentation-0f6cbd?style=for-the-badge&logo=notion&logoColor=white)](https://classy-particle-fa3.notion.site/E-TAP-Documentation-4262ec83607681e5b3e7c3d2e7069d4e)
 
-The result is one report that says **how risky the email is, why, and what to do**, written so a non-expert can act on it, with the full technical detail kept for security analysts.
+**Website:** <https://e-tap-azure.vercel.app> · **API:** [health](https://etap-v8-backend.onrender.com/health) · [reference](https://etap-v8-backend.onrender.com/docs)
 
-> E-TAP is a triage assistant, not an oracle. A missing or failed check is always reported as *unknown*, never as *safe*.
+> E-TAP helps you decide. It is not an oracle: a check that is missing or failed is reported as *unknown*, never as *safe*.
 
-- **Live demo (frontend):** <https://e-tap-azure.vercel.app/>
-- **Backend API:** <https://etap-v8-backend.onrender.com> · [health](https://etap-v8-backend.onrender.com/health) · [docs](https://etap-v8-backend.onrender.com/docs)
+## What it does
 
-## Built for Hacktober HackDays: tech for social good
-
-Most people who receive a phishing email cannot judge it for themselves: families, small businesses, first-time email users. E-TAP is built for them first. The report says in plain words how risky an email is, why, and what to do next, and keeps the forensic detail for analysts. It is free, open source (MIT), and standard analysis needs nothing to be installed.
-
-**Cloudinary** is part of the product, not decoration: it handles image evidence and draws the share card. Phishing often hides in an image: a QR code that leads to a fake login page, or a screenshot of an "invoice". When Cloudinary is configured, E-TAP saves each image attachment to Cloudinary (images only, at most 3 per email, under a random name), shows a **blurred preview** that is revealed only when the reader clicks it, and can have Cloudinary read the text in the image a second time. The image is deleted when the report is deleted or expires, and the privacy record (in the exported PDF and the API) lists it as a data flow. With no Cloudinary settings the step is simply off.
-
-It also draws the **share card**: a picture of the verdict to send to whoever asked "is this real?". The card is a Cloudinary text-overlay link on a plain coloured base image and carries only the verdict, the score, up to three fixed reasons, the next step and the date, never anything from the message. A good result reads *No problems found* (never *safe*) and turns into a grey *Limited check* card when a check could not run.
-
-## Ways to check something
-
-| Way in | What you give it | What is checked |
-|---|---|---|
-| **Upload** | an `.eml` or `.msg` file | everything |
-| **Gmail extension** | one click on an opened email | everything when Gmail provides the original, otherwise a labelled visible-text check |
-| **Paste a message** | the text of an SMS or chat message, plus up to 5 files (15 MB in total) | links, QR codes, text in images, attachments, reputation and AI. Sender checks do not apply and add nothing to the score |
-| **WhatsApp bot** | a forwarded message, link, image or document (up to 5 files, 25 MB) | the same checks as a pasted message, static analysis only |
-
-For the deep technical reference (every module, library, environment variable, data shape and design decision), read **[CONTEXT.md](CONTEXT.md)**.
-
----
-
-## How an email is analysed
-
-```text
- .eml / .msg upload  ─┐
- Gmail extension     ─┤
- Pasted message  *   ─┼─►  A  Parse & normalise (MIME, headers, attachments, PII masking)
- WhatsApp bot    *   ─┤         │
- CLI (run_pipeline)  ─┘         │   * no email headers: sender checks are skipped
-                                ├─► B   Header forensics: SPF / DKIM / DMARC, Received chain,
-                                │        true-origin resolution, lookalike & homograph domains
-                                ├─► B2  Attachment forensics: SHA-256, magic bytes, macros (oletools),
-                                │        QR decoding (pyzbar/OpenCV), OCR (Tesseract)
-                                ├─► S   Plan the optional deeper analysis: which attachments the
-                                │        sandbox would open (only if you chose "Deeper")
-                                ├─► B5  Link analysis: visible text vs real href destination
-                                ├─► B6  QR trace: where each decoded QR code points
-                                ▼
-                           D  IOC extraction: IPs, domains, URLs, hashes
-                                ▼
-                           E  Threat intel: VirusTotal, AbuseIPDB, WHOIS, ip-api geolocation
-                              + per-hop geolocation of the Received chain
-                                ▼
-                           F  Correlation: MongoDB history, campaigns, repeat-offender stats
-                           F′ Graph diffusion: Personalized-PageRank risk propagation
-                                ▼
-                           C′ XGBoost metadata triage ──(clearly benign)──┐
-                                ▼                                          │
-                           G  Gemini assessment + MITRE ATT&CK (offline    │
-                              fallback if Gemini is unavailable)           │
-                                ▼                                          │
-                           H  Verdict reconciliation, evidence report, ◄───┘
-                              share card, privacy report, provider status, persistence
-                                ▼
-                           S  Hand the chosen attachments to your sandbox (runs in the
-                              background, see below); the report is already usable
-                                ▼
-                      React dashboard · WhatsApp reply · PDF export · SOC Assistant (RAG chat)
-```
-
-### The optional deeper analysis (stage S) in one picture
-
-```text
-  E-TAP server (hosted)                                   Your PC (nothing connects in to it)
-  ─────────────────────                                   ───────────────────────────────────
-  report saved, attachments queued ◄── agent asks every ── E-TAP Sandbox Agent
-  for your paired agent                 5 s for work         1. restore the VM's clean snapshot
-                                                             2. open the attachment in the VM
-                                                             3. record Sysmon + Windows Defender events
-                                                             4. keep only the file's own events
-                                                             5. restore the clean snapshot
-  behaviour rules (MITRE-mapped) ◄──── upload the events ─── (never the whole log)
-        │
-        ▼
-  rule match → risk score raised (never lowered) → the open report updates by itself
-```
-
-### Stage A — Parsing and normalisation
-Every input becomes the same `ParsedEmail` object. A pasted or forwarded message is first packaged as an `.eml` with no From, To, Date or Received lines and analysed as `forwarded_message`. The file type is decided from **magic bytes, not the extension**: executables, ZIPs, PDFs and archives renamed to `.eml` are rejected, `.msg` must carry the Outlook OLE signature. `.eml` is parsed with Python's `email` package (robust against bogus charsets), `.msg` with `extract-msg`, and bulk `.csv` datasets are converted row by row into RFC 822 messages and fed through the same parser. Before anything is stored, SSNs, card numbers, Indian/US phone numbers, Aadhaar, PAN and body email addresses are masked.
-
-### Stage B — Header forensics
-- **SPF / DKIM / DMARC** in two tiers: first the verdict the receiving mail server stamped in `Authentication-Results` / `Received-SPF`; if absent, a live DNS check (SPF record evaluation against the connecting IP with `ip4/ip6/a/include/all`, DKIM public-key presence and alignment, DMARC policy fetch). DKIM signatures are never claimed as cryptographically verified.
-- **Received chain** parsed into structured hops (oldest first): connecting IP from the `from` clause only, rDNS/HELO host, protocol, timestamp, inter-hop delay and out-of-order detection. Each hop is classified as private, relay, provider relay (Google, Microsoft, SES, SendGrid, …) or anonymizer.
-- **True-origin resolution:** honest about what can be known. Client-IP headers (`X-Originating-IP`, …) are used when present; if the first public hop is a Gmail/Outlook relay, the report says *the provider hides the sender's IP* instead of pinning a Google data centre as the attacker.
-- **Sender identity:** Reply-To domain mismatch, punycode and mixed-script (Cyrillic/Greek) homographs, typosquats and brand-plus-lure domains (`paypal-secure-login.com`) against an India-weighted brand list, and display-name impersonation ("PayPal Support" from an unrelated domain).
-
-### Stage B2 — Attachment forensics (static, nothing is executed)
-For each attachment: SHA-256, true type from magic bytes (libmagic when installed, built-in signature table otherwise), declared-vs-actual type mismatch, double extensions (`invoice.pdf.exe`), executables disguised under harmless names, and password-protected/corrupt Office files. Office documents get **static VBA analysis with oletools**: auto-run triggers (`AutoOpen`), suspicious APIs (`Shell`, `CreateObject`, PowerShell) and referenced IOCs. Images are decoded for **QR codes** (pyzbar, OpenCV fallback) and **OCR text** (Tesseract); OCR text is appended to the content the AI reviews, so image-only phishing is not invisible. With **Cloudinary** configured, image attachments (up to 3 per email, images only) are also saved to your Cloudinary account under a random name: the report shows a **blurred preview** you click to reveal, Cloudinary can read the text in the image a second time (OCR add-on), and the images are deleted when the report is deleted or expires. Without credentials this step is off and nothing is uploaded.
-
-### Stage S — Deeper attachment analysis (optional, in your own sandbox)
-When you choose **Deeper attachment analysis**, eligible attachments (scripts, executables, shortcuts, documents, PDFs, ZIP members; up to 3 per email) are opened inside a Windows VM **you own** (VirtualBox or VMware Workstation). The free **E-TAP Sandbox Agent** runs next to the VM and pairs once with a short code. For each job it:
-1. restores the VM's clean snapshot;
-2. opens the files;
-3. records what happens with Sysmon and Windows Defender;
-4. restores the snapshot again;
-5. uploads only the events of that file's own processes, never the whole Sysmon log.
-
-E-TAP checks them against behavioural detection rules (MITRE-mapped). A match raises the risk score, and "nothing observed" never lowers it. The agent only makes outbound requests. See [`backend/sandbox_agent/README.md`](backend/sandbox_agent/README.md).
-
-### Stages B5 / B6 — Link and QR analysis
-Every `<a href>` is compared with the text a reader sees: "text shows a different site", "text names PayPal but the link goes elsewhere", credentials in URLs (`paypal.com@evil.com`), IP hosts, non-standard ports, shorteners, punycode, lookalikes and redirect parameters (`?url=https://other.site`, reported as *inferred*). QR destinations get the same checks. Links are never fetched or followed.
-
-### Stage D — IOC extraction
-Offline, regex-plus-parser extraction of public IPs, domains, URLs (including defanged `hxxp://evil[.]com`) and MD5/SHA-1/SHA-256 hashes from headers, text, HTML attributes, attachment hashes and QR codes. Heavy noise reduction: domains must end in a real IANA TLD, Message-ID local parts and auth-header tags are ignored, private/loopback IPs are dropped, URLs are masked before hash scanning, CSS/script blocks and XML namespace boilerplate are stripped.
-
-### Stage E — Threat intelligence and sender geolocation
-With `THREAT_INTEL_LIVE=1`:
-
-| Indicator | Provider | What we get |
-|---|---|---|
-| Public IPs | **AbuseIPDB** | abuse confidence score, report count, ISP, Tor flag |
-| Domains | **WHOIS** (`python-whois`) | registration age, registrar, country |
-| URLs, file hashes | **VirusTotal v3** | engines flagging the indicator |
-| IPs + every Received hop | **ip-api.com** batch | lat/lon, country, ISP/org, hosting & proxy flags |
-
-Each provider has a per-analysis budget (default 2 lookups), short timeouts, an in-memory TTL cache, and VirusTotal has an internal 4-requests/minute limiter. **Privacy first:** URLs carrying an email address, token, session ID or other secret are trimmed to `scheme://host/path` or not sent at all; private IPs never leave the server. Hop geolocation then re-judges the origin using the network owner (e.g. a proxy exit becomes an *anonymizer*), and the dashboard draws the route on a map.
-
-### Stage F / F′ — Correlation and graph diffusion
-The email's IOCs are matched against every stored analysis (exact for IPs/URLs/hashes, exact + fuzzy for domains). Matches join or create a **campaign**; campaigns that turn out to share infrastructure are merged. Historical stats report how often each indicator was seen this week, this month and all-time, and label the email a *new threat cluster* or *recurring adversary activity*. A threat graph (email, campaign, related emails, IOCs, shared infrastructure) is then scored with **Personalized PageRank label propagation**: reputation-confirmed malicious indicators are seeds, and risk diffuses up to 3 hops to the current email.
-
-### Stage C′ — XGBoost metadata triage
-Six metadata features (attachment present, URL count, sender-domain age, SPF pass, subject length, urgency keywords) go into a bundled XGBoost model. If it is ≥ 90% confident the email is benign, Gemini is skipped to save latency and quota. Safety guards force the full AI review whenever URLs, risky keywords, suspicious attachments or a visible-text-only (quick check) input are present.
-
-### Stage G — Gemini assessment and MITRE ATT&CK
-A **privacy-reduced copy** of all evidence (URLs redacted, PII masked) goes to Gemini in a single structured-JSON call that returns both a content-only classification against a fixed 30-category threat taxonomy and a full-evidence final verdict with MITRE ATT&CK techniques and recommended actions. The model is told that email content is untrusted data, and every AI finding must cite evidence IDs from the deterministic evidence ledger; uncited claims are kept but marked *ungrounded*. A chain of fallback Gemini models is tried within a time budget (a busy model gets one quick retry); if all fail, a deterministic offline scorer produces the result and the report says so.
-
-### Stage H — Verdict, evidence report and persistence
-One function reconciles the label and the 0–100 score (the more severe wins) into five canonical verdicts — `LIKELY LEGITIMATE` (0–19), `LOW RISK` (20–39), `SUSPICIOUS` (40–64), `LIKELY PHISHING` (65–84), `HIGH-RISK PHISHING` (85–100) — and three UI bands (safe / caution / danger). The evidence report separates **observed** facts, **reputation** results and **AI-inferred** statements, lists what could not be checked, and produces a headline plus concrete remediation steps. A privacy record of what left the server and a per-provider coverage status are stored with each report for analysts and the API. Everything is saved to MongoDB, and a summary + 384-dim embedding is indexed in the background for the SOC Assistant.
-
----
-
-## What you get in the dashboard
-
-- **Dashboard** — emails analysed, high risk / suspicious / low risk counts, average risk, risk-over-time chart, verdict breakdown, top threat types and recent investigations, from everything stored
-- **Analyze email** — a live timeline that lights up each stage as it runs (reading the email, sender & headers, static attachments, dynamic attachments, links & indicators, reputation, past emails, AI assessment, verdict), then the score, the verdict and **Re-analyze**. It shows two cards before anything runs: **Standard analysis** (selected by default, nothing to set up) and **Deeper attachment analysis** (says on the card that it needs a VirtualBox or VMware VM, and pairs your sandbox right there the first time). Below them, **Or paste a message you were sent** takes text and files that were never an email. The timeline plays in full by default; **Settings → Analysis animation → Fast** removes the added delay so the report opens as soon as the analysis finishes
-- **Investigation report** — a big score ring and verdict, "why it was risky" tags (Header issues, Attachment issues, Suspicious links, Bad reputation, Seen before, Suspicious wording), category cards with the serious findings first, **Remediation**, the **Share card** (download it or copy its link; needs Cloudinary), **Image evidence** (blurred Cloudinary previews of image attachments, revealed on click), the sender-route map, multi-vector analysis and MITRE ATT&CK, collapsible technical details, past emails and the threat graph, and analyst tools (review, case, sharing, retention) at the end
-- **Reports** — every analysed email broken down stage by stage, searchable and filterable by risk, with a **My reports** filter when you are signed in
-- **Sandbox behaviour** — for deeper analyses, a large *Waiting* / *Running* box that names the current step, then what each attachment did in your VM (rules matched, Defender blocks, processes)
-- **Trusted domains** — senders you trust lower the risk only when SPF, DKIM and DMARC prove the email is genuine; the same page holds the analysis-animation setting and pairs your sandbox
-- **Ask E-TAP** — the SOC Assistant for the open report or all past investigations, plus **PDF/JSON export**
-
-## WhatsApp bot
-
-Forward a suspicious message, link, image or document to the bot. It acknowledges it, runs the same pipeline as a pasted message, and replies with the verdict, the risk score, up to three reasons, what to do next and a link to the full report. The reply is **text**, worded the same way as the share card; the bot does not send the card picture.
-
-- **Static analysis only.** The sandbox is never requested and files are never opened.
-- **Limits:** up to 5 files and 25 MB per message, 10 messages an hour per number. Audio, video and stickers are not checked.
-- **Two providers:** Meta's WhatsApp Cloud API (recommended, free test number) or the Twilio sandbox. Each stays off until its secret is set, and every webhook call must carry a valid signature.
-- **Two modes:** two-way replies (`WHATSAPP_REPLIES=1`) or receive-only (`0`), where results appear under **My reports** for a linked number.
-- **Status:** on the original team's deployment, a live greeting reply was verified on 2026-11-22 on a Meta test number for a verified recipient, after the original account had been locked by Meta (error 131031). Replies on the production sender still need re-confirming.
-
-See the [setup guide](docs/whatsapp-bot.md) and the [receive-only fallback](docs/demo-fallback.md).
-
-## Optional sign-in
-
-Settings → **Your account**: enter your email, then the 6-digit code we send. Signed-in users get a **My reports** filter and can link a WhatsApp number (Settings → **WhatsApp**, send the one-time `ETAP-123456` code to the bot; the number is stored only as a keyed hash). Nobody has to sign in to check a message, and signing in is not access control: reports are still open to anyone who can reach the API.
-
-The [privacy policy](frontend/public/privacy.html) is served at `/privacy.html`.
-
-## Gmail extension
-
-A Manifest V3 extension adds **Analyze in E-TAP** above an opened Gmail message. The banner shows two cards from the start: **Standard analysis** (nothing to set up) and **Deeper attachment analysis**, with what it needs written on the card (a Windows VM in VirtualBox or VMware Workstation and the free agent; Windows Sandbox on Windows Pro is planned). One click on a card starts that analysis. Choosing Deeper walks you through downloading the agent and entering its pairing code the first time, and only once the original email, with its attachments, has been retrieved. Nothing is sent, and no sandbox status is requested, until you click a card. The extension downloads the original RFC 822 message through the signed-in Gmail session (full headers and attachments) and submits it as `full_message`. If Gmail does not provide the original, it submits the visible sender/subject/body as a clearly labelled `quick_content_check`, where header checks are reported as unavailable. The report then opens in the web dashboard.
-
----
-
-## Using deeper attachment analysis, step by step
-
-Standard analysis never opens an attachment, and it is all most people need. **Deeper attachment analysis** is optional and opens attachments inside a virtual machine **you own**, watches what it does and adds that to the report. If you have no VM, skip this whole section: nothing else in E-TAP depends on it. This is the whole journey for someone using the hosted E-TAP with a Windows VM in VirtualBox or VMware Workstation.
-
-### What runs where
-| On your PC | On the E-TAP server |
+| Way in | What you give it |
 |---|---|
-| Your VirtualBox or VMware VM, where attachments are opened | The analysis pipeline, the report and your score |
-| The **E-TAP Sandbox Agent**, a small program that drives the VM | The **detection rules** (`backend/sandbox/rules`) |
-| The agent's settings: VM name, snapshot, guest login (the password and pairing token are protected by Windows for your user only) | The job queue, holding attachments only until your agent has run them |
+| Upload | an `.eml` or `.msg` file |
+| Gmail extension | one click on an opened email |
+| Paste a message | an SMS or chat message, with up to 5 files |
+| WhatsApp | a forwarded message, link, image or document |
 
-- The agent only records what happened (Windows Sysmon events and new Windows Defender events) and uploads that record.
-- The server checks it against the rules, so rules can be updated without reinstalling anything.
-- The server never connects to your PC; the agent only makes outbound requests.
-- Only the attachments of an email you chose to deep-analyse are sent to it, never the whole email.
+It checks the sender (SPF, DKIM, DMARC, lookalike domains), attachments (real file type, macros, QR codes, text in images), links, reputation and past emails, then gives a score, a verdict, the reasons and the next step. Links are never opened. Optionally, attachments can be run in a virtual machine **you own** to see what they do.
 
-### Before you start (once)
-Prepare a VM kept only for this, never your everyday one:
-- **VirtualBox** (with **Guest Additions**) or **VMware Workstation** (with **VMware Tools**), and a Windows 10/11 VM in it;
-- **Sysmon** installed in the VM;
-- a Windows **user with a password** inside the VM;
-- a **snapshot taken in a clean state** (for example named `clean`). The VM goes back to it after every run.
+A linked WhatsApp number sees its results under **My reports** (in preview, for approved test numbers).
 
-On your PC you also need **Python 3.10 or newer** (from python.org, with "Add to PATH" ticked). Windows Sandbox (Windows Pro) support is planned and not needed today. Setup details are in [`backend/sandbox/README.md`](backend/sandbox/README.md).
+## Where data comes from and goes
 
-### 1. Choose Deeper
-- **On the website:** open **Analyze email** and drop the email file. Two cards appear: **Standard analysis** and **Deeper attachment analysis** (its *i* icon explains what it needs). Pick Deeper.
-- **In Gmail:** click the **Deeper attachment analysis** card on the E-TAP banner. If you have no VM, click **Standard analysis** instead (or *I don't have a VirtualBox or VMware VM* on the pairing screen).
+| Service | Used for | What is sent |
+|---|---|---|
+| VirusTotal | known bad links and files | URLs (trimmed if they carry secrets) and file hashes |
+| AbuseIPDB, ip-api | IP reputation and location | public IP addresses |
+| WHOIS | domain age | domain names |
+| Google Gemini | reading the content | a privacy-reduced copy of the evidence |
+| Cloudinary | image previews and the share card | image attachments only |
+| MongoDB Atlas | storing reports | analysis results |
+| Brevo | sign-in codes | your email address |
+| Meta WhatsApp Cloud API | receiving forwards | messages sent to the bot |
 
-The first time, it says **Your sandbox: not paired** and shows three steps.
+Details: [privacy policy](frontend/public/privacy.html).
 
-### 2. Download and start the agent
-1. Click **Download the E-TAP Sandbox Agent**, right-click the zip and choose **Extract All** (do not run it from inside the zip), then open the extracted folder and double-click **`start-agent.cmd`**.
-2. The agent asks permission, then checks your computer:
-   - Windows and Python;
-   - VirtualBox and its version, or VMware's `vmrun` (the agent asks which to use when both are installed; `start-agent.cmd setup --provider vmware` chooses VMware directly);
-   - the VMs it finds and their snapshots;
-   - whether the VM is cut off from your PC and the network (network adapter, clipboard, drag and drop and shared folders all off), with a one-line fix for each that is not;
-   - whether Windows is running its hypervisor (Hyper-V, WSL2, Windows Sandbox), which can make VirtualBox or VMware slow;
-   - whether Windows Sandbox exists (optional).
-   Nothing in the VM is changed during setup, and the VM is not started. A warning does not stop setup.
-3. Choose your VM, type the clean snapshot name, the guest Windows user and its password (hidden while typing). **The agent then starts the VM once and checks that Windows really accepts that login.** A wrong user or password is refused (it asks again, three tries) and is never saved as set up. The VM is restored to its clean snapshot afterwards.
-4. Answer whether attachments should open automatically when you ask for a deeper analysis. Answering *no* means the agent asks you each time.
-5. The agent shows a **pairing code** such as `K7QM-4XPN`. It works once and expires in 10 minutes.
+## Run it
 
-Optional checks:
-- `start-agent.cmd check` repeats the read-only checks above at any time without starting the VM.
-- `start-agent.cmd test` restores the VM once and confirms that the guest login, Sysmon and the Defender log all work. The two checks are separate because only `test` starts the VM (setup also starts it once, to verify the login).
-
-**What "online" means.** While it runs, the agent re-checks every 20 seconds that VirtualBox (or VMware) answers, the VM still exists, the clean snapshot still exists and the login was verified, and tells E-TAP. The page shows **Your sandbox: online** only when all of that is true, **needs attention** (with the reason) when the agent runs but the VM is not usable, and **offline** within about 30 seconds of the agent window closing. The page refreshes this by itself. A VM that is merely powered off or aborted is fine: every run starts from the clean snapshot.
-
-### 3. Pair (once)
-Type the code into the box on the website (or the extension's tab) and click **Pair**. The page shows **Your sandbox: online**, and the agent window says *Paired*. Keep the agent window open: it is your sandbox. The pairing is remembered, so you never enter a code again in that browser.
-
-### 4. Run it
-1. As soon as you choose Deeper, E-TAP lists the email's attachments and which of them the sandbox would open (scripts, programs, shortcuts, documents, PDFs, web pages and ZIPs are opened; data files such as JSON, text and images are not). Click **Run deeper analysis**: it first checks your sandbox right then and, if it is offline or cannot use its VM, or the email has nothing the sandbox opens, tells you before anything starts and offers **Run standard analysis** or **Run deeper anyway**. In Gmail it continues by itself after pairing.
-2. The standard checks finish in seconds. The timeline's *Dynamic attachment analysis* step says the attachments were sent to your sandbox.
-3. The report opens with a **Sandbox behaviour** section showing a large *Waiting*, then *Running* box with the steps below. A *Sandbox running* pill sits in the top bar.
-4. The agent window shows each step while the VM runs in the background for about a minute:
-   1. restoring the clean snapshot and starting the VM;
-   2. opening the attachments;
-   3. collecting Sysmon events;
-   4. restoring the clean snapshot.
-
-### 5. Read the result
-The report updates by itself; there is no need to refresh. It shows:
-- **VM result:**
-  - *Threat seen*: a detection rule matched, or Defender blocked the file.
-  - *Nothing seen*: it ran with nothing matched. This is inconclusive, never proof of safety.
-  - *Not tested*: the file could not be opened, for example an Office document with no Office in the VM.
-  - *Waiting*: your agent is not running yet.
-- **Counts:** files opened, detection rules matched (with their MITRE ATT&CK techniques), files blocked by Windows Defender (or *Not checked* if Defender's log could not be read), and the processes the attachment started.
-- **The score:** a rule match raises the risk score to at least 65, or at least 85 for strong (prevention-grade) rules. The sandbox can only raise the score, never lower it.
-
-### Every time after that
-Double-click `start-agent.cmd`; it goes straight to *Your sandbox: online*. Then pick Standard or Deeper for any email.
-- **Agent not running:** the report waits for your sandbox and runs when you start it, if that is within 30 minutes.
-- **Settings:** the dashboard's **Settings** page shows your sandbox's status, and lets you pair another browser or unpair.
-
-### Good to know
-- **Limits:** up to 3 attachments per email, 10 MB each. Scripts and programs are opened first. ZIP files are unpacked and their files opened one by one.
-- **Documents:** nothing clicks inside documents yet, so Office files and PDFs that wait for a click usually come back inconclusive.
-- **Rule coverage:** all 63 bundled behaviour rules can be evaluated. Rules that need image-load, remote-thread, process-access, named-pipe or process-tampering events only fire if the VM's Sysmon configuration logs them. See the [rule catalogue](backend/sandbox/rules/README.md).
-- **Agent window:** the agent runs only while its window is open. There is no background service or Windows auto-start yet.
-- **Problems:**
-  - Run `start-agent.cmd check` to see whether the VM is isolated and set up, and what to fix.
-  - Run `start-agent.cmd status` to see the saved settings and pairing.
-  - Run `start-agent.cmd setup` to change the VM.
-  - Run `start-agent.cmd forget` to remove everything the agent saved.
-- More detail: [`backend/sandbox_agent/README.md`](backend/sandbox_agent/README.md).
-
----
-
-## Tech stack
-
-| Layer | Technologies |
-|---|---|
-| Backend | Python 3.11, FastAPI, Uvicorn, slowapi, Pydantic |
-| Parsing / forensics | `email` stdlib, extract-msg, dnspython (optional, for live SPF/DKIM/DMARC DNS checks), oletools, python-magic (optional), OpenCV, pyzbar, Pillow, pytesseract |
-| Threat intel | VirusTotal v3, AbuseIPDB v2, python-whois, ip-api.com |
-| ML / AI | XGBoost, scikit-learn, NumPy, SciPy, Google Gemini (`google-genai`), sentence-transformers (optional) |
-| Messaging and sign-in | Meta WhatsApp Cloud API or Twilio; emailed one-time codes through Brevo or Resend |
-| Images | Cloudinary (optional: image evidence and the share card) |
-| Database | MongoDB / MongoDB Atlas (pymongo), in-memory fake DB for tests |
-| Frontend | React 18, Vite, axios, Leaflet / react-leaflet, react-force-graph-2d, Recharts, jsPDF |
-| Extension | Chrome Manifest V3, IndexedDB handoff store |
-| Dynamic analysis | VirtualBox (`VBoxManage`) or VMware Workstation (`vmrun`), Sysmon and Windows Defender events, an EQL-subset behaviour-rule engine with 63 original MIT-licensed rules, each with its own tests (Sigma and YARA planned), a standard-library-only Python agent with Windows-protected settings |
-| Hosting | Render (Docker backend), Vercel (frontend), MongoDB Atlas |
-
-## Quick start (local)
-
-Prerequisites: Python 3.11, Node.js ≥ 22.12, optionally MongoDB. Tesseract and libzbar are needed only for OCR/QR (the Docker image installs both).
+You need Python 3.11 and Node.js 22.12 or newer.
 
 ```bash
-cp .env.example .env          # set USE_FAKE_DB=1 for a zero-setup run
+cp .env.example .env          # set USE_FAKE_DB=1 to try it with no setup
 python -m venv .venv && source .venv/bin/activate      # Windows: .\.venv\Scripts\Activate.ps1
 pip install -r backend/requirements.txt
 cd backend && python -m uvicorn app:app --host 127.0.0.1 --port 5000
@@ -302,15 +53,11 @@ In a second terminal:
 cd frontend && npm ci && npm run dev
 ```
 
-Open <http://127.0.0.1:5173>. Vite proxies API calls to port 5000. Add `GEMINI_API_KEY`, `VIRUSTOTAL_API_KEY`, `ABUSEIPDB_API_KEY` and set `THREAT_INTEL_LIVE=1` in `.env` to enable the live stages; without them E-TAP runs fully offline with deterministic fallbacks.
+Open <http://127.0.0.1:5173>. For live checks, add your own `GEMINI_API_KEY`, `VIRUSTOTAL_API_KEY` and `ABUSEIPDB_API_KEY` to `.env` and set `THREAT_INTEL_LIVE=1`.
 
-Analyse a file from the command line:
+**Deeper analysis (optional):** choose *Deeper* on the website, download the agent, extract the zip, run `start-agent.cmd` and enter its pairing code. See the [agent guide](backend/sandbox_agent/README.md).
 
-```bash
-cd backend && python run_pipeline.py path/to/email.eml
-```
-
-Run the tests:
+**Tests:**
 
 ```bash
 pip install -r backend/requirements-dev.txt
@@ -319,45 +66,6 @@ cd ../frontend && npm test && npx vite build
 cd .. && node --test --test-isolation=none extension/tests/*.test.mjs
 ```
 
-Optional, to try deeper analysis against your local backend: start `python -m sandbox_agent start --server http://127.0.0.1:5000` from `backend/` (see the step-by-step section above). `SANDBOX_BACKEND` defaults to `agent`; use `none` to switch the feature off, or `virtualbox` when the VM is on the same computer as the server.
+## More
 
-Deployment (Render + Vercel + Atlas), every environment variable and the full API route list are documented in [CONTEXT.md](CONTEXT.md). How the project got here, including the sandbox iterations, is in [Development notes and iterations](Development%20notes%20and%20iterations/README.md).
-
-## Repository layout
-
-```text
-backend/                 FastAPI app, pipeline and all analysis stages
-backend/sandbox/         Deeper analysis on the server: attachment selection, behaviour rules, scoring, job queue
-backend/sandbox_agent/   The E-TAP Sandbox Agent that runs on the user's PC next to their VM
-frontend/                React/Vite dashboard
-extension/               Gmail browser extension (Manifest V3)
-mcp_server/              Lets an AI agent use E-TAP as a tool (Model Context Protocol)
-deploy/                  Optional, unused Google Cloud Run files
-render.yaml              Render blueprint for the backend
-docs/                    WhatsApp setup, demo fallback, runbook, Render notes, diagram, fixtures
-samples/                 Dataset manifests (raw emails are not committed)
-Development notes and iterations/   Research, decisions and the history of how the project evolved
-```
-
-## Limitations
-
-- Dynamic analysis needs your own VirtualBox or VMware VM and the agent (VMware support is tested with a fake `vmrun`, not yet on a real VMware); nothing clicks inside documents yet, so Office files and click-triggered PDFs are often inconclusive, and the 63 behaviour rules are checked with synthetic events, not yet against a broad set of real samples.
-- The Gmail extension uses Gmail's web endpoints, not the official Gmail API.
-- A pasted or forwarded message has no email headers, so the sender cannot be checked and the score can be lower than the same content would get as an email.
-- The Meta test number is limited to verified test recipients. Reply delivery depends on the sender's Meta account status and a valid access token. Analyses over 8 MB take turns on the free Render plan.
-- The API is open: sign-in only labels your own reports.
-- Do not read the verdict as a measured detection rate: there is no meaningful accuracy benchmark yet.
-
-## More documents
-
-[CONTEXT.md](CONTEXT.md) (technical reference) · [WhatsApp bot](docs/whatsapp-bot.md) · [Sandbox agent](backend/sandbox_agent/README.md) · [Sandbox internals](backend/sandbox/README.md) · [MCP server](mcp_server/README.md) · [Incident runbook](docs/incident-runbook.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
-
-## License
-
-E-TAP is open source under the [MIT License](LICENSE). The libraries it uses keep their own licenses.
-
-## Team Members
-
-- Bhavit Anand
-- Krish Anand
-- Yashmit Kamal (WhatsApp reply diagnostics and error-code logging, PR #1)
+[Technical reference](CONTEXT.md) · [WhatsApp setup](docs/whatsapp-bot.md) · [Sandbox internals](backend/sandbox/README.md) · [MCP server](mcp_server/README.md) · [Incident runbook](docs/incident-runbook.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [MIT licence](LICENSE)
