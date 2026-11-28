@@ -7,10 +7,10 @@
   --ink: #101731;
   --ink-2: #3d4559;
   --ink-3: #6b7180;
-  --paper: #fffef7;
-  --card: #f6f5ee;
-  --card-2: #eeede5;
-  --line: #e2e1d9;
+  --paper: #f8fcff;
+  --card: #eff7fc;
+  --card-2: #e0eef8;
+  --line: #d2e4f1;
   --brand: #cc3542;
   --danger: #d93a45;
   --danger-bg: #fdeceb;
@@ -18,7 +18,7 @@
   --caution-bg: #fdf4e2;
   --safe: #2e9e6b;
   --safe-bg: #e7f5ee;
-  --muted-bg: #efeee7;
+  --muted-bg: #e0eef8;
 }
 
 /* ---------- shared page scaffolding ---------- */
@@ -563,7 +563,7 @@ button.risk-tag:hover { transform: translateY(-1px); }
 .deep-option input:disabled + span { opacity: .55; }
 .deep-option a { color: #ad3845; font-weight: 600; }
 .info-dot { display: inline-grid; place-items: center; width: 17px; height: 17px; border-radius: 50%; border: 1.5px solid #687082; color: #687082; font: italic 700 10px Georgia, serif; cursor: help; }
-.sandbox-pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 4px 11px; font-size: 11px; font-weight: 700; background: #eeede5; color: #61697a; white-space: nowrap; }
+.sandbox-pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 4px 11px; font-size: 11px; font-weight: 700; background: #e0eef8; color: #61697a; white-space: nowrap; }
 .sandbox-pill.online { background: #e1f3e6; color: #1d6b3b; }
 .sandbox-pill.offline { background: #fff1dc; color: #8a5a08; }
 .sandbox-pairing { margin-top: 18px; }
@@ -581,8 +581,8 @@ button.risk-tag:hover { transform: translateY(-1px); }
 .analysis-choice { margin-top: 16px; }
 .analysis-choice .eyebrow { display: block; margin-bottom: 10px; }
 .choice-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
-.choice-card { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left; padding: 16px 18px; border-radius: 13px; border: 1.5px solid #deddd5; background: #fbfaf3; color: #29334c; cursor: pointer; font: inherit; transition: border-color .15s, background .15s; }
-.choice-card:hover:not(:disabled) { border-color: #c9c7bc; background: #f5f4ec; }
+.choice-card { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left; padding: 16px 18px; border-radius: 13px; border: 1.5px solid #c9deed; background: #f4fafe; color: #29334c; cursor: pointer; font: inherit; transition: border-color .15s, background .15s; }
+.choice-card:hover:not(:disabled) { border-color: #c9c7bc; background: #ebf5fc; }
 .choice-card.selected { border-color: #29334c; background: #fff; box-shadow: 0 0 0 3px #29334c14; }
 .choice-card:disabled { opacity: .6; cursor: not-allowed; }
 .choice-card strong { font-size: 14px; display: inline-flex; align-items: center; gap: 7px; }
@@ -601,7 +601,7 @@ button.risk-tag:hover { transform: translateY(-1px); }
 .sandbox-pill.attention { background: #fde4e1; color: #a2281f; }
 
 /* Before a deeper run: what the sandbox would open, and the pre-run check */
-.attach-preview { margin-top: 12px; padding: 12px 14px; border-radius: 11px; background: #f5f4ec; border: 1px solid #deddd5; font-size: 12px; color: #3c4559; }
+.attach-preview { margin-top: 12px; padding: 12px 14px; border-radius: 11px; background: #ebf5fc; border: 1px solid #c9deed; font-size: 12px; color: #3c4559; }
 .attach-preview strong { font-size: 13px; color: #29334c; }
 .attach-preview p { margin: 6px 0 0; color: #61697a; }
 .attach-preview ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 5px; }

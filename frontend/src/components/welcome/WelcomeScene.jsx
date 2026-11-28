@@ -52,6 +52,9 @@ export default function WelcomeScene({ headline, cards, footer }) {
     if (!playing) return undefined;
     const started = performance.now();
     let frame = 0;
+    // Held here because React empties the refs before the cleanup below runs on a skip.
+    const cardSlots = [...slots.current];
+    const fishingLines = [...lines.current];
     const draw = () => {
       const t = (performance.now() - started) / 1000;
       const now = sceneAt(t, cards.length);
@@ -90,8 +93,8 @@ export default function WelcomeScene({ headline, cards, footer }) {
     return () => {
       cancelAnimationFrame(frame);
       clearTimeout(backstop);
-      slots.current.forEach((card) => card?.removeAttribute('style'));
-      lines.current.forEach((line) => line?.setAttribute('d', ''));
+      cardSlots.forEach((card) => card?.removeAttribute('style'));
+      fishingLines.forEach((line) => line?.setAttribute('d', ''));
     };
   }, [playing, cards.length, finish]);
 

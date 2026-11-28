@@ -35,9 +35,9 @@ export function EvidenceBreakdown({ evidenceAssessments = [] }) {
           <div className="vector-radar">
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart data={rows} outerRadius="72%">
-                <PolarGrid stroke="#e2e1d9" />
+                <PolarGrid stroke="#d2e4f1" />
                 <PolarAngleAxis dataKey="name" tick={{ fontSize: 11, fill: '#3d4559', fontWeight: 600 }} />
-                <Tooltip contentStyle={{ background: '#fffef7', border: '1px solid #e2e1d9', borderRadius: 12 }} formatter={(v) => [`${v}/100`, 'Risk']} />
+                <Tooltip contentStyle={{ background: '#f8fcff', border: '1px solid #d2e4f1', borderRadius: 12 }} formatter={(v) => [`${v}/100`, 'Risk']} />
                 <Radar dataKey="score" stroke="#d93a45" fill="#d93a45" fillOpacity={0.22} strokeWidth={2} />
               </RadarChart>
             </ResponsiveContainer>

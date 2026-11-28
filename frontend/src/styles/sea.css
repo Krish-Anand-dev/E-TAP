@@ -1,0 +1,17 @@
+/* A hint of the welcome page's sea: bluish in the lower left, fading to white in the
+   upper right. Loaded last. Verdict colours and the red brand stay. */
+:root { --card: #f8fcff; --card-2: #e6f2fa; }
+
+body { background: linear-gradient(to top right, #c5e1f2 0%, #deeef8 32%, #f3f9fd 62%, #fdfeff 100%) fixed #f3f9fd; }
+.app-shell { background: transparent; }
+.app-sidebar { background: transparent; border-right-color: #d2e4f1; }
+/* On narrow screens the menu slides over the page, so it needs its own solid background. */
+@media (max-width: 760px) { .app-sidebar { background: linear-gradient(to top right, #c5e1f2, #f3f9fd); } }
+.workspace-topbar { background: #f7fbfed9; border-bottom-color: #d9e8f3; }
+
+/* Grey helper text is slightly darker so it stays readable on the tint. */
+:root { --ink-3: #4f5a70; --text-muted: #4f5a70; }
+
+/* Report section tabs and the drop area sit on the gradient too. */
+.report-tabs { background: #f1f8fdf5; padding-inline: 10px; border-radius: 0 0 14px 14px; }
+.dropzone-panel { background-color: #f8fcff; }

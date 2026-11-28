@@ -39,7 +39,7 @@
 .welcome-card .welcome-email { font-weight: 600; overflow-wrap: anywhere; }
 .welcome-card .welcome-later { font-size: 12px; color: #646c7c; margin-bottom: 8px; }
 .welcome-link { border: 0; background: none; color: #52596b; font-size: 12px; text-decoration: underline; }
-.welcome-footer { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 18px; }
+.welcome-footer { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 40px; }
 .welcome-replay { border: 0; background: none; color: #fffef7; font-size: 12px; text-decoration: underline; }
 .welcome-skip { display: inline-flex; align-items: center; gap: 9px; border: 1px solid #fffef7; background: #fffef71f; color: #fffef7; border-radius: 999px; padding: 11px 22px; font-size: 13px; font-weight: 600; }
 .welcome-skip:hover { background: #fffef73d; }
@@ -58,8 +58,8 @@
 
 /* Short laptop screens: keep the whole page on one screen. */
 @media (min-width: 681px) and (max-height: 780px) {
-  .welcome-sky { min-height: 290px; padding: 16px 24px 118px; }
-  .welcome-headline { margin-top: 20px; }
+  .welcome-sky { min-height: 258px; padding: 14px 24px 112px; }
+  .welcome-headline { margin-top: 12px; }
   .welcome-headline h1 { font-size: clamp(30px, 4vw, 44px); }
   .welcome-headline p { margin-top: 6px; }
   .welcome-headline ul { margin-top: 8px; }
@@ -69,7 +69,7 @@
   .welcome-card-icon { display: none; }
   .welcome-card h2 { margin-top: 0; }
   .welcome-card-action { padding-top: 12px; gap: 8px; }
-  .welcome-footer { flex-direction: row; justify-content: center; gap: 16px; margin-top: 12px; }
+  .welcome-footer { flex-direction: row; justify-content: center; gap: 16px; margin-top: 28px; }
 }
 @media (max-width: 680px) {
   .welcome-sky { min-height: 0; padding: 16px 16px 128px; }
@@ -79,7 +79,7 @@
   .phisher { width: 144px; height: 108px; }
   .phisher-flag { left: 90px; }
   .welcome-sea { padding: 18px 16px 14px; }
-  .welcome-footer { margin-top: 14px; gap: 6px; }
+  .welcome-footer { margin-top: 28px; gap: 6px; }
   .sun { width: 48px; height: 48px; right: 16px; top: 18px; }
   .cloud { display: none; }
   .welcome-cards { grid-template-columns: 1fr; gap: 12px; }

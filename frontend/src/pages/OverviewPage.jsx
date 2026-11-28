@@ -100,10 +100,10 @@ export default function OverviewPage({ navigate }) {
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={trend} margin={{ top: 16, right: 12, left: -22, bottom: 0 }}>
                   <defs><linearGradient id="trend-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#d93a45" stopOpacity={0.28} /><stop offset="100%" stopColor="#d93a45" stopOpacity={0} /></linearGradient></defs>
-                  <CartesianGrid stroke="#e4e3db" strokeDasharray="3 5" vertical={false} />
+                  <CartesianGrid stroke="#d2e4f1" strokeDasharray="3 5" vertical={false} />
                   <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: '#6b7180' }} />
                   <YAxis domain={[0, 100]} ticks={[0, 40, 65, 100]} tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: '#6b7180' }} />
-                  <Tooltip contentStyle={{ background: '#fffef7', border: '1px solid #e4e3db', borderRadius: 12 }} labelFormatter={(_, v) => v?.[0]?.payload?.subject || ''} />
+                  <Tooltip contentStyle={{ background: '#f8fcff', border: '1px solid #d2e4f1', borderRadius: 12 }} labelFormatter={(_, v) => v?.[0]?.payload?.subject || ''} />
                   <Area type="monotone" dataKey="score" name="Risk score" stroke="#d93a45" strokeWidth={2.2} fill="url(#trend-fill)" dot={{ r: 3.5, fill: '#d93a45' }} />
                 </AreaChart>
               </ResponsiveContainer>
