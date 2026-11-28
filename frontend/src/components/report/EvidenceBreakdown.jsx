@@ -37,7 +37,7 @@ export function EvidenceBreakdown({ evidenceAssessments = [] }) {
               <RadarChart data={rows} outerRadius="72%">
                 <PolarGrid stroke="#d2e4f1" />
                 <PolarAngleAxis dataKey="name" tick={{ fontSize: 11, fill: '#3d4559', fontWeight: 600 }} />
-                <Tooltip contentStyle={{ background: '#f8fcff', border: '1px solid #d2e4f1', borderRadius: 12 }} formatter={(v) => [`${v}/100`, 'Risk']} />
+                <Tooltip contentStyle={{ background: 'var(--night-tooltip, #f8fcff)', border: '1px solid var(--night-line, #d2e4f1)', borderRadius: 12 }} formatter={(v) => [`${v}/100`, 'Risk']} />
                 <Radar dataKey="score" stroke="#d93a45" fill="#d93a45" fillOpacity={0.22} strokeWidth={2} />
               </RadarChart>
             </ResponsiveContainer>

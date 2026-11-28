@@ -17,6 +17,8 @@ const paths = {
   user:'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8 M4 21c0-4 4-6 8-6s8 2 8 6', chevron:'M9 6l6 6-6 6',
   message:'M4 5h16v11H9l-5 4z', download:'M12 3v12 M7 10l5 5 5-5 M4 20h16', trash:'M4 7h16 M9 7V4h6v3 M6 7l1 13h10l1-13',
   copy:'M8 8h12v12H8z M4 16V4h12',
+  moon:'M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z',
+  sun:'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8 M12 2v3 M12 19v3 M2 12h3 M19 12h3 M5 5l2 2 M17 17l2 2 M5 19l2-2 M17 7l2-2',
 };
 export default function Icon({ name, size=20, strokeWidth=1.7 }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name] || paths.shield}/></svg>;

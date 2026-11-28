@@ -12,6 +12,9 @@ body { background: linear-gradient(to top right, #c5e1f2 0%, #deeef8 32%, #f3f9f
 /* Grey helper text is slightly darker so it stays readable on the tint. */
 :root { --ink-3: #4f5a70; --text-muted: #4f5a70; }
 
+/* The logo is the same cat as the browser tab: no circle behind it, never squashed. */
+.brand-mark { flex: none; width: 40px; height: 40px; background: transparent; border-radius: 0; }
+
 /* Report section tabs and the drop area sit on the gradient too. */
 .report-tabs { background: #f1f8fdf5; padding-inline: 10px; border-radius: 0 0 14px 14px; }
 .dropzone-panel { background-color: #f8fcff; }

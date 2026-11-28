@@ -1,0 +1,65 @@
+/* Dark mode, the hand-tuned half: "night sea". dark.css (generated) is loaded just before
+   this and converts every other colour; these rules take precedence over it.
+   Three steps of navy for depth, off-white wording (not pure white), brighter verdict
+   colours so they read on navy, and the same lower-left to upper-right gradient. */
+.theme-toggle { display: inline-grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 50%; border: 1px solid #c9deed; background: #f8fcff; color: #101731; }
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #e8f2f9; --ink-2: #c4d6e4; --ink-3: #9db5c8;
+  --paper: #132438; --card: #132539; --card-2: #1b324a; --line: #263f58;
+  --brand: #e0505c; --danger: #f2707a; --danger-bg: #3a1e29;
+  --caution: #e8ab45; --caution-bg: #342a17; --safe: #52cc99; --safe-bg: #123429;
+  --muted-bg: #1b324a;
+  --bg-base: #0b1726; --bg-surface: #14273c; --bg-surface-elevated: #1b324a; --bg-surface-subtle: #112236;
+  --border-hairline: #263f58; --border-focus: #f0636d;
+  --text-primary: #e8f2f9; --text-secondary: #b6cad9; --text-muted: #9db5c8;
+  --accent-amber: #f0707a; --accent-amber-dim: rgba(240, 112, 122, .16);
+  --verdict-safe: #52cc94; --verdict-caution: #efb84f; --verdict-danger: #f1757e;
+  /* wording that components colour inline */
+  --night-danger: #ff9aa2; --night-warn: #f0c26a; --night-purple: #c4a8ff; --night-grey: #a8bccd; --night-info: #8cc4ff;
+  --night-tooltip: #1b324a; --night-line: #2c4864;
+}
+
+:root[data-theme="dark"] body { background: linear-gradient(to top right, #15405a 0%, #102c45 32%, #0c1a2c 62%, #08111e 100%) fixed #0c1a2c; color: var(--text-primary); }
+:root[data-theme="dark"] .app-shell { background: transparent; }
+:root[data-theme="dark"] .app-sidebar { background: transparent; border-right-color: #1f3850; }
+@media (max-width: 760px) { :root[data-theme="dark"] .app-sidebar { background: linear-gradient(to top right, #15405a, #0c1a2c); } }
+:root[data-theme="dark"] .workspace-topbar { background: #0b1827e0; border-bottom-color: #1f3850; }
+:root[data-theme="dark"] .report-tabs { background: #0e1d30f5; }
+:root[data-theme="dark"] .report-tabs button.active,
+:root[data-theme="dark"] .filter-chips button.active,
+:root[data-theme="dark"] .chat-scope button.active { background: #2a6f97; border-color: #2a6f97; color: #fff; }
+:root[data-theme="dark"] .theme-toggle { background: #1b324a; border-color: #2c4864; color: #ffd98a; }
+/* charts draw their colours as attributes */
+:root[data-theme="dark"] .recharts-cartesian-grid line, :root[data-theme="dark"] .recharts-polar-grid * { stroke: var(--night-line); }
+:root[data-theme="dark"] .recharts-text, :root[data-theme="dark"] .recharts-text tspan { fill: #a9c0d2; }
+
+/* ---------- the welcome scene at night: moon, deep water, lit cards ---------- */
+:root[data-theme="dark"] .welcome { background: #0a2236; color: #e8f2f9; }
+:root[data-theme="dark"] .welcome-sky { background: linear-gradient(#070e1f 0%, #12284a 70%, #24476a 100%); }
+:root[data-theme="dark"] .sun { background: #f3eecb; box-shadow: 0 0 0 14px #f3eecb1f, 0 0 60px 18px #f3eecb26; }
+:root[data-theme="dark"] .sun::after { content: ''; position: absolute; left: 24%; top: 28%; width: 22%; height: 22%; border-radius: 50%; background: #ddd6ac; box-shadow: 26px 20px 0 -3px #ddd6ac; }
+:root[data-theme="dark"] .cloud { background: #8fb2d62e; }
+:root[data-theme="dark"] .welcome-sky::before { content: ''; position: absolute; inset: 0 0 45% 0; pointer-events: none;
+  background-image: radial-gradient(1.5px 1.5px at 20px 30px, #fff 50%, transparent 52%), radial-gradient(1px 1px at 110px 90px, #dfeaff 50%, transparent 52%), radial-gradient(1.2px 1.2px at 190px 45px, #fff 50%, transparent 52%);
+  background-size: 230px 150px; opacity: .65; }
+:root[data-theme="dark"] .welcome-headline p, :root[data-theme="dark"] .welcome-headline ul, :root[data-theme="dark"] .welcome-brand span { color: #b7cbdd; }
+:root[data-theme="dark"] .welcome-sea { background: linear-gradient(#17496a, #061726); }
+:root[data-theme="dark"] .wave-back path { fill: #2a5f80; }
+:root[data-theme="dark"] .wave-front path { fill: #17496a; }
+:root[data-theme="dark"] .far-boat { background: #7f9dbb; }
+:root[data-theme="dark"] .far-boat::before { border-left-color: #cfdcea; }
+:root[data-theme="dark"] .phisher svg { filter: drop-shadow(0 0 2px #cfe6ff) drop-shadow(0 0 10px #8cc4ff59); }
+:root[data-theme="dark"] .phisher-flag { background: #e8f2f9; color: #101731; }
+:root[data-theme="dark"] .welcome-card { background: #132539; border-color: #2c4864; box-shadow: 0 18px 34px #00000066; }
+:root[data-theme="dark"] .welcome-card p { color: #b6cad9; }
+:root[data-theme="dark"] .welcome-card-icon { background: #3a1e29; color: #ff9aa2; }
+:root[data-theme="dark"] .welcome-card-action input { background: #0e1d30; border-color: #31506d; color: #e8f2f9; }
+:root[data-theme="dark"] .fishing-lines path { stroke: #cfe0f0; }
+:root[data-theme="dark"] .welcome-skip { border-color: #9fc3e0; background: #ffffff14; color: #e8f2f9; }
+.welcome .welcome-theme { position: absolute; right: 18px; top: 16px; z-index: 6; }
+
+/* count bubbles sit on the brighter verdict colours, so their numbers are dark at night */
+:root[data-theme="dark"] .risk-tag b { color: #0b1726; }
+:root[data-theme="dark"] .filter-chips button.active b { color: #fff; }

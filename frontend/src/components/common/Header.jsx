@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useInvestigation } from '../../context/InvestigationContext';
 import Icon from './Icon';
+import ThemeToggle from './ThemeToggle';
 import { loginEmail } from '../../api/session';
 import { scrollWhenReady } from '../../utils/welcome';
 import { ACTIVE_SANDBOX_STATUSES } from '../../utils/sandbox';
@@ -43,7 +44,7 @@ export function Header({ currentView, setCurrentView }) {
   return <>
     <aside className={`app-sidebar ${collapsed ? 'is-collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
       <div className="sidebar-brand">
-        <span className="brand-mark"><Icon name="shield" size={22} /></span>
+        <img className="brand-mark" src="/favicon.svg" alt="" width="40" height="40" />
         <span className="sidebar-wordmark">E-TAP<span>EMAIL THREAT ANALYSIS</span></span>
         <button className="icon-button collapse-toggle" title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => setCollapsed(!collapsed)}><Icon name="menu" size={17} /></button>
       </div>
@@ -75,6 +76,7 @@ export function Header({ currentView, setCurrentView }) {
         </span>
         {busy && <span className="running-pill"><Icon name="activity" size={15} /><span>Analyzing</span></span>}
         {!busy && sandboxRunning && <span className="running-pill" title="Attachments are being opened in a sandbox VM"><Icon name="box" size={15} /><span>Sandbox running</span></span>}
+        <ThemeToggle />
         <button className="new-analysis-button" onClick={() => { if (!busy) resetInvestigation(); navigate('upload'); }}><Icon name="plus" size={16} /><span>New analysis</span></button>
       </div>
     </header>

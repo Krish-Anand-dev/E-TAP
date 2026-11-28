@@ -21,12 +21,12 @@ const STATUS_LABELS = {
 };
 
 const VERDICT_COLORS = {
-  behavior_observed: '#b42338',
-  no_behavior_observed_inconclusive: '#95620b',
-  blocked_by_security_control: '#6d28d9',
-  inspection_incomplete: '#667085',
-  unsupported: '#667085',
-  error: '#b42338',
+  behavior_observed: 'var(--night-danger, #b42338)',
+  no_behavior_observed_inconclusive: 'var(--night-warn, #95620b)',
+  blocked_by_security_control: 'var(--night-purple, #6d28d9)',
+  inspection_incomplete: 'var(--night-grey, #667085)',
+  unsupported: 'var(--night-grey, #667085)',
+  error: 'var(--night-danger, #b42338)',
 };
 
 export function SandboxPanel({ sandbox }) {
@@ -66,7 +66,7 @@ export function SandboxPanel({ sandbox }) {
         </div>
         <span className="rail-item-badge" style={{
           background: isDone ? 'rgba(59, 130, 246, 0.15)' : isError ? 'rgba(239, 68, 68, 0.15)' : isNotApplicable ? 'rgba(107, 114, 128, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-          color: isDone ? '#245cb7' : isError ? '#b42338' : isNotApplicable ? '#667085' : '#8a5a08'
+          color: isDone ? 'var(--night-info, #245cb7)' : isError ? 'var(--night-danger, #b42338)' : isNotApplicable ? 'var(--night-grey, #667085)' : 'var(--night-warn, #8a5a08)'
         }}>
           {modeLabel}
         </span>
@@ -104,14 +104,14 @@ export function SandboxPanel({ sandbox }) {
         <p style={{ padding: '8px 16px', color: 'var(--text-secondary)', fontSize: 'var(--fs-xs)' }}>{sandbox.message}</p>
       )}
       {sandbox.defender_checked === false && (
-        <div style={{ padding: '8px 16px', fontSize: '11px', color: '#8a5a08', borderBottom: '1px solid var(--border-hairline)' }}>
+        <div style={{ padding: '8px 16px', fontSize: '11px', color: 'var(--night-warn, #8a5a08)', borderBottom: '1px solid var(--border-hairline)' }}>
           {sandbox.defender_note || 'Windows Defender events could not be read in this run, so blocks by Defender were not checked.'}
         </div>
       )}
 
       {/* Error */}
       {sandbox.error && (
-        <div style={{ padding: '8px 16px', color: '#b42338', fontSize: '11px' }}>
+        <div style={{ padding: '8px 16px', color: 'var(--night-danger, #b42338)', fontSize: '11px' }}>
           Error: {sandbox.error}
         </div>
       )}
@@ -137,7 +137,7 @@ export function SandboxPanel({ sandbox }) {
                     <td className="mono-val">{item.sample || '—'}</td>
                     <td>
                       <span style={{
-                        color: VERDICT_COLORS[item.verdict] || '#667085',
+                        color: VERDICT_COLORS[item.verdict] || 'var(--night-grey, #667085)',
                         fontWeight: 600, fontSize: '11px', textTransform: 'uppercase'
                       }}>
                         {(item.verdict || 'unknown').replace(/_/g, ' ')}
@@ -145,7 +145,7 @@ export function SandboxPanel({ sandbox }) {
                     </td>
                     <td>
                       {item.matches?.length > 0 ? (
-                        <span style={{ color: '#b42338', fontWeight: 700 }}>
+                        <span style={{ color: 'var(--night-danger, #b42338)', fontWeight: 700 }}>
                           {item.matches.length} rule(s)
                         </span>
                       ) : (
@@ -175,7 +175,7 @@ export function SandboxPanel({ sandbox }) {
                                 {match.prevention_grade && (
                                   <span style={{
                                     padding: '1px 6px', borderRadius: 3, fontSize: '9px',
-                                    background: 'rgba(239, 68, 68, 0.3)', color: '#b42338', fontWeight: 700
+                                    background: 'rgba(239, 68, 68, 0.3)', color: 'var(--night-danger, #b42338)', fontWeight: 700
                                   }}>
                                     PREVENTION-GRADE
                                   </span>
@@ -189,7 +189,7 @@ export function SandboxPanel({ sandbox }) {
                                   {match.mitre.map((m, ti) => (
                                     <span key={ti} style={{
                                       padding: '2px 8px', borderRadius: 3, fontSize: '10px',
-                                      background: 'rgba(59, 130, 246, 0.15)', color: '#245cb7',
+                                      background: 'rgba(59, 130, 246, 0.15)', color: 'var(--night-info, #245cb7)',
                                       fontFamily: 'var(--font-mono)'
                                     }}>
                                       {m.technique} — {m.name}
@@ -207,14 +207,14 @@ export function SandboxPanel({ sandbox }) {
                   {/* Launch error */}
                   {item.launch_error && (
                     <tr>
-                      <td colSpan={5} style={{ padding: '8px 16px', color: '#8a5a08', fontSize: '11px' }}>
+                      <td colSpan={5} style={{ padding: '8px 16px', color: 'var(--night-warn, #8a5a08)', fontSize: '11px' }}>
                         Launch note: {item.launch_error}
                       </td>
                     </tr>
                   )}
                   {item.note && (
                     <tr>
-                      <td colSpan={5} style={{ padding: '8px 16px', color: '#8a5a08', fontSize: '11px' }}>
+                      <td colSpan={5} style={{ padding: '8px 16px', color: 'var(--night-warn, #8a5a08)', fontSize: '11px' }}>
                         {item.note}
                       </td>
                     </tr>

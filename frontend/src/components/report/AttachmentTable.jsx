@@ -122,7 +122,7 @@ export function AttachmentTable({ attachments = [] }) {
                                 <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Concealed QR URLs:</span>
                                 {att.qr_urls.map((qUrl, qIdx) => (
                                   <div key={qIdx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <span className="mono-val" style={{ color: '#a8232d', fontSize: '11px' }}>{qUrl}</span>
+                                    <span className="mono-val" style={{ color: 'var(--night-danger, #a8232d)', fontSize: '11px' }}>{qUrl}</span>
                                     <button
                                       type="button"
                                       className="btn-copy-mono"
@@ -157,17 +157,17 @@ export function AttachmentTable({ attachments = [] }) {
                                 {hasMacroBehavior ? 'MACRO ANALYSIS (NOT RUN)' : 'FILE CHECK NOTES (NOT OPENED)'}
                               </span>
                               {att.type_mismatch && (
-                                <span style={{ fontSize: '11px', color: '#a8232d', fontWeight: 600 }}>
+                                <span style={{ fontSize: '11px', color: 'var(--night-danger, #a8232d)', fontWeight: 600 }}>
                                   Type Spoofing Detected: {att.declared_type} → {att.actual_type}
                                 </span>
                               )}
                               {att.macro_behavior?.autoexec_triggers?.length > 0 && (
-                                <span style={{ fontSize: '11px', color: '#a8232d', fontWeight: 600 }}>
+                                <span style={{ fontSize: '11px', color: 'var(--night-danger, #a8232d)', fontWeight: 600 }}>
                                   Auto-Exec Triggers: {att.macro_behavior.autoexec_triggers.join(', ')}
                                 </span>
                               )}
                               {att.macro_behavior?.suspicious_actions?.length > 0 && (
-                                <span style={{ fontSize: '11px', color: '#8a5a06', fontWeight: 600 }}>
+                                <span style={{ fontSize: '11px', color: 'var(--night-warn, #8a5a06)', fontWeight: 600 }}>
                                   Suspicious APIs: {att.macro_behavior.suspicious_actions.join(', ')}
                                 </span>
                               )}
@@ -180,7 +180,7 @@ export function AttachmentTable({ attachments = [] }) {
                                   Macro Referenced IOCs:
                                 </span>
                                 {att.macro_behavior.referenced_iocs.map((ioc, iocIdx) => (
-                                  <span key={iocIdx} className="mono-val" style={{ color: '#a8232d', background: 'var(--bg-surface-elevated)', padding: '2px 6px', borderRadius: '3px', fontSize: '11px' }}>
+                                  <span key={iocIdx} className="mono-val" style={{ color: 'var(--night-danger, #a8232d)', background: 'var(--bg-surface-elevated)', padding: '2px 6px', borderRadius: '3px', fontSize: '11px' }}>
                                     {ioc}
                                   </span>
                                 ))}

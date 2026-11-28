@@ -103,7 +103,7 @@ export default function OverviewPage({ navigate }) {
                   <CartesianGrid stroke="#d2e4f1" strokeDasharray="3 5" vertical={false} />
                   <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: '#6b7180' }} />
                   <YAxis domain={[0, 100]} ticks={[0, 40, 65, 100]} tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: '#6b7180' }} />
-                  <Tooltip contentStyle={{ background: '#f8fcff', border: '1px solid #d2e4f1', borderRadius: 12 }} labelFormatter={(_, v) => v?.[0]?.payload?.subject || ''} />
+                  <Tooltip contentStyle={{ background: 'var(--night-tooltip, #f8fcff)', border: '1px solid var(--night-line, #d2e4f1)', borderRadius: 12 }} labelFormatter={(_, v) => v?.[0]?.payload?.subject || ''} />
                   <Area type="monotone" dataKey="score" name="Risk score" stroke="#d93a45" strokeWidth={2.2} fill="url(#trend-fill)" dot={{ r: 3.5, fill: '#d93a45' }} />
                 </AreaChart>
               </ResponsiveContainer>

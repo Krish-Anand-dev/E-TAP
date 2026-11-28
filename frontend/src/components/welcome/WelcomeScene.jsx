@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { SCENE_SECONDS, sceneAt } from '../../utils/phishingScene';
+import ThemeToggle from '../common/ThemeToggle';
 
 const SINK = 150; // how far under its place a card starts, in pixels
 
@@ -108,6 +109,7 @@ export default function WelcomeScene({ headline, cards, footer }) {
   return (
     <div className={`welcome ${playing ? 'is-playing' : ''}`} ref={scene}
       onClick={(event) => { if (playing && !event.target.closest('button, input, a')) finish(); }}>
+      <ThemeToggle className="welcome-theme" />
       <div className="welcome-sky">
         <div className="welcome-brand">E-TAP<span>EMAIL THREAT ANALYSIS</span></div>
         <div className="sun" aria-hidden="true" />

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SCENE_SECONDS, sceneAt } from '../src/utils/phishingScene.js';
 import { dismissWhatsAppNotice, shouldShowWelcome, shouldShowWhatsAppNotice } from '../src/utils/welcome.js';
+import { applyTheme, chooseTheme, themeFor, timeTheme } from '../src/utils/theme.js';
 
 const memory = () => {
   const data = new Map();
@@ -49,6 +50,34 @@ test('the WhatsApp notice shows only to a signed-in account without a number, un
   assert.equal(shouldShowWhatsAppNotice({ email, link: { linked: false }, storage }), true);
   dismissWhatsAppNotice(email, storage);
   assert.equal(shouldShowWhatsAppNotice({ email, link: { linked: false }, storage }), false);
+});
+
+const at = (day, hour, minute = 0) => new Date(2026, 10, day, hour, minute);
+
+test('day from 6 am to 6 pm, night otherwise', () => {
+  assert.equal(timeTheme(at(28, 5, 59)), 'dark');
+  assert.equal(timeTheme(at(28, 6)), 'light');
+  assert.equal(timeTheme(at(28, 17, 59)), 'light');
+  assert.equal(timeTheme(at(28, 18)), 'dark');
+  assert.equal(timeTheme(at(28, 0)), 'dark');
+});
+
+test('the switch wins until the next 6 o\'clock, then the clock takes over', () => {
+  const storage = memory();
+  chooseTheme('dark', at(28, 10), storage);
+  assert.equal(themeFor(at(28, 17, 59), storage), 'dark');
+  assert.equal(themeFor(at(29, 10), storage), 'light');
+  chooseTheme('light', at(28, 23), storage);
+  assert.equal(themeFor(at(29, 5, 59), storage), 'light'); // the same night, past midnight
+  assert.equal(themeFor(at(29, 18), storage), 'dark');
+});
+
+test('blocked storage follows the clock and never throws', () => {
+  assert.equal(themeFor(at(28, 12), blocked), 'light');
+  assert.doesNotThrow(() => chooseTheme('dark', at(28, 12), blocked));
+  const root = { dataset: {} };
+  applyTheme('dark', root);
+  assert.equal(root.dataset.theme, 'dark');
 });
 
 test('blocked browser storage never throws', () => {
