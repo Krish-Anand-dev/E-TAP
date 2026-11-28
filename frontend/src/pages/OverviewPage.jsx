@@ -4,6 +4,7 @@ import apiClient from '../api/client';
 import { useInvestigation } from '../context/InvestigationContext';
 import { bandFor, displayLabel } from '../utils/verdict';
 import Icon from '../components/common/Icon';
+import WhatsAppNotice from '../components/common/WhatsAppNotice';
 
 const BAND_COLORS = { danger: '#d93a45', caution: '#e3a33a', safe: '#2e9e6b' };
 const BAND_NAMES = { danger: 'High risk', caution: 'Suspicious', safe: 'Low risk' };
@@ -66,6 +67,7 @@ export default function OverviewPage({ navigate }) {
 
   return (
     <div className="overview-page v2-page">
+      <WhatsAppNotice navigate={navigate} />
       <section className="v2-hero">
         <div>
           <div className="eyebrow">E-TAP / EMAIL THREAT ANALYSIS</div>

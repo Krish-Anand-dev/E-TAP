@@ -309,6 +309,10 @@ export function InvestigationProvider({ children }) {
       console.error('Analysis failed:', err);
       setStatus('error');
       let message = err.jobError ? err.message : err.response?.data?.detail;
+      // The job list lives in the server's memory, so a restart (or a new release) forgets it.
+      if (!err.jobError && err.response?.status === 404) {
+        message = 'The service restarted while this was running. The report may already be saved: check Reports, or run it again.';
+      }
       if (!message) {
         if (err.message === 'Network Error' || !err.response || err.response?.status === 502) {
           message = 'Unable to reach the analysis engine. The cloud service may be waking up (about 30-50 seconds on the free tier). Please retry in a moment.';

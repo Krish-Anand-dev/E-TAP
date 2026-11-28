@@ -258,7 +258,10 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
   const isWorking = isBusy || (runFinished && !paced.done);
   const elapsed = useElapsed(isWorking);
   const showTimeline = isWorking || runFinished || (status === 'error' && jobStages.length > 0);
-  const showError = Boolean(error) && !isBusy && (!jobStages.length || paced.stopped || !pacingOn);
+  // Hold the message back only while the paced timeline is still walking to a failed stage.
+  // A lost connection has no failed stage, and must never leave the page with no result and no reason.
+  const reachingFailure = pacingOn && jobStages.some((s) => s.state === 'error') && !paced.stopped;
+  const showError = Boolean(error) && !isBusy && !reachingFailure;
 
   // Choosing something new puts an earlier failure message away.
   const clearEarlierError = () => {

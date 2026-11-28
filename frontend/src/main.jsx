@@ -14,3 +14,4 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 
 import './styles/workspace.css';
 import './styles/v2.css';
+import './styles/welcome.css';

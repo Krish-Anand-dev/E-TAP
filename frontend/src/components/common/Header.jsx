@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useInvestigation } from '../../context/InvestigationContext';
 import Icon from './Icon';
+import { loginEmail } from '../../api/session';
+import { scrollWhenReady } from '../../utils/welcome';
 import { ACTIVE_SANDBOX_STATUSES } from '../../utils/sandbox';
 
 const TITLES = { overview: 'Dashboard', upload: 'Analyze email', dashboard: 'Investigation', history: 'Reports', settings: 'Trusted domains' };
@@ -9,6 +11,12 @@ export function Header({ currentView, setCurrentView }) {
   const { data, status, backendOnline, lastHealthCheck, resetInvestigation, history } = useInvestigation();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [signedIn, setSignedIn] = useState(Boolean(loginEmail()));
+  useEffect(() => {
+    const sync = () => setSignedIn(Boolean(loginEmail()));
+    window.addEventListener('etap-login-change', sync);
+    return () => window.removeEventListener('etap-login-change', sync);
+  }, []);
   const busy = status === 'uploading' || status === 'analyzing';
   const sandboxRunning = ACTIVE_SANDBOX_STATUSES.has(data?.sandbox?.status);
 
@@ -48,6 +56,10 @@ export function Header({ currentView, setCurrentView }) {
         <div className="sidebar-divider" />
         <p className="nav-group-label">PREFERENCES</p>
         {nav('settings', 'settings', 'Trusted domains')}
+        <button type="button" className="side-link" onClick={() => { navigate('settings'); scrollWhenReady('account'); }} title={signedIn ? 'Your account' : 'Sign in'}>
+          <Icon name="user" />
+          <span>{signedIn ? 'Your account' : 'Sign in'}</span>
+        </button>
       </nav>
     </aside>
     {mobileOpen && <button className="sidebar-backdrop" aria-label="Close navigation" onClick={() => setMobileOpen(false)} />}

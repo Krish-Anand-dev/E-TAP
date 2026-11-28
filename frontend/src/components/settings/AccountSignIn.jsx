@@ -48,7 +48,7 @@ export default function AccountSignIn() {
   const leave = () => run(async () => { await signOut(); setSignedIn(false); setEmail(''); });
 
   return (
-    <section className="v2-card account-signin">
+    <section id="account" className="v2-card account-signin">
       <div className="v2-card-head">
         <div>
           <h3>Your account</h3>

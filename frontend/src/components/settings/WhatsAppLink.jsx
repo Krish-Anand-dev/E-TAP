@@ -45,7 +45,7 @@ export default function WhatsAppLink() {
   const bot = issued?.bot_number || state?.bot_number;
 
   return (
-    <section className="v2-card account-signin">
+    <section id="whatsapp-link" className="v2-card account-signin">
       <div className="v2-card-head">
         <div>
           <h3>WhatsApp</h3>
