@@ -2,6 +2,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { bandFor, displayLabel } from './verdict.js';
 import { getGeoMapData } from './geo.js';
+import { flagText } from './flagText.js';
 
 /**
  * pdfGenerator.js
@@ -341,7 +342,7 @@ export function generatePdfDocument(data, options = {}) {
     y = ensureSpace(doc, y, 16);
     doc.text(`HEADER RED FLAGS (${headers.red_flags.length})`, PAGE_MARGIN, y);
     y += 12;
-    y = bulletList(doc, headers.red_flags, y, [80, 30, 30]);
+    y = bulletList(doc, headers.red_flags.map(flagText), y, [80, 30, 30]);
     y += 6;
   }
 

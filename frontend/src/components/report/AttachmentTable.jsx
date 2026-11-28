@@ -74,10 +74,12 @@ export function AttachmentTable({ attachments = [] }) {
                         )}
                       </td>
                       <td>
-                        {hasHiddenContent ? (
-                          <span className="status-pill danger">HIDDEN CONTENT</span>
-                        ) : att.suspicious ? (
+                        {att.qr_urls?.length > 0 ? (
+                          <span className="status-pill danger">QR CODE LINK</span>
+                        ) : isSuspicious ? (
                           <span className="status-pill danger">SUSPICIOUS</span>
+                        ) : hasHiddenContent ? (
+                          <span className="status-pill neutral">TEXT READ</span>
                         ) : (
                           <span className="status-pill safe">BENIGN</span>
                         )}
@@ -100,10 +102,10 @@ export function AttachmentTable({ attachments = [] }) {
                     </tr>
                     {hasHiddenContent && (
                       <tr className="row-hidden-content-detail">
-                        <td colSpan={7} style={{ background: 'rgba(239, 68, 68, 0.05)', padding: '10px 16px', borderBottom: '1px solid var(--border-hairline)' }}>
+                        <td colSpan={7} style={{ background: att.qr_urls?.length > 0 ? 'rgba(239, 68, 68, 0.05)' : 'var(--bg-surface-subtle)', padding: '10px 16px', borderBottom: '1px solid var(--border-hairline)' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <span className="status-pill danger" style={{ fontSize: '10px' }}>HIDDEN IMAGE CONTENT DETECTED</span>
+                              <span className={`status-pill ${att.qr_urls?.length > 0 ? 'danger' : 'neutral'}`} style={{ fontSize: '10px' }}>{att.qr_urls?.length > 0 ? 'QR CODE FOUND IN IMAGE' : 'TEXT READ FROM IMAGE'}</span>
                               {att.qr_urls?.length > 0 && (
                                 <span style={{ fontSize: '11px', color: 'var(--verdict-danger)', fontWeight: 600 }}>
                                   QR Code Payload: {att.qr_urls.length} link(s)
@@ -120,7 +122,7 @@ export function AttachmentTable({ attachments = [] }) {
                                 <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Concealed QR URLs:</span>
                                 {att.qr_urls.map((qUrl, qIdx) => (
                                   <div key={qIdx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <span className="mono-val" style={{ color: '#F87171', fontSize: '11px' }}>{qUrl}</span>
+                                    <span className="mono-val" style={{ color: '#a8232d', fontSize: '11px' }}>{qUrl}</span>
                                     <button
                                       type="button"
                                       className="btn-copy-mono"
@@ -136,7 +138,7 @@ export function AttachmentTable({ attachments = [] }) {
                             {att.ocr_text && (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                 <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>OCR Text Preview:</span>
-                                <div className="mono-val" style={{ fontSize: '11px', background: 'rgba(0,0,0,0.3)', padding: '8px 12px', borderRadius: '4px', whiteSpace: 'pre-wrap', maxHeight: '120px', overflowY: 'auto' }}>
+                                <div className="mono-val" style={{ fontSize: '11px', background: 'var(--bg-base)', border: '1px solid var(--border-hairline)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: '4px', whiteSpace: 'pre-wrap', maxHeight: '120px', overflowY: 'auto' }}>
                                   {att.ocr_text}
                                 </div>
                               </div>
@@ -148,24 +150,24 @@ export function AttachmentTable({ attachments = [] }) {
                     {/* Stage B2 Static Sandbox & Forensics Detail Row */}
                     {(hasMacroBehavior || (att.flags && att.flags.length > 0)) && (
                       <tr className="row-macro-sandbox-detail">
-                        <td colSpan={7} style={{ background: 'rgba(239, 68, 68, 0.06)', padding: '12px 16px', borderBottom: '1px solid var(--border-hairline)' }}>
+                        <td colSpan={7} style={{ background: isSuspicious ? 'rgba(239, 68, 68, 0.06)' : 'var(--bg-surface-subtle)', padding: '12px 16px', borderBottom: '1px solid var(--border-hairline)' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                              <span className="status-pill danger" style={{ fontSize: '10px', fontWeight: 700 }}>
-                                {hasMacroBehavior ? 'STATIC SANDBOX V2 — VBA DECOMPOSITION' : 'STAGE B2 — STATIC ATTACHMENT SANDBOX'}
+                              <span className={`status-pill ${isSuspicious ? 'danger' : 'neutral'}`} style={{ fontSize: '10px', fontWeight: 700 }}>
+                                {hasMacroBehavior ? 'MACRO ANALYSIS (NOT RUN)' : 'FILE CHECK NOTES (NOT OPENED)'}
                               </span>
                               {att.type_mismatch && (
-                                <span style={{ fontSize: '11px', color: '#F87171', fontWeight: 600 }}>
+                                <span style={{ fontSize: '11px', color: '#a8232d', fontWeight: 600 }}>
                                   Type Spoofing Detected: {att.declared_type} → {att.actual_type}
                                 </span>
                               )}
                               {att.macro_behavior?.autoexec_triggers?.length > 0 && (
-                                <span style={{ fontSize: '11px', color: '#F87171', fontWeight: 600 }}>
+                                <span style={{ fontSize: '11px', color: '#a8232d', fontWeight: 600 }}>
                                   Auto-Exec Triggers: {att.macro_behavior.autoexec_triggers.join(', ')}
                                 </span>
                               )}
                               {att.macro_behavior?.suspicious_actions?.length > 0 && (
-                                <span style={{ fontSize: '11px', color: '#FBBF24', fontWeight: 600 }}>
+                                <span style={{ fontSize: '11px', color: '#8a5a06', fontWeight: 600 }}>
                                   Suspicious APIs: {att.macro_behavior.suspicious_actions.join(', ')}
                                 </span>
                               )}
@@ -178,7 +180,7 @@ export function AttachmentTable({ attachments = [] }) {
                                   Macro Referenced IOCs:
                                 </span>
                                 {att.macro_behavior.referenced_iocs.map((ioc, iocIdx) => (
-                                  <span key={iocIdx} className="mono-val" style={{ color: '#FCA5A5', background: 'rgba(0,0,0,0.4)', padding: '2px 6px', borderRadius: '3px', fontSize: '11px' }}>
+                                  <span key={iocIdx} className="mono-val" style={{ color: '#a8232d', background: 'var(--bg-surface-elevated)', padding: '2px 6px', borderRadius: '3px', fontSize: '11px' }}>
                                     {ioc}
                                   </span>
                                 ))}
@@ -189,10 +191,10 @@ export function AttachmentTable({ attachments = [] }) {
                             {att.flags?.length > 0 && (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '2px' }}>
                                 <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                  Sandbox Analysis Flags & Behavioral Evidence:
+                                  What the file check noted:
                                 </span>
                                 {att.flags.map((flag, fIdx) => (
-                                  <div key={fIdx} style={{ fontSize: '11px', color: '#E2E8F0', paddingLeft: '8px', borderLeft: '2px solid #EF4444', lineHeight: 1.4 }}>
+                                  <div key={fIdx} style={{ fontSize: '11px', color: 'var(--text-primary)', paddingLeft: '8px', borderLeft: `2px solid ${isSuspicious ? '#EF4444' : 'var(--border-hairline)'}`, lineHeight: 1.4 }}>
                                     {flag}
                                   </div>
                                 ))}

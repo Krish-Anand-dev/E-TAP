@@ -271,7 +271,7 @@ Red flags: `spf_fail|softfail`, `dkim_fail|key_not_found|misaligned`, `dmarc_fai
 **Sender-domain checks** (`domain_similarity.analyze_domain`) — pure string/Unicode, no network:
 
 - punycode (`xn--`) decode → `punycode_domain`; mixed Latin + Cyrillic/Greek → `homograph_attack_suspected`;
-- `find_lookalike_brand`: brand root (`get_brand_root`, handles `co.in`, `gov.in`, `co.uk`…) compared with each brand in `brand_domains.COMMONLY_IMPERSONATED_DOMAINS` (global tech, global banks, Indian banks, Indian government portals, UPI/fintech). `brand_plus_lure` when the exact brand token appears with a lure word (`secure`, `verify`, `login`, `support`…); `typosquat` when `difflib` similarity ≥ 0.80 (plus Levenshtein distance reported). Flag `lookalike_of_<brand>`.
+- `find_lookalike_brand`: brand root (`get_brand_root`, handles `co.in`, `gov.in`, `co.uk`…) compared with each brand in `brand_domains.COMMONLY_IMPERSONATED_DOMAINS` (global tech, global banks, Indian banks, Indian government portals, UPI/fintech). `brand_plus_lure` when the exact brand token appears with a lure word (`secure`, `verify`, `login`, `support`…); `typosquat` when `difflib` similarity ≥ 0.80 (plus Levenshtein distance reported). Flag `lookalike_of_<brand>`. A name that reads as the brand once digits are read as letters (`faceb00k`) counts; a company's listed official domains (`brand_domains.OFFICIAL_BRAND_DOMAINS`, e.g. `facebookmail.com`) never do.
 - display-name impersonation: brand mentioned in the display name (words and adjacent-word pairs, not raw substrings) **and** a trigger word (`support`, `security`, `billing`, `team`…) while the domain root differs → `display_name_claims_<brand>_but_domain_is_<domain>`.
 
 ### Stage B2 — Attachment forensics (`forensics/attachment_forensics.py`)
@@ -364,6 +364,8 @@ All provider errors are scrubbed (exception type only, never URLs/keys). Statuse
 7. Invalidate the graph-diffusion adjacency cache.
 
 Returns `email_id, campaign_id, is_new_campaign, category_status, historical_stats, merged_campaigns, related_emails, shared_infrastructure`.
+
+Domains of shared mailbox providers (`correlation/common_providers.py`: gmail.com, outlook.com and the like, with their hosts) are not compared, and an email never counts as its own history. The summary calls a repeat a recurring threat only when an earlier match was rated suspicious or worse, or a reputation service flagged the repeated file.
 
 ### Stage F′ — Graph diffusion (`ai_engine/graph_diffusion.py`)
 

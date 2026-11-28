@@ -35,6 +35,7 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 from db import connection, repository
+from correlation.common_providers import is_common_provider
 from forensics.brand_domains import get_brand_root
 from forensics.domain_similarity import similarity_ratio
 
@@ -73,6 +74,8 @@ def _collect_exact_matches(
 
     for ioc_type in IOC_TYPES:
         values = ioc_analysis.get(ioc_type) or []
+        if ioc_type == "domains":
+            values = [v for v in values if not is_common_provider(v)]
         if not values:
             continue
 
@@ -103,6 +106,7 @@ def _collect_fuzzy_domain_matches(
     matched_docs: dict[str, dict] = {}
     matched_infra: set[str] = set()
 
+    domains = [d for d in domains if not is_common_provider(d)]
     if not domains:
         return matched_docs, matched_infra
 
@@ -113,7 +117,7 @@ def _collect_fuzzy_domain_matches(
     # any stored document has a missing/empty ioc_analysis.domains field,
     # so this list can legitimately contain junk entries from older/
     # partial pipeline runs.
-    historical_domains = [d for d in repository.get_all_domains(db) if d]
+    historical_domains = [d for d in repository.get_all_domains(db) if d and not is_common_provider(d)]
 
     for historical_domain in historical_domains:
         if historical_domain in current_domains:
@@ -250,7 +254,7 @@ def correlate_and_store(
     historical_stats = compute_historical_stats(
         db,
         ioc_analysis,
-        current_email_id=existing_email_id,
+        current_email_id=email_id,  # just stored above: it is not its own history
         campaign_id=campaign_id,
         now=analyzed_at,
     )

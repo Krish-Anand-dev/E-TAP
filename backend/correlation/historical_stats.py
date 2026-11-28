@@ -15,6 +15,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
+from correlation.common_providers import is_common_provider
 from db import repository
 from db.schema import ANALYSES_COLLECTION
 
@@ -68,6 +69,8 @@ def compute_historical_stats(
     repeated_domains: list[tuple[str, int, int]] = []
     repeated_hashes: list[tuple[str, int, int]] = []
     repeated_urls: list[tuple[str, int, int]] = []
+    flagged_hashes: set[str] = set()
+    seen_counts: dict[str, int] = {}
 
     for ioc_field, type_label in ioc_mappings:
         raw_values = ioc_analysis.get(ioc_field) or []
@@ -79,7 +82,8 @@ def compute_historical_stats(
                 continue
 
             # Query database for all past documents with this exact IOC
-            hits = repository.find_by_ioc_exact(db, ioc_field, [val_str])
+            common = ioc_field == "domains" and is_common_provider(val_str)
+            hits = [] if common else repository.find_by_ioc_exact(db, ioc_field, [val_str])
             
             # Filter out current email itself if it was already saved
             valid_hits = [
@@ -128,6 +132,12 @@ def compute_historical_stats(
                 all_matched_incidents[hit_id] = incident_summary
 
             is_new = (all_time_count == 0)
+            seen_counts[val_str] = all_time_count
+            if ioc_field == "hashes" and any(
+                (((h.get("threat_intel_analysis") or {}).get("hash_reputation") or {}).get(val_str) or {}).get("malicious") is True
+                for h in valid_hits
+            ):
+                flagged_hashes.add(val_str)
 
             if not is_new:
                 total_overlapping_iocs += 1
@@ -152,6 +162,7 @@ def compute_historical_stats(
                 "this_month": this_month_count,
                 "all_time": all_time_count,
                 "is_new": is_new,
+                "common_provider": common,
                 "first_seen": first_seen_dt.isoformat() if first_seen_dt else None,
                 "last_seen": last_seen_dt.isoformat() if last_seen_dt else None,
                 "associated_campaigns": sorted(associated_campaigns),
@@ -173,26 +184,34 @@ def compute_historical_stats(
         category_status = "RECURRING_ADVERSARY_ACTIVITY"
         repetition_fragments: list[str] = []
 
-        for ip, w, m in repeated_ips[:2]:
-            w_text = f"{w} times this week" if w > 0 else "0 times this week"
-            m_text = f"{m} times this month" if m > 0 else "0 times this month"
-            repetition_fragments.append(f"Originating IP {ip} was detected in {w_text} ({m_text})")
+        def earlier(value: str) -> str:
+            count = seen_counts.get(value, 0)
+            return f"{count} earlier email{'' if count == 1 else 's'}"
 
-        for dom, w, m in repeated_domains[:2]:
-            repetition_fragments.append(f"Domain '{dom}' previously observed across {m or 1} incident(s)")
+        for ip, _, _ in repeated_ips[:2]:
+            repetition_fragments.append(f"Originating IP {ip} was seen in {earlier(ip)}")
 
-        for h, w, m in repeated_hashes[:1]:
+        for dom, _, _ in repeated_domains[:2]:
+            repetition_fragments.append(f"Domain '{dom}' was seen in {earlier(dom)}")
+
+        for h, _, _ in repeated_hashes[:1]:
             short_h = h[:16] + "..." if len(h) > 16 else h
-            repetition_fragments.append(f"Attachment payload ({short_h}) matches prior analyzed malware")
+            flagged = ", and reputation services flag it as malicious" if h in flagged_hashes else ""
+            repetition_fragments.append(f"The same attachment ({short_h}) was in {earlier(h)}{flagged}")
 
         if not repetition_fragments and repeated_urls:
-            repetition_fragments.append(f"Referenced URL seen across prior incident records")
+            repetition_fragments.append("A link in this email was seen before")
 
+        # "Suspicious" only when an earlier match was actually rated that way.
+        risky = bool(flagged_hashes) or any(
+            (incident.get("risk_score") or 0) >= 40 for incident in all_matched_incidents.values())
         summary_body = ". ".join(repetition_fragments)
-        category_badge = f"RECURRING THREAT ({max_week}x THIS WEEK)" if max_week > 0 else f"RECURRING THREAT ({max_month}x THIS MONTH)"
+        times = f"{max_week}x THIS WEEK" if max_week > 0 else f"{max_month}x THIS MONTH"
+        category_badge = f"{'RECURRING THREAT' if risky else 'SEEN BEFORE'} ({times})"
+        opening = "Matches earlier suspicious emails." if risky else "Seen in earlier emails, none rated suspicious."
         executive_summary = (
-            f"Recurring adversary activity detected. {summary_body}. "
-            f"Correlated with {len(all_matched_incidents)} prior incident(s) in category {assigned_campaign}."
+            f"{opening} {summary_body}. "
+            f"Linked to {len(all_matched_incidents)} earlier email(s) in group {assigned_campaign}."
         )
 
     return {

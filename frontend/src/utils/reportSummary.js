@@ -255,7 +255,7 @@ export function stageSummaries(report = {}) {
     },
     {
       key: 'history', title: 'Comparison with past emails', icon: 'history',
-      status: s.recurring || s.relatedEmails ? 'warn' : 'good',
+      status: s.relatedEmails ? 'warn' : 'good',
       summary: s.relatedEmails ? `Linked to ${s.relatedEmails} earlier email(s)${s.campaignId ? ` in ${s.campaignId}` : ''}.` : 'Not seen before.',
       metrics: [['Related emails', s.relatedEmails], ['Campaign', s.campaignId || 'new']],
     },

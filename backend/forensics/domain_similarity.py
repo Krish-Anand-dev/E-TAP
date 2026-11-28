@@ -19,7 +19,10 @@ import unicodedata
 from difflib import SequenceMatcher
 from typing import Optional, Dict, List
 
-from .brand_domains import COMMONLY_IMPERSONATED_DOMAINS, get_brand_root
+from .brand_domains import COMMONLY_IMPERSONATED_DOMAINS, get_brand_root, is_official_brand_domain
+
+# Digits typed in place of letters (faceb00k, paypa1).
+_DIGIT_LETTERS = str.maketrans({"0": "o", "1": "l", "3": "e", "5": "s"})
 
 
 def levenshtein_distance(a: str, b: str) -> int:
@@ -108,6 +111,8 @@ def find_lookalike_brand(domain: str, threshold: float = 0.80) -> Optional[Dict]
         {"brand": "paypal.com", "similarity": 0.92, "edit_distance": 1}
         or None if nothing suspicious found.
     """
+    if is_official_brand_domain(domain):
+        return None
     candidate_root = get_brand_root(domain)
     best_match = None
     best_score = 0.0
@@ -144,6 +149,8 @@ def find_lookalike_brand(domain: str, threshold: float = 0.80) -> Optional[Dict]
             continue
 
         score = similarity_ratio(candidate_root, brand_root)
+        if len(brand_root) >= 4 and candidate_root.translate(_DIGIT_LETTERS) == brand_root:
+            score = max(score, 0.99)  # reads as the brand once the digits are read as letters
         if score >= threshold and score > best_score:
             best_score = score
             best_match = {

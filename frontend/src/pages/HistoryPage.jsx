@@ -5,6 +5,7 @@ import { useInvestigation } from '../context/InvestigationContext';
 import { bandFor, displayLabel } from '../utils/verdict';
 import { stageSummaries, verdictOf, riskTags } from '../utils/reportSummary';
 import Icon from '../components/common/Icon';
+import DeleteReportButton from '../components/report/DeleteReportButton';
 import { needsSandboxRefresh } from '../utils/sandbox';
 import { loginEmail } from '../api/session';
 
@@ -52,7 +53,7 @@ function StageCard({ stage, index }) {
 }
 
 export function HistoryPage({ onOpenReport, navigate }) {
-  const { history, loadFromHistory, clearHistory } = useInvestigation();
+  const { history, loadFromHistory, clearHistory, removeInvestigation } = useInvestigation();
   const [stored, setStored] = useState(null);
   const [filter, setFilter] = useState('all');
   const [query, setQuery] = useState('');
@@ -102,6 +103,13 @@ export function HistoryPage({ onOpenReport, navigate }) {
       .finally(() => active && setLoading(false));
     return () => { active = false; };
   }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const afterDelete = (id) => {
+    removeInvestigation(id);
+    setStored((current) => (current || []).filter((r) => r.email_id !== id));
+    setSelected(null);
+    setSelectedId(null);
+  };
 
   const openFull = () => {
     const row = rows.find((r) => r.id === selectedId);
@@ -172,7 +180,10 @@ export function HistoryPage({ onOpenReport, navigate }) {
                       : <span className="risk-tag sev-none"><Icon name="check" size={14} />No risk signs</span>}
                   </div>
                 </div>
-                <button type="button" className="btn-primary-action" onClick={openFull}>Open full investigation <Icon name="arrow" size={16} /></button>
+                <div className="rs-actions">
+                  <button type="button" className="btn-primary-action" onClick={openFull}>Open full investigation <Icon name="arrow" size={16} /></button>
+                  <DeleteReportButton emailId={selectedId} onDeleted={afterDelete} />
+                </div>
               </div>
               <div className="stage-grid">{stages.map((st, i) => <StageCard key={st.key} stage={st} index={i} />)}</div>
             </>

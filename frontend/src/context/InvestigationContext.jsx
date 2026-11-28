@@ -392,6 +392,17 @@ export function InvestigationProvider({ children }) {
   const requestReanalysis = useCallback((file) => { if (file) setRerunRequest({ file, at: Date.now() }); }, []);
   const consumeRerunRequest = useCallback(() => setRerunRequest(null), []);
 
+  /** Forget a deleted report here too: the session list, and the open report if it is that one. */
+  const removeInvestigation = (id) => {
+    sourceFiles.current.delete(id);
+    setHistory((prev) => {
+      const updated = prev.filter((item) => item.id !== id);
+      saveHistory(STORAGE_KEY, updated);
+      return updated;
+    });
+    if (data?.email_id === id) resetInvestigation();
+  };
+
   const clearHistory = () => {
     sessionStorage.removeItem(STORAGE_KEY);
     setHistory([]);
@@ -419,6 +430,7 @@ export function InvestigationProvider({ children }) {
         loadFromHistory,
         resetInvestigation,
         clearHistory,
+        removeInvestigation,
         setData,
         setStatus,
         setError,

@@ -1,3 +1,4 @@
+import { flagText } from '../../utils/flagText';
 import React from 'react';
 
 export function HeaderAnalysis({ headers = {} }) {
@@ -131,7 +132,7 @@ export function HeaderAnalysis({ headers = {} }) {
           <ul className="red-flags-list">
             {red_flags.map((flag, idx) => (
               <li key={idx} className="red-flag-item">
-                {flag}
+                {flagText(flag)}
               </li>
             ))}
           </ul>

@@ -19,7 +19,7 @@ export default function TrustControls({ data, onDeleted }) {
       const a = document.createElement('a'); a.href = url; a.download = 'etap-share-pack.json'; a.click(); URL.revokeObjectURL(url);
       setMessage('Redacted pack exported. URLs, domains, addresses and free-form text are omitted.');
     })}>Export redacted share pack</button>
-    <button onClick={() => run(async () => { if (!window.confirm('Delete this stored investigation and its search data?')) return; await apiClient.delete(`/investigations/${encodeURIComponent(data.email_id)}`); sessionStorage.removeItem('E-TAP_investigations_history_v1'); onDeleted(); })}>Delete investigation</button>
+    <button onClick={() => run(async () => { if (!window.confirm('Delete this stored investigation and its search data?')) return; await apiClient.delete(`/investigations/${encodeURIComponent(data.email_id)}`); onDeleted(); })}>Delete investigation</button>
     <p role="status">{message}</p>
   </section>;
 }

@@ -5,6 +5,7 @@ import re
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 import cloudinary_store
+from correlation.common_providers import is_common_provider
 from db.connection import get_db
 from db.repository import get_analysis, update_analysis_fields
 
@@ -240,7 +241,7 @@ def review(email_id: str, payload: Review):
 def related(email_id: str):
     doc = owned(email_id)
     tokens = set(re.findall(r'\w+', (doc.get('subject') or '').lower()))
-    own_iocs = {v for values in (doc.get('ioc_analysis') or {}).values() if isinstance(values,list) for v in values if isinstance(v,str)}
+    own_iocs = {v for v in _indicators(doc) if not is_common_provider(v)}
     matches = []
     candidates = list(get_db()['analyzed_emails'].find({}).sort('analyzed_at',-1).limit(200))
     for other in candidates:
@@ -248,7 +249,7 @@ def related(email_id: str):
             continue
         theirs = set(re.findall(r'\w+', (other.get('subject') or '').lower()))
         score = len(tokens & theirs) / max(1,len(tokens | theirs))
-        their_iocs = {v for values in (other.get('ioc_analysis') or {}).values() if isinstance(values,list) for v in values if isinstance(v,str)}
+        their_iocs = {v for v in _indicators(other) if not is_common_provider(v)}
         if (score >= .8 and len(tokens) >= 3) or own_iocs & their_iocs:
             matches.append({'email_id':str(other['_id']), 'campaign_id':other.get('campaign_id'), 'subject_similarity':round(score,3), 'basis':'inferred subject similarity or observed indicator overlap', 'differences': {'subject_changed':doc.get('subject') != other.get('subject'), 'sender_changed':doc.get('from_email') != other.get('from_email'), 'indicators_only_here':sorted(own_iocs-their_iocs), 'indicators_only_there':sorted(their_iocs-own_iocs)}, 'seen':other.get('analyzed_at')})
     dates = [m['seen'] for m in matches if m['seen']] + ([doc['analyzed_at']] if doc.get('analyzed_at') else [])

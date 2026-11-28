@@ -40,6 +40,20 @@ COMMONLY_IMPERSONATED_DOMAINS = [
 ]
 
 
+# Other domains these companies really send or serve from. Their names resemble the
+# brand, so without this list they would be reported as imitations.
+OFFICIAL_BRAND_DOMAINS = frozenset({
+    "facebookmail.com", "amazonses.com", "amazonaws.com", "googlemail.com",
+    "paypalobjects.com", "microsoftonline.com", "office365.com",
+})
+
+
+def is_official_brand_domain(domain: str) -> bool:
+    """True for a listed official domain or a host under it."""
+    parts = (domain or "").lower().strip(".").split(".")
+    return any(".".join(parts[i:]) in OFFICIAL_BRAND_DOMAINS for i in range(len(parts) - 1))
+
+
 def get_brand_root(domain: str) -> str:
     """
     Strip the TLD/subdomain noise to get the 'core' brand name for

@@ -56,7 +56,7 @@ function Detail({ id, icon, title, count, children }) {
 }
 
 export function DashboardPage({ navigate }) {
-  const { getSourceFile, requestReanalysis } = useInvestigation();
+  const { getSourceFile, requestReanalysis, removeInvestigation } = useInvestigation();
   const { data, setData, persistInvestigation, activeFile } = useInvestigation();
   const [active, setActive] = useState('sec-summary');
 
@@ -130,6 +130,7 @@ export function DashboardPage({ navigate }) {
       </nav>
 
       <VerdictHero data={data} onJump={jump} canReanalyze={Boolean(getSourceFile(data.email_id))}
+        onDelete={(id) => { removeInvestigation(id); navigate('history'); }}
         onReanalyze={() => { const file = getSourceFile(data.email_id); if (file) { requestReanalysis(file); navigate('upload'); } }} />
       <RiskBreakdown data={data} />
       <Remediation data={data} />
@@ -207,7 +208,7 @@ export function DashboardPage({ navigate }) {
       <section id="sec-tools" className="report-section">
         <div className="report-section-head"><h2>Analyst tools</h2><p>Review status, case notes, sharing and retention, for security teams.</p></div>
         <Detail id="det-review" icon="check" title="Review, case & feedback"><ResponseWorkflow emailId={data.email_id} band={data.verdict_band} baseline={data.baseline_context} /></Detail>
-        <Detail id="det-retention" icon="lock" title="Sharing, retention & deletion"><TrustControls data={data} onDeleted={() => window.location.reload()} /></Detail>
+        <Detail id="det-retention" icon="lock" title="Sharing, retention & deletion"><TrustControls data={data} onDeleted={() => { removeInvestigation(data.email_id); navigate('history'); }} /></Detail>
       </section>
     </div>
   );

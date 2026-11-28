@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Icon from '../common/Icon';
 import ExportButton from './ExportButton';
+import DeleteReportButton from './DeleteReportButton';
 import { keyStats, riskCategories, riskTags, verdictOf } from '../../utils/reportSummary';
 
 const BAND_TEXT = {
@@ -25,7 +26,7 @@ function ScoreRing({ score, band }) {
   );
 }
 
-export default function VerdictHero({ data, onJump, onReanalyze, canReanalyze }) {
+export default function VerdictHero({ data, onJump, onReanalyze, canReanalyze, onDelete }) {
   const v = verdictOf(data);
   const tags = riskTags(data);
   const s = keyStats(data);
@@ -74,6 +75,7 @@ export default function VerdictHero({ data, onJump, onReanalyze, canReanalyze })
             title={canReanalyze ? 'Run this same email through the whole analysis again' : 'The original file is only kept for emails analysed since this page was opened. Upload it again to re-analyze.'}>
             <Icon name="history" size={15} /> Re-analyze this email
           </button>
+          {onDelete && <DeleteReportButton emailId={data.email_id} onDeleted={onDelete} className="delete-report-wide" />}
         </div>
       </div>
       {trusted && trusted.status !== 'not_trusted' && (

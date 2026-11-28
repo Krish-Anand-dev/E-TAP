@@ -17,8 +17,8 @@ export function HistoricalCorrelationCard({
   const campaignId = stats.assigned_campaign_id || correlation.campaign_id || 'campaign_001';
   const executiveSummary = stats.executive_summary || (
     isNewCategory
-      ? `New Threat Cluster Identified. Zero prior occurrences of these indicators found in the database. A new category has been initialized (${campaignId}).`
-      : `Recurring adversary activity detected. Infrastructure matches prior incidents in category ${campaignId}.`
+      ? `Nothing in this email was found in earlier ones. It starts a new group (${campaignId}).`
+      : `Some of this email's indicators appeared in earlier ones (group ${campaignId}).`
   );
 
   const metrics = stats.metrics_summary || {
@@ -130,7 +130,7 @@ export function HistoricalCorrelationCard({
               marginBottom: '4px',
             }}
           >
-            {isNewCategory ? 'NEW THREAT CLUSTER CLASSIFICATION' : 'RECURRING INFRASTRUCTURE INTELLIGENCE'}
+            {isNewCategory ? 'NOT SEEN BEFORE' : 'SEEN IN EARLIER EMAILS'}
           </div>
           <div
             style={{
@@ -165,7 +165,7 @@ export function HistoricalCorrelationCard({
           <div style={{ fontSize: 'var(--fs-micro)', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
             OVERLAPPING IOCs
           </div>
-          <div style={{ fontSize: 'var(--fs-xl)', fontWeight: 700, color: '#E8EAF0', marginTop: '4px', fontFamily: 'var(--font-mono)' }}>
+          <div style={{ fontSize: 'var(--fs-xl)', fontWeight: 700, color: 'var(--text-primary)', marginTop: '4px', fontFamily: 'var(--font-mono)' }}>
             {metrics.total_overlapping_iocs}
           </div>
           <div style={{ fontSize: 'var(--fs-micro)', color: 'var(--text-secondary)', marginTop: '2px' }}>
@@ -332,7 +332,7 @@ export function HistoricalCorrelationCard({
                       className="font-mono"
                       style={{
                         fontSize: 'var(--fs-xs)',
-                        color: '#E8EAF0',
+                        color: 'var(--text-primary)',
                         fontWeight: 600,
                         wordBreak: 'break-all',
                       }}
@@ -438,7 +438,7 @@ export function HistoricalCorrelationCard({
                           fontWeight: 600,
                         }}
                       >
-                        FIRST TIME SEEN (NEW)
+                        {ind.common_provider ? 'COMMON MAIL PROVIDER: NOT COMPARED' : 'FIRST TIME SEEN (NEW)'}
                       </span>
                     )}
                   </div>
