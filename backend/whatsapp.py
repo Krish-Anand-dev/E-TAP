@@ -261,7 +261,7 @@ def _safe_filename(name: Optional[str]) -> str:
 
 
 LINKED_TEXT = "Done. This WhatsApp number is now linked to your E-TAP account. Your forwarded messages will appear under My reports."
-LINK_FAILED_TEXT = "That link code did not work or has expired. Get a new one in E-TAP under Settings."
+LINK_FAILED_TEXT = "That link code did not work or has expired. Get a new one in E-TAP under Your account."
 SAVED_TEXT = "Saved to your E-TAP account. Open My reports on the website to see the full analysis."
 
 

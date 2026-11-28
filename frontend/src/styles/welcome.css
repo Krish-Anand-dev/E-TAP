@@ -60,7 +60,9 @@
 .wa-time svg { color: #1d8fd6; }
 .wa-close { position: absolute; right: 8px; top: 8px; display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 50%; background: transparent; color: #54656f; }
 .wa-close:hover { background: #0000000f; }
-#account, #whatsapp-link { scroll-margin-top: 84px; }
+.account-page { max-width: 760px; }
+.account-page .account-signin { margin-top: 16px; }
+.whatsapp-later { display: flex; align-items: center; gap: 16px; }
 
 @keyframes swell { to { transform: translateX(-50%); } }
 @keyframes bob { 50% { transform: translateY(-4px) rotate(-3deg); } }

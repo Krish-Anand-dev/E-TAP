@@ -2,13 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { InvestigationProvider, useInvestigation } from './context/InvestigationContext';
 import OverviewPage from './pages/OverviewPage';
 import SettingsPage from './pages/SettingsPage';
+import AccountPage from './pages/AccountPage';
 import Header from './components/common/Header';
 import UploadPage from './pages/UploadPage';
 import DashboardPage from './pages/DashboardPage';
 import HistoryPage from './pages/HistoryPage';
 import SocChatDrawer from './components/chat/SocChatDrawer';
 import WelcomePage from './pages/WelcomePage';
-import { scrollWhenReady, shouldShowWelcome } from './utils/welcome';
+import { shouldShowWelcome } from './utils/welcome';
 import { fetchInvestigation } from './api/analyze';
 
 function AppContent() {
@@ -19,7 +20,7 @@ function AppContent() {
   const [welcome, setWelcome] = useState(() => shouldShowWelcome(window.location.search));
   const enter = (target) => {
     setWelcome(false);
-    if (target === 'whatsapp') { setCurrentView('settings'); scrollWhenReady('whatsapp-link'); } else setCurrentView('overview');
+    setCurrentView(target === 'whatsapp' ? 'account' : 'overview');
   };
 
   // Scroll to the top whenever the user switches page.
@@ -66,6 +67,7 @@ function AppContent() {
         {currentView === 'dashboard' && <DashboardPage navigate={setCurrentView} />}
         {currentView === 'history' && <HistoryPage onOpenReport={() => setCurrentView('dashboard')} navigate={setCurrentView} />}
         {currentView === 'settings' && <SettingsPage />}
+        {currentView === 'account' && <AccountPage />}
       </div>
       <SocChatDrawer />
     </div>

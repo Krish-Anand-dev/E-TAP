@@ -3,7 +3,7 @@ import Icon from './Icon';
 import WhatsAppLogo from './WhatsAppLogo';
 import { getWhatsAppLink } from '../../api/whatsappLink';
 import { loginEmail } from '../../api/session';
-import { dismissWhatsAppNotice, scrollWhenReady, shouldShowWhatsAppNotice } from '../../utils/welcome';
+import { dismissWhatsAppNotice, shouldShowWhatsAppNotice } from '../../utils/welcome';
 
 /**
  * On the dashboard, drawn like a WhatsApp message: offer to link WhatsApp. Shown to
@@ -35,7 +35,7 @@ export default function WhatsAppNotice({ navigate }) {
 
   if (!show) return null;
   // Linking belongs to an account, so a visitor is taken to sign-in first.
-  const connect = () => { navigate('settings'); scrollWhenReady(email ? 'whatsapp-link' : 'account'); };
+  const connect = () => navigate('account');
   const close = () => { dismissWhatsAppNotice(email); setShow(false); };
 
   return (

@@ -20,10 +20,3 @@ export function shouldShowWhatsAppNotice({ email, link, storage = browserStorage
   return email ? link?.linked === false : true;
 }
 export const dismissWhatsAppNotice = (email, storage = browserStorage()) => write(storage, dismissKey(email));
-
-/** Scroll to a section that may appear a moment after its page does. */
-export function scrollWhenReady(id, tries = 40) {
-  const target = globalThis.document?.getElementById(id);
-  if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  else if (tries > 0) setTimeout(() => scrollWhenReady(id, tries - 1), 100);
-}

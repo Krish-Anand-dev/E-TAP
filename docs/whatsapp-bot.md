@@ -22,7 +22,7 @@ While the configured Meta account is restricted, the bot can work one way: it re
 forward and runs the full analysis, and you read the result on the website. Error 131031 means
 "Business Account locked"; it does not establish that business verification is the cause.
 
-1. On the website sign in (Settings > Your account), then open Settings > WhatsApp and press
+1. On the website open **Sign in** in the sidebar, sign in, and on the same page press
    **Link my WhatsApp**. It shows a one-time code like `ETAP-123456` (valid 15 minutes).
 2. From the phone you want to link, send exactly that code to the bot's WhatsApp number.
 3. Back on the site press **Check now**. From then on, anything that number forwards (text, links,
@@ -78,7 +78,7 @@ Menu names change now and then, so follow the idea if a label differs slightly.
    | `META_APP_SECRET` | the App secret from step 3 |
    | `META_VERIFY_TOKEN` | any secret string you make up, e.g. a long random phrase |
    | `PUBLIC_FRONTEND_URL` | `https://e-tap-azure.vercel.app` (used in report links) |
-   | `WHATSAPP_BOT_NUMBER` | the bot's sending number, as shown to users in Settings |
+   | `WHATSAPP_BOT_NUMBER` | the bot's sending number, as shown to users on the account page |
    | `WHATSAPP_REPLIES` | `1` to enable replies, or `0` for receive-only mode |
 
 5. Back in the dashboard open **WhatsApp > Configuration**. Under **Webhook**, click **Edit** and enter:

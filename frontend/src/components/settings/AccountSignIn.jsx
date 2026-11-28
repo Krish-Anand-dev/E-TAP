@@ -51,7 +51,7 @@ export default function AccountSignIn() {
     <section id="account" className="v2-card account-signin">
       <div className="v2-card-head">
         <div>
-          <h3>Your account</h3>
+          <h3>Email sign-in</h3>
           <p>Optional. Sign in with a code sent to your email to keep a list of the reports you create. Analysing emails never needs it.</p>
         </div>
       </div>

@@ -2,8 +2,6 @@ import React, { useEffect, useState } from 'react';
 import apiClient from '../api/client';
 import Icon from '../components/common/Icon';
 import SandboxPairing from '../components/settings/SandboxPairing';
-import AccountSignIn from '../components/settings/AccountSignIn';
-import WhatsAppLink from '../components/settings/WhatsAppLink';
 import { animationSpeedLocked, getAnimationSpeed, setAnimationSpeed } from '../utils/animationSpeed';
 
 const DOMAIN_RE = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
@@ -102,8 +100,6 @@ export default function SettingsPage() {
           <p className="trust-result warn"><Icon name="alert" size={16} />If any check fails, nothing is lowered and the report warns of a possible impersonation.</p>
         </section>
       </div>
-      <AccountSignIn />
-      <WhatsAppLink />
       <AnimationSetting />
       <SandboxPairing />
     </div>
