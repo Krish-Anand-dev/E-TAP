@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SCENE_SECONDS, sceneAt } from '../src/utils/phishingScene.js';
-import { dismissWhatsAppNotice, markWelcomeSeen, shouldShowWelcome, shouldShowWhatsAppNotice } from '../src/utils/welcome.js';
+import { dismissWhatsAppNotice, shouldShowWelcome, shouldShowWhatsAppNotice } from '../src/utils/welcome.js';
 
 const memory = () => {
   const data = new Map();
@@ -34,13 +34,10 @@ test('cards only ever rise, and are all up before the boat has gone', () => {
   assert.deepEqual(sceneAt(4).cards.map((c) => c.lift), [1, 1]);
 });
 
-test('the welcome page is for a first visit only', () => {
-  const storage = memory();
-  assert.equal(shouldShowWelcome({ storage }), true);
-  assert.equal(shouldShowWelcome({ storage, signedIn: true }), false);
-  assert.equal(shouldShowWelcome({ storage, search: '?dossier=abc' }), false);
-  markWelcomeSeen(storage);
-  assert.equal(shouldShowWelcome({ storage }), false);
+test('the welcome page shows on every visit, except a direct link to a report', () => {
+  assert.equal(shouldShowWelcome(), true);
+  assert.equal(shouldShowWelcome(''), true);
+  assert.equal(shouldShowWelcome('?dossier=abc'), false);
 });
 
 test('the WhatsApp notice shows only to a signed-in account without a number, until closed', () => {
@@ -55,7 +52,6 @@ test('the WhatsApp notice shows only to a signed-in account without a number, un
 });
 
 test('blocked browser storage never throws', () => {
-  assert.equal(shouldShowWelcome({ storage: blocked }), true);
-  assert.doesNotThrow(() => markWelcomeSeen(blocked));
+  assert.equal(shouldShowWhatsAppNotice({ email: 'a@b.test', link: { linked: false }, storage: blocked }), true);
   assert.doesNotThrow(() => dismissWhatsAppNotice('a@b.test', blocked));
 });

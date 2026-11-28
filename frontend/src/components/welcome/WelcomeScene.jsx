@@ -3,8 +3,6 @@ import { SCENE_SECONDS, sceneAt } from '../../utils/phishingScene';
 
 const SINK = 150; // how far under its place a card starts, in pixels
 
-const reducedMotion = () => Boolean(globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
-
 function Boat() {
   return (
     <svg viewBox="0 0 200 150" aria-hidden="true">
@@ -36,18 +34,18 @@ function Waves({ className, fill }) {
 
 /**
  * The welcome page's sea: headline in the sky, and a boat that fishes the `cards` out
- * of the water. Reduced motion, a click on the scenery or the Tab key shows the end at once.
+ * of the water. It plays on every visit, also when the computer asks for reduced motion
+ * (the owner's choice); a click on the scenery or the Tab key shows the end at once.
  * `footer` (the skip button) is usable from the first moment.
  */
 export default function WelcomeScene({ headline, cards, footer }) {
-  const [playing, setPlaying] = useState(() => !reducedMotion());
+  const [playing, setPlaying] = useState(true);
   const scene = useRef(null);
   const boat = useRef(null);
   const slots = useRef([]);
   const lines = useRef([]);
   const flag = useRef(null);
   const finish = useCallback(() => setPlaying(false), []);
-  // Asked for by hand, so it plays even when the computer prefers reduced motion.
   const replay = (event) => { event.stopPropagation(); setPlaying(true); };
 
   useLayoutEffect(() => {
@@ -132,7 +130,7 @@ export default function WelcomeScene({ headline, cards, footer }) {
         </div>
         <div className="welcome-footer">
           {footer}
-          {!playing && <button type="button" className="welcome-replay" onClick={replay}>Play the animation</button>}
+          {!playing && <button type="button" className="welcome-replay" onClick={replay}>Play it again</button>}
         </div>
       </div>
       <svg className="fishing-lines" aria-hidden="true">

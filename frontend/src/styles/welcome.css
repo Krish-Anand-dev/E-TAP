@@ -36,6 +36,7 @@
 .welcome-tip svg { flex-shrink: 0; margin-top: 3px; }
 .welcome-card-action { margin-top: auto; padding-top: 18px; display: flex; flex-direction: column; gap: 10px; }
 .welcome-card-action input { width: 100%; border: 1px solid #d4d3cb; border-radius: 10px; padding: 11px 12px; font-size: 13px; background: #fff; color: #101731; }
+.welcome-card .welcome-email { font-weight: 600; overflow-wrap: anywhere; }
 .welcome-card .welcome-later { font-size: 12px; color: #646c7c; margin-bottom: 8px; }
 .welcome-link { border: 0; background: none; color: #52596b; font-size: 12px; text-decoration: underline; }
 .welcome-footer { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 18px; }
@@ -89,6 +90,11 @@
   .welcome-card-action { padding-top: 10px; gap: 8px; }
   .welcome-card .welcome-later { margin-bottom: 0; }
 }
+/* The scene keeps moving when reduced motion is on; workspace.css stops all other animation. */
 @media (prefers-reduced-motion: reduce) {
-  .wave, .cloud, .far-boat { animation: none; }
+  .welcome .wave-front { animation-duration: 9s !important; }
+  .welcome .wave-back { animation-duration: 14s !important; }
+  .welcome .cloud-a { animation-duration: 38s !important; }
+  .welcome .cloud-b { animation-duration: 52s !important; }
+  .welcome .far-boat { animation-duration: 3.4s !important; }
 }

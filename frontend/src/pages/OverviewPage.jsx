@@ -70,7 +70,6 @@ export default function OverviewPage({ navigate }) {
       <WhatsAppNotice navigate={navigate} />
       <section className="v2-hero">
         <div>
-          <div className="eyebrow">E-TAP / EMAIL THREAT ANALYSIS</div>
           <h1>Clarity in every investigation<span>.</span></h1>
           <p>Upload a suspicious email and see in under a minute whether it is safe, why, and what to do next.</p>
         </div>

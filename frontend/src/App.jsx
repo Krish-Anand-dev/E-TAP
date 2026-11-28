@@ -8,8 +8,7 @@ import DashboardPage from './pages/DashboardPage';
 import HistoryPage from './pages/HistoryPage';
 import SocChatDrawer from './components/chat/SocChatDrawer';
 import WelcomePage from './pages/WelcomePage';
-import { loginEmail } from './api/session';
-import { markWelcomeSeen, shouldShowWelcome } from './utils/welcome';
+import { scrollWhenReady, shouldShowWelcome } from './utils/welcome';
 import { fetchInvestigation } from './api/analyze';
 
 function AppContent() {
@@ -17,8 +16,11 @@ function AppContent() {
   const [currentView, setCurrentView] = useState('overview');
   const deepLinkHandled = useRef(false);
   // Decided once, before the deep link below removes ?dossier from the address.
-  const [welcome, setWelcome] = useState(() => shouldShowWelcome({ search: window.location.search, signedIn: Boolean(loginEmail()) }));
-  const enter = () => { markWelcomeSeen(); setWelcome(false); setCurrentView('overview'); };
+  const [welcome, setWelcome] = useState(() => shouldShowWelcome(window.location.search));
+  const enter = (target) => {
+    setWelcome(false);
+    if (target === 'whatsapp') { setCurrentView('settings'); scrollWhenReady('whatsapp-link'); } else setCurrentView('overview');
+  };
 
   // Scroll to the top whenever the user switches page.
   useEffect(() => { window.scrollTo({ top: 0 }); }, [currentView]);

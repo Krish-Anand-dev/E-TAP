@@ -1,5 +1,4 @@
-/** Who sees the welcome page and the WhatsApp notice. Browser storage may be blocked; nothing here throws. */
-const SEEN_KEY = 'etap.welcomeSeen';
+/** When to show the welcome page and the WhatsApp notice. Browser storage may be blocked; nothing here throws. */
 const dismissKey = (email) => `etap.whatsappNotice.dismissed:${email}`;
 
 const read = (storage, key) => {
@@ -12,12 +11,8 @@ const browserStorage = () => {
   try { return globalThis.localStorage; } catch { return null; }
 };
 
-/** First visit only: never for a signed-in person or a direct link to a report. */
-export function shouldShowWelcome({ search = '', signedIn = false, storage = browserStorage() }) {
-  if (signedIn || new URLSearchParams(search).has('dossier')) return false;
-  return read(storage, SEEN_KEY) !== '1';
-}
-export const markWelcomeSeen = (storage = browserStorage()) => write(storage, SEEN_KEY);
+/** On every visit; a direct link to a report goes straight to the report. */
+export const shouldShowWelcome = (search = '') => !new URLSearchParams(search).has('dossier');
 
 /** Only for someone signed in whose account has no WhatsApp number, until they close it. */
 export function shouldShowWhatsAppNotice({ email, link, storage = browserStorage() }) {

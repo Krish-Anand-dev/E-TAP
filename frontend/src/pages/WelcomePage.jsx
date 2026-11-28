@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import Icon from '../components/common/Icon';
 import WelcomeScene from '../components/welcome/WelcomeScene';
 import { loginAvailable, requestLoginCode, verifyLoginCode } from '../api/auth';
+import { loginEmail } from '../api/session';
+import { getWhatsAppLink } from '../api/whatsappLink';
 
 // The one place on this page to sign in: an emailed code, no password.
 function SignInCard({ onSignedIn }) {
@@ -55,20 +57,58 @@ function SignInCard({ onSignedIn }) {
   );
 }
 
-// Information only: linking happens after sign-in, so there is no second sign-in button here.
-function WhatsAppCard() {
+// In place of the sign-in form for someone who is signed in already.
+function SignedInCard({ email }) {
+  return (
+    <section className="welcome-card" aria-label="Signed in">
+      <span className="welcome-card-icon"><Icon name="user" size={22} /></span>
+      <h2>You are signed in</h2>
+      <p className="welcome-email">{email}</p>
+      <p className="welcome-tip"><Icon name="alert" size={14} />Your reports are kept together under My reports.</p>
+      <p className="welcome-card-action welcome-later">Nothing else to do here</p>
+    </section>
+  );
+}
+
+// Signed out: information only, so there is no second sign-in button. Signed in: connect from here.
+function WhatsAppCard({ signedIn, onConnect }) {
+  const [linked, setLinked] = useState(null); // null: not known (yet)
+
+  useEffect(() => {
+    if (!signedIn) return undefined;
+    let active = true;
+    getWhatsAppLink()
+      .then((link) => { if (active) setLinked(link.linked); })
+      .catch(() => { /* unknown: still offer the settings section */ });
+    return () => { active = false; };
+  }, [signedIn]);
+
   return (
     <section className="welcome-card" aria-label="Connect WhatsApp">
       <span className="welcome-card-icon"><Icon name="message" size={22} /></span>
       <h2>Connect WhatsApp</h2>
       <p>Forward a suspicious message and read its report on this site.</p>
       <p className="welcome-tip"><Icon name="alert" size={14} />Approved test numbers only for now. No replies in the chat yet.</p>
-      <p className="welcome-card-action welcome-later">Available once you sign in</p>
+      {!signedIn && <p className="welcome-card-action welcome-later">Available once you sign in</p>}
+      {signedIn && linked === true && <p className="welcome-card-action welcome-later">Your number is connected</p>}
+      {signedIn && linked !== true && (
+        <div className="welcome-card-action">
+          <button type="button" className="btn-primary-action" onClick={onConnect}>Connect WhatsApp</button>
+        </div>
+      )}
     </section>
   );
 }
 
 export default function WelcomePage({ onDone }) {
+  const [email, setEmail] = useState(loginEmail());
+
+  useEffect(() => {
+    const sync = () => setEmail(loginEmail());
+    window.addEventListener('etap-login-change', sync);
+    return () => window.removeEventListener('etap-login-change', sync);
+  }, []);
+
   return (
     <WelcomeScene
       headline={(
@@ -82,8 +122,15 @@ export default function WelcomePage({ onDone }) {
           </ul>
         </>
       )}
-      cards={[<SignInCard key="signin" onSignedIn={onDone} />, <WhatsAppCard key="whatsapp" />]}
-      footer={<button type="button" className="welcome-skip" onClick={onDone}>Continue without signing in <Icon name="arrow" size={16} /></button>}
+      cards={[
+        email ? <SignedInCard key="signin" email={email} /> : <SignInCard key="signin" onSignedIn={() => onDone()} />,
+        <WhatsAppCard key="whatsapp" signedIn={Boolean(email)} onConnect={() => onDone('whatsapp')} />,
+      ]}
+      footer={(
+        <button type="button" className="welcome-skip" onClick={() => onDone()}>
+          {email ? 'Open the dashboard' : 'Continue without signing in'} <Icon name="arrow" size={16} />
+        </button>
+      )}
     />
   );
 }
