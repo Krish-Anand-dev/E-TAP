@@ -3,6 +3,15 @@ export const ACTIVE_SANDBOX_STATUSES = new Set([
 ]);
 export const TERMINAL_SANDBOX_STATUSES = new Set(['done', 'partial', 'error']);
 
+// What a report says about the sandbox when no attachment was ever sent to one.
+const NOT_SENT_STATUSES = new Set(['not_requested', 'not_applicable', 'unavailable']);
+
+/** True when this report came from a deeper analysis, so re-analyzing it should be one too. */
+export function wasDeepRun(report) {
+  const status = report?.sandbox?.status;
+  return Boolean(status) && !NOT_SENT_STATUSES.has(status);
+}
+
 /** Modes that actually open attachments (agent: the user's paired sandbox). */
 export const SANDBOX_RUN_MODES = new Set(['agent', 'virtualbox', 'replay']);
 

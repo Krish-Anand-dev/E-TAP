@@ -23,7 +23,7 @@ import { fetchInvestigation } from '../api/analyze';
 import { getGeoMapData } from '../utils/geo.js';
 import { keyStats, hasSandbox } from '../utils/reportSummary';
 import SandboxRunning from '../components/report/SandboxRunning';
-import { ACTIVE_SANDBOX_STATUSES, TERMINAL_SANDBOX_STATUSES,mergeSandboxReport, sandboxSummary, sandboxOutcome, sandboxPlace, needsSandboxRefresh } from '../utils/sandbox';
+import { ACTIVE_SANDBOX_STATUSES, TERMINAL_SANDBOX_STATUSES,mergeSandboxReport, sandboxSummary, sandboxOutcome, sandboxPlace, needsSandboxRefresh, wasDeepRun } from '../utils/sandbox';
 
 const SECTIONS = [
   ['sec-summary', 'Summary'],
@@ -131,7 +131,7 @@ export function DashboardPage({ navigate }) {
 
       <VerdictHero data={data} onJump={jump} canReanalyze={Boolean(getSourceFile(data.email_id))}
         onDelete={(id) => { removeInvestigation(id); navigate('history'); }}
-        onReanalyze={() => { const file = getSourceFile(data.email_id); if (file) { requestReanalysis(file); navigate('upload'); } }} />
+        onReanalyze={() => { const file = getSourceFile(data.email_id); if (file) { requestReanalysis(file, { deep: wasDeepRun(data) }); navigate('upload'); } }} />
       <RiskBreakdown data={data} />
       <Remediation data={data} />
       <ShareCard data={data} />

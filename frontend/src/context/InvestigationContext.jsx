@@ -393,7 +393,7 @@ export function InvestigationProvider({ children }) {
 
   const getSourceFile = useCallback((emailId) => (emailId ? sourceFiles.current.get(emailId) || null : null), []);
   /** Ask the Analyze page to run this file again (it shows the live timeline). */
-  const requestReanalysis = useCallback((file) => { if (file) setRerunRequest({ file, at: Date.now() }); }, []);
+  const requestReanalysis = useCallback((file, { deep = false } = {}) => { if (file) setRerunRequest({ file, deep, at: Date.now() }); }, []);
   const consumeRerunRequest = useCallback(() => setRerunRequest(null), []);
 
   /** Forget a deleted report here too: the session list, and the open report if it is that one. */

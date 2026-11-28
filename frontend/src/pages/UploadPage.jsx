@@ -298,9 +298,9 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
   // Clicking Analyze on a deeper run first asks the server, right now, whether the sandbox
   // is usable and whether this email has anything it can open, and says so before any
   // analysis starts. Standard analysis never waits on any of this.
-  const analyze = async (file) => {
+  const analyze = async (file, wantDeep = deep) => {
     setPreflight(null);
-    if (!deep) { run(file, false); return; }
+    if (!wantDeep) { run(file, false); return; }
     setChecking(true);
     let fresh;
     try { fresh = await getSandboxPairing(); } catch { fresh = { available: false, unreachable: true }; }
@@ -326,7 +326,7 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
         : 'This email has no attachments, so the sandbox has nothing to open.');
     }
     if (issues.length) { setPreflight({ blocking: false, issues, needsAgent }); return; }
-    run(file, true);
+    run(file, true, true); // just confirmed paired; the state above has not re-rendered yet
   };
 
   // Forget the old pairing so a new agent (or a re-installed one) can be paired with a fresh code.
@@ -336,8 +336,8 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
     try { setSandboxState(await getSandboxPairing()); } catch { setSandboxState({ available: true, paired: false, online: false }); }
   };
 
-  const run = async (file, forceDeep) => {
-    const wantsDeep = (forceDeep ?? deep) && Boolean(sandboxState?.paired);
+  const run = async (file, forceDeep, paired = sandboxState?.paired) => {
+    const wantsDeep = (forceDeep ?? deep) && Boolean(paired);
     setPreflight(null);
     setRunFinished(false);
     setDeepRun(wantsDeep);
@@ -346,13 +346,15 @@ export function UploadPage({ onOpenReport, onOpenSettings }) {
     if (report) setRunFinished(true);
   };
 
-  // Re-analyze requested from a report: run the same file here so the timeline shows.
+  // Re-analyze requested from a report: run the same file here so the timeline shows,
+  // as deep as it was run before. A deeper one checks the sandbox first, like the button.
   useEffect(() => {
     if (!rerunRequest || isBusy) return;
-    const { file } = rerunRequest;
+    const { file, deep: again } = rerunRequest;
     consumeRerunRequest();
     setSelectedFile(file);
-    run(file);
+    setDeep(again);
+    analyze(file, again);
   }, [rerunRequest]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleDrag = (e) => {
